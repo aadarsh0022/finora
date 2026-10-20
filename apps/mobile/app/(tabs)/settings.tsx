@@ -57,6 +57,11 @@ export default function Settings() {
         onPress={() => router.push('/categories')}
       />
       <AppButton
+        title="Budgets, goals and recurring items"
+        variant="secondary"
+        onPress={() => router.push('/planning')}
+      />
+      <AppButton
         title="Password and security"
         variant="secondary"
         onPress={() => router.push('/security')}
