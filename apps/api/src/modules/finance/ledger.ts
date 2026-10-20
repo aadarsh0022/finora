@@ -111,6 +111,15 @@ export async function updateTransaction(
     const previous = transactionSchema.parse(found);
     requireVersion(previous.version, input.version);
     await validateReferences(db, session, context, input, previous);
+    const occurrence = await db
+      .collection('recurring_occurrences')
+      .findOne({ userId: context.user.id, transactionId: id, status: 'POSTED' }, { session });
+    if (occurrence && input.type === 'TRANSFER')
+      throw new ApiError(
+        409,
+        'RECURRING_TRANSACTION',
+        'A confirmed recurring entry cannot become a transfer. Delete it and add a separate transfer.',
+      );
     // Build from editable fields so switching transfer/type removes obsolete references.
     const record = transactionSchema.parse({
       ...input,
@@ -127,6 +136,21 @@ export async function updateTransaction(
       { ...record, amountSort: Decimal128.fromString(record.amountMinor) },
       { session },
     );
+    if (occurrence)
+      await db.collection('recurring_occurrences').updateOne(
+        { userId: context.user.id, id: occurrence.id },
+        {
+          $set: {
+            type: record.type,
+            accountId: record.accountId,
+            categoryId: record.categoryId,
+            amountMinor: record.amountMinor,
+            updatedAt: record.updatedAt,
+          },
+          $inc: { version: 1 },
+        },
+        { session },
+      );
     return record;
   });
 }
@@ -142,6 +166,15 @@ export async function deleteTransaction(
     if (!found) throw notFound();
     requireVersion(transactionSchema.parse(found).version, version);
     await collection.deleteOne({ userId: context.user.id, id, version }, { session });
+    await db.collection('recurring_occurrences').updateOne(
+      { userId: context.user.id, transactionId: id, status: 'POSTED' },
+      {
+        $set: { status: 'PENDING', updatedAt: new Date().toISOString() },
+        $unset: { transactionId: '' },
+        $inc: { version: 1 },
+      },
+      { session },
+    );
     return { id, deleted: true };
   });
 }

@@ -136,6 +136,22 @@ export async function seedCategories(context: AuthContext, request: Request) {
   return mutate(context, request, {}, async (db, session) => {
     const collection = db.collection('categories');
     const now = new Date().toISOString();
+    const existing = await collection
+      .find({ userId: context.user.id }, { session })
+      .project({ defaultKey: 1 })
+      .limit(301)
+      .toArray();
+    const keys = new Set(existing.map((record) => record.defaultKey));
+    const missing = Object.entries(defaults).reduce(
+      (count, [type, names]) => count + names.filter((name) => !keys.has(`${type}:${name}`)).length,
+      0,
+    );
+    if (existing.length + missing > 300)
+      throw new ApiError(
+        409,
+        'RECORD_LIMIT',
+        'Default categories would exceed the 300-category limit.',
+      );
     for (const type of ['EXPENSE', 'INCOME'] as const)
       for (const name of defaults[type]) {
         const record = categorySchema.parse({
@@ -190,17 +206,20 @@ export async function updateCategory(
     if (!found) throw notFound();
     const record = categorySchema.parse(found);
     requireVersion(record.version, input.version);
-    if (
-      record.type !== input.type &&
-      (await db
-        .collection('transactions')
-        .findOne({ userId: context.user.id, categoryId: id }, { session }))
-    )
-      throw new ApiError(
-        409,
-        'CATEGORY_IN_USE',
-        'A category with history cannot change between income and expense.',
-      );
+    if (record.type !== input.type) {
+      for (const name of ['transactions', 'budgets', 'recurring_rules', 'recurring_occurrences']) {
+        if (
+          await db
+            .collection(name)
+            .findOne({ userId: context.user.id, categoryId: id }, { session })
+        )
+          throw new ApiError(
+            409,
+            'CATEGORY_IN_USE',
+            'A category with history or a financial plan cannot change between income and expense.',
+          );
+      }
+    }
     const updated = categorySchema.parse({
       ...record,
       ...input,

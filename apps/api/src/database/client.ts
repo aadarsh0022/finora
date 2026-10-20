@@ -74,6 +74,7 @@ async function ensureIndexes(db: Db) {
     'entitlements',
     'audit_events',
     'idempotency_records',
+    'import_previews',
   ];
   for (const name of ownedCollections) {
     await db.collection(name).createIndex({ userId: 1, id: 1 }, { unique: true });
@@ -93,6 +94,7 @@ async function ensureIndexes(db: Db) {
       { userId: 1, defaultKey: 1 },
       { unique: true, partialFilterExpression: { defaultKey: { $type: 'string' } } },
     );
+  await db.collection('import_previews').createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 }
 
 export async function closeDatabase() {

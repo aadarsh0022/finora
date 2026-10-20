@@ -279,12 +279,14 @@ export async function deleteAccount(context: AuthContext, password: string) {
     'transactions',
     'budgets',
     'savings_goals',
+    'savings_contributions',
     'recurring_rules',
     'recurring_occurrences',
     'preferences',
     'entitlements',
     'audit_events',
     'idempotency_records',
+    'import_previews',
   ];
   try {
     await transaction.withTransaction(async () => {

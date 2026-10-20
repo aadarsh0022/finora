@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { database } from '../../database/client';
 import type { AuthContext } from '../auth/service';
 import { ApiError } from '../../utils/http';
+import { rateLimit } from '../../security/rate-limit';
 
 export async function mutate<T>(
   context: AuthContext,
@@ -11,6 +12,7 @@ export async function mutate<T>(
   input: unknown,
   action: (db: Db, session: ClientSession) => Promise<T>,
 ): Promise<T> {
+  await rateLimit(request, 'financial-mutations', context.user.id, 120);
   const id = z.uuid().parse(request.headers.get('Idempotency-Key'));
   const fingerprint = createHash('sha256')
     .update(`${request.method}|${new URL(request.url).pathname}|${JSON.stringify(input)}`)
@@ -22,11 +24,26 @@ export async function mutate<T>(
       // Serializes financial mutations against account deletion, password revocation,
       // archived references, duplicate default seeding and conflicting writes.
       const lock = await users.updateOne(
-        { id: context.user.id, authVersion: context.user.authVersion },
+        {
+          id: context.user.id,
+          authVersion: context.user.authVersion,
+          settingsVersion: context.user.settingsVersion,
+        },
         { $inc: { financeVersion: 1 } },
         { session },
       );
-      if (!lock.matchedCount) throw new ApiError(401, 'UNAUTHORIZED', 'Please sign in again.');
+      if (!lock.matchedCount) {
+        const current = await users.findOne(
+          { id: context.user.id, authVersion: context.user.authVersion },
+          { session },
+        );
+        if (!current) throw new ApiError(401, 'UNAUTHORIZED', 'Please sign in again.');
+        throw new ApiError(
+          409,
+          'SETTINGS_CONFLICT',
+          'Your preferences changed. Refresh and retry.',
+        );
+      }
       const records = db.collection<{
         userId: string;
         id: string;

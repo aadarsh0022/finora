@@ -20,3 +20,10 @@ Never add arbitrary errors, requests, tokens or financial text to logs/crash rep
 Concurrent refresh of one token deliberately revokes that family; clients must
 serialize refresh. A lost refresh response can require sign-in. Families are capped
 at 10,000 rotations to bound replay history. No claim of regulatory certification.
+
+Financial mutation transactions now reject stale profile settings as a conflict,
+preventing a currency-change race. Category type edits check financial plan references
+as well as transactions. Default seeding obeys the same record cap as manual creation.
+Confirmed recurring transaction edits/deletion update occurrence links atomically.
+Deletion includes import previews and savings contributions. A localhost-only real HTTP
+smoke script verifies disposable records without printing secrets.

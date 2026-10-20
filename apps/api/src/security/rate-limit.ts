@@ -4,7 +4,12 @@ import { getEnv } from '../config/env';
 import { database } from '../database/client';
 import { ApiError } from '../utils/http';
 
-export async function rateLimit(request: Request, scope: string, identity?: string) {
+export async function rateLimit(
+  request: Request,
+  scope: string,
+  identity?: string,
+  maximum?: number,
+) {
   const env = getEnv();
   // Only enable TRUST_PROXY behind a proxy that replaces client-supplied forwarded headers.
   const address =
@@ -31,7 +36,7 @@ export async function rateLimit(request: Request, scope: string, identity?: stri
       { returnDocument: 'after' },
     );
   }
-  const limit = identity ? 10 : 60;
+  const limit = maximum ?? (identity ? 10 : 60);
   if (!record || record.count > limit)
     throw new ApiError(429, 'RATE_LIMITED', 'Too many attempts. Please try again in ten minutes.');
 }

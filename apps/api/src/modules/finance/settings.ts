@@ -17,15 +17,23 @@ export async function updateSettings(
     const users = db.collection('users');
     const user = userRecordSchema.parse(await users.findOne({ id: context.user.id }, { session }));
     requireVersion(user.settingsVersion, input.version);
-    if (
-      user.preferences.baseCurrency !== input.preferences.baseCurrency &&
-      (await db.collection('accounts').findOne({ userId: context.user.id }, { session }))
-    )
-      throw new ApiError(
-        409,
-        'CURRENCY_LOCKED',
-        'Base currency cannot change after you create an account.',
-      );
+    if (user.preferences.baseCurrency !== input.preferences.baseCurrency) {
+      for (const name of [
+        'accounts',
+        'transactions',
+        'budgets',
+        'savings_goals',
+        'recurring_rules',
+        'savings_contributions',
+      ]) {
+        if (await db.collection(name).findOne({ userId: context.user.id }, { session }))
+          throw new ApiError(
+            409,
+            'CURRENCY_LOCKED',
+            'Base currency cannot change once you have financial records.',
+          );
+      }
+    }
     const version = user.settingsVersion + 1;
     await users.updateOne(
       { id: user.id },
