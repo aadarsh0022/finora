@@ -1,0 +1,36 @@
+packages:
+  - apps/*
+  - packages/*
+allowBuilds:
+  argon2: true
+  esbuild: true
+  mongodb-memory-server: false
+minimumReleaseAgeExclude:
+  - '@expo/cli@58.1.13'
+  - '@expo/metro-config@58.0.15'
+  - '@expo/router-server@58.0.15'
+  - '@typescript-eslint/eslint-plugin@8.72.0'
+  - '@typescript-eslint/parser@8.72.0'
+  - '@typescript-eslint/project-service@8.72.0'
+  - '@typescript-eslint/scope-manager@8.72.0'
+  - '@typescript-eslint/tsconfig-utils@8.72.0'
+  - '@typescript-eslint/type-utils@8.72.0'
+  - '@typescript-eslint/types@8.72.0'
+  - '@typescript-eslint/typescript-estree@8.72.0'
+  - '@typescript-eslint/utils@8.72.0'
+  - '@typescript-eslint/visitor-keys@8.72.0'
+  - babel-preset-expo@58.0.18
+  - expo-asset@58.0.17
+  - expo-file-system@58.0.10
+  - expo-font@58.0.9
+  - expo-modules-cli@0.3.1
+  - expo-modules-core@58.0.23
+  - expo-modules-jsi@58.0.16
+  - expo@58.0.16
+  - typescript-eslint@8.72.0
+  - expo-router@58.0.24
+  - '@tanstack/query-core@5.104.5'
+  - '@tanstack/react-query@5.104.5'
+saveExact: true
+strictPeerDependencies: true
+nodeLinker: isolated
