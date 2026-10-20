@@ -1,15 +1,7 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
-import {
-  AppButton,
-  AppText,
-  Card,
-  Choice,
-  Feedback,
-  Loading,
-  Screen,
-} from '../../src/components/ui';
-import { accountsSchema, useMoney, useRead } from '../../src/features/finance/shared';
+import { AppButton, AppText, Card, Choice, Feedback, Loading, Screen } from '../src/components/ui';
+import { accountsSchema, useMoney, useRead } from '../src/features/finance/shared';
 
 export default function Accounts() {
   const [visibility, setVisibility] = useState('active');

@@ -50,6 +50,14 @@ export default function Home() {
     >
       {seed.isPending && <AppText tone="muted">Preparing your suggested categories…</AppText>}
       {seed.error && <Feedback error={seed.error} retry={() => seed.mutate({})} />}
+      {categories.isError && (
+        <Feedback
+          error={categories.error}
+          retry={() => {
+            void categories.refetch();
+          }}
+        />
+      )}
       {overview.isPending && <Loading />}
       {overview.isError && (
         <Feedback
@@ -83,6 +91,11 @@ export default function Home() {
             onPress={toggleBalances}
           />
           <AppButton title="Add a transaction" onPress={() => router.push('/transaction')} />
+          <AppButton
+            title="Manage accounts"
+            variant="secondary"
+            onPress={() => router.push('/accounts')}
+          />
           <Card>
             <Field
               label="Report month (YYYY-MM)"

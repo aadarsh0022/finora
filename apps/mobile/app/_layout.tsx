@@ -59,6 +59,7 @@ function Navigation() {
         <Stack.Protected guard={!!user}>
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           <Stack.Screen name="account" options={{ title: 'Account' }} />
+          <Stack.Screen name="accounts" options={{ title: 'Accounts' }} />
           <Stack.Screen
             name="transaction"
             options={{ title: 'Transaction', presentation: 'modal' }}

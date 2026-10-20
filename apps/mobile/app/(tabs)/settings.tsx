@@ -52,14 +52,24 @@ export default function Settings() {
       )}
       {settings.data && <PreferencesForm initial={settings.data} />}
       <AppButton
+        title="Manage accounts"
+        variant="secondary"
+        onPress={() => router.push('/accounts')}
+      />
+      <AppButton
         title="Manage categories"
         variant="secondary"
         onPress={() => router.push('/categories')}
       />
       <AppButton
-        title="Budgets, goals and recurring items"
+        title="Savings goals"
         variant="secondary"
-        onPress={() => router.push('/planning')}
+        onPress={() => router.push({ pathname: '/planning', params: { mode: 'goals' } })}
+      />
+      <AppButton
+        title="Recurring transactions"
+        variant="secondary"
+        onPress={() => router.push({ pathname: '/planning', params: { mode: 'recurring' } })}
       />
       <AppButton
         title="Export or import your data"

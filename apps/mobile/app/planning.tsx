@@ -1,11 +1,15 @@
 import { useState } from 'react';
+import { useLocalSearchParams } from 'expo-router';
 import { Choice, Screen } from '../src/components/ui';
 import { Budgets } from '../src/features/planning/budgets';
 import { Goals } from '../src/features/planning/goals';
 import { Recurring } from '../src/features/planning/recurring';
 
 export default function Planning() {
-  const [mode, setMode] = useState('budgets');
+  const params = useLocalSearchParams<{ mode?: string }>();
+  const [mode, setMode] = useState(
+    params.mode === 'goals' || params.mode === 'recurring' ? params.mode : 'budgets',
+  );
   const [editing, setEditing] = useState(false);
   return (
     <Screen title="Plan ahead" subtitle="Small steps toward more financial breathing room.">
