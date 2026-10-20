@@ -7,7 +7,17 @@ const config: ExpoConfig = {
   version: '0.1.0',
   orientation: 'portrait',
   userInterfaceStyle: 'automatic',
-  android: { package: 'com.aadarshchandanvandan.finora', versionCode: 1 },
+  android: {
+    package: 'com.aadarshchandanvandan.finora',
+    versionCode: 1,
+    allowBackup: false,
+    blockedPermissions: [
+      'android.permission.READ_EXTERNAL_STORAGE',
+      'android.permission.WRITE_EXTERNAL_STORAGE',
+      'android.permission.SYSTEM_ALERT_WINDOW',
+      'android.permission.VIBRATE',
+    ],
+  },
   ios: { bundleIdentifier: 'com.aadarshchandanvandan.finora' },
   plugins: [
     'expo-router',
