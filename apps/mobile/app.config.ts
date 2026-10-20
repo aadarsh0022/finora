@@ -7,10 +7,16 @@ const config: ExpoConfig = {
   version: '0.1.0',
   orientation: 'portrait',
   userInterfaceStyle: 'automatic',
+  icon: './assets/brand/icon.png',
   android: {
     package: 'com.aadarshchandanvandan.finora',
     versionCode: 1,
     allowBackup: false,
+    adaptiveIcon: {
+      foregroundImage: './assets/brand/adaptive-foreground.png',
+      monochromeImage: './assets/brand/adaptive-monochrome.png',
+      backgroundColor: '#173F32',
+    },
     blockedPermissions: [
       'android.permission.READ_EXTERNAL_STORAGE',
       'android.permission.WRITE_EXTERNAL_STORAGE',
@@ -23,9 +29,22 @@ const config: ExpoConfig = {
     'expo-router',
     'expo-secure-store',
     'expo-status-bar',
-    'expo-splash-screen',
+    [
+      'expo-splash-screen',
+      {
+        image: './assets/brand/splash-light.png',
+        imageWidth: 200,
+        resizeMode: 'contain',
+        backgroundColor: '#F7F9F8',
+        dark: { image: './assets/brand/splash-dark.png', backgroundColor: '#0E1512' },
+      },
+    ],
     'expo-font',
     'expo-sharing',
+    [
+      'expo-local-authentication',
+      { faceIDPermission: 'Use Face ID to unlock your Finora financial details.' },
+    ],
   ],
 };
 export default config;
