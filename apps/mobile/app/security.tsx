@@ -6,6 +6,7 @@ import { AppButton, AppText, Card, Feedback, Field, Screen } from '../src/compon
 import { messageSchema } from '../src/features/finance/shared';
 import { useUnsavedChanges } from '../src/hooks/finance';
 import { useApp } from '../src/providers/app-provider';
+import { AppLockSettings } from '../src/providers/app-lock-provider';
 
 export default function Security() {
   const { api, clearSession } = useApp();
@@ -53,6 +54,7 @@ export default function Security() {
   const busy = password.isPending || logoutOthers.isPending || deletion.isPending;
   return (
     <Screen title="Security" subtitle="Control access to your financial data.">
+      <AppLockSettings />
       <Card>
         <AppText accessibilityRole="header" style={{ fontFamily: 'DMSansBold', fontSize: 22 }}>
           Change password

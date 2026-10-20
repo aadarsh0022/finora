@@ -3,6 +3,7 @@ import { useFonts } from 'expo-font';
 import { DMSans_400Regular } from '@expo-google-fonts/dm-sans/400Regular';
 import { DMSans_700Bold } from '@expo-google-fonts/dm-sans/700Bold';
 import { AppProvider, useApp } from '../src/providers/app-provider';
+import { AppLockProvider } from '../src/providers/app-lock-provider';
 import { AppButton, AppText, Feedback, Loading, Screen } from '../src/components/ui';
 import { StatusBar } from 'expo-status-bar';
 import { useTheme } from '../src/theme';
@@ -76,7 +77,9 @@ function Navigation() {
 export default function Root() {
   return (
     <AppProvider>
-      <Navigation />
+      <AppLockProvider>
+        <Navigation />
+      </AppLockProvider>
     </AppProvider>
   );
 }
