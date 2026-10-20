@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="500" viewBox="0 0 1024 500">
+  <title>Finora — Your money, clearly.</title>
+  <desc>Original Finora F-and-leaf mark and geometric path lettering on a green background.</desc>
+  <defs>
+    <g id="F"><path d="M2 30V2H22M2 15H18"/></g>
+    <g id="i"><path d="M5 12V30"/><circle cx="5" cy="3" r="2.7" fill="currentColor" stroke="none"/></g>
+    <g id="n"><path d="M2 30V11M2 18C2 7 21 7 21 18V30"/></g>
+    <g id="o"><path d="M22 20C22 6 2 6 2 20C2 34 22 34 22 20Z"/></g>
+    <g id="r"><path d="M2 30V11M2 18C2 10 11 8 17 12"/></g>
+    <g id="a"><path d="M21 20C21 6 2 6 2 20C2 34 21 34 21 20ZM21 11V30"/></g>
+    <g id="Y"><path d="M1 2L11 16L21 2M11 16V30"/></g>
+    <g id="u"><path d="M2 11V23C2 34 21 34 21 23V11"/></g>
+    <g id="m"><path d="M2 30V11M2 18C2 7 15 7 15 18V30M15 18C15 7 28 7 28 18V30"/></g>
+    <g id="e"><path d="M2 20H22C22 7 2 7 2 20C2 33 16 34 21 27"/></g>
+    <g id="y"><path d="M1 11L11 30M21 11L11 30C8 38 4 39 1 37"/></g>
+    <g id="comma"><path d="M5 29L2 36"/></g>
+    <g id="c"><path d="M21 14C15 7 2 10 2 20C2 31 15 34 21 27"/></g>
+    <g id="l"><path d="M5 2V30"/></g>
+    <g id="period"><circle cx="3" cy="29" r="1.5" fill="currentColor" stroke="none"/></g>
+  </defs>
+  <rect width="1024" height="500" fill="#173F32"/>
+  <path d="M750 500C876 421 961 293 1024 132V500Z" fill="#1C4839"/>
+  <path d="M831 500C921 411 982 315 1024 222" fill="none" stroke="#265841" stroke-width="2"/>
+  <rect x="78" y="112" width="280" height="276" rx="54" fill="#204C39"/>
+  <g transform="translate(218 250) scale(.5) translate(-540 -540)">
+    <rect x="360" y="316" width="105" height="470" rx="28" fill="#F1FBF5"/>
+    <rect x="420" y="500" width="230" height="96" rx="28" fill="#F1FBF5"/>
+    <path d="M435 403C447 305 576 272 731 304C708 401 586 439 435 403Z" fill="#8DE2AF"/>
+  </g>
+  <!-- Original geometric wordmark: Finora. All lettering is paths, never system fonts. -->
+  <g transform="translate(410 151) scale(2.7)" fill="none" color="#F1FBF5" stroke="currentColor" stroke-width="4.4" stroke-linecap="round" stroke-linejoin="round">
+    <use href="#F"/>
+    <use href="#i" x="29"/>
+    <use href="#n" x="44"/>
+    <use href="#o" x="74"/>
+    <use href="#r" x="104"/>
+    <use href="#a" x="127"/>
+  </g>
+  <!-- Exact tagline: Your money, clearly. -->
+  <g transform="translate(412 270)" fill="none" color="#C2D9CC" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+    <use href="#Y"/>
+    <use href="#o" x="27"/>
+    <use href="#u" x="55"/>
+    <use href="#r" x="83"/>
+    <use href="#m" x="118"/>
+    <use href="#o" x="152"/>
+    <use href="#n" x="180"/>
+    <use href="#e" x="208"/>
+    <use href="#y" x="236"/>
+    <use href="#comma" x="262"/>
+    <use href="#c" x="285"/>
+    <use href="#l" x="313"/>
+    <use href="#e" x="326"/>
+    <use href="#a" x="354"/>
+    <use href="#r" x="382"/>
+    <use href="#l" x="405"/>
+    <use href="#y" x="418"/>
+    <use href="#period" x="446"/>
+  </g>
+</svg>

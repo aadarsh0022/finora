@@ -24,6 +24,7 @@ const assets = [
   { name: 'splash-light', size: 1024, transparent: true },
   { name: 'splash-dark', size: 1024, transparent: true },
   { name: 'store-icon', source: 'icon', size: 512, transparent: false },
+  { name: 'feature-graphic', width: 1024, height: 500, transparent: false },
 ];
 
 for (const asset of assets) {
@@ -31,7 +32,9 @@ for (const asset of assets) {
   // Keep embedded resources and executable content out before rasterization.
   if (/<image|<script|https?:\/\/(?!www\.w3\.org\/2000\/svg)/i.test(svg.toString()))
     throw new Error('Brand vectors must contain only local original geometry.');
-  let pipeline = sharp(svg).resize(asset.size, asset.size);
+  const width = asset.width ?? asset.size;
+  const height = asset.height ?? asset.size;
+  let pipeline = sharp(svg).resize(width, height);
   if (!asset.transparent) pipeline = pipeline.removeAlpha();
   const rendered = await pipeline
     .png({ compressionLevel: 9, adaptiveFiltering: false, palette: false })
@@ -42,7 +45,7 @@ for (const asset of assets) {
       throw new Error(`${asset.name}.png is stale. Regenerate the branding assets.`);
   } else await writeFile(path, rendered);
   const metadata = await sharp(rendered).metadata();
-  if (metadata.width !== asset.size || metadata.height !== asset.size || metadata.format !== 'png')
+  if (metadata.width !== width || metadata.height !== height || metadata.format !== 'png')
     throw new Error(`${asset.name}: wrong raster dimensions or format.`);
   if (metadata.hasAlpha !== asset.transparent)
     throw new Error(`${asset.name}: incorrect transparency.`);
@@ -71,6 +74,6 @@ for (const asset of assets) {
     if (!visible) throw new Error(`${asset.name}: the icon is empty.`);
   }
   process.stdout.write(
-    `${check ? 'Verified' : 'Generated'} ${asset.name}.png ${asset.size}×${asset.size}\n`,
+    `${check ? 'Verified' : 'Generated'} ${asset.name}.png ${width}×${height}\n`,
   );
 }

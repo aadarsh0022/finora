@@ -22,6 +22,10 @@ adaptive-layer pixel against the safe circle.
 - `splash-light.png` and `splash-dark.png`: transparent 1024 × 1024 marks paired with
   the app's light/dark background in the Expo SplashScreen plugin.
 - `store-icon.png`: opaque 512 × 512 rendition, available for later store materials.
+- `feature-graphic.png`: opaque 1024 × 500 Play feature graphic with the original
+  mark, custom geometric Finora wordmark, and “Your money, clearly.” tagline. The
+  lettering is original SVG paths, so rendering does not depend on installed fonts.
+  The graphic contains no screenshots, ratings, or unverified feature claims.
 
 Adaptive artwork stays inside the central 66 dp safe circle of Android's 108 dp
 layer, including antialiased edges. Launcher masks are applied by the platform.
