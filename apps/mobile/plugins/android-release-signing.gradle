@@ -1,0 +1,42 @@
+// No passwords or keys are written into the generated Android project.
+def finoraEnvironment = System.getenv()
+def finoraRelease = android.signingConfigs.maybeCreate('finoraRelease')
+def finoraStore = finoraEnvironment['FINORA_ANDROID_KEYSTORE']
+if (finoraStore) finoraRelease.storeFile = new File(finoraStore)
+finoraRelease.storePassword = finoraEnvironment['FINORA_ANDROID_STORE_PASSWORD']
+finoraRelease.keyAlias = finoraEnvironment['FINORA_ANDROID_KEY_ALIAS']
+finoraRelease.keyPassword = finoraEnvironment['FINORA_ANDROID_KEY_PASSWORD']
+android.buildTypes.release.signingConfig = finoraRelease
+android.buildTypes.release.debuggable = false
+
+def finoraGuard = tasks.register('validateFinoraReleaseInputs') {
+    doLast {
+        def fail = { throw new GradleException('Finora release inputs are missing or unsafe. Use scripts/build-android.ps1; debug signing is forbidden.') }
+        def raw = finoraEnvironment['EXPO_PUBLIC_API_URL']
+        if (!raw) fail()
+        def endpoint
+        try { endpoint = new java.net.URI(raw) } catch (Exception ignored) { fail() }
+        def host = endpoint.host?.toLowerCase()
+        if (endpoint.scheme != 'https' || !host || !host.contains('.') || endpoint.userInfo || endpoint.query || endpoint.fragment ||
+            (endpoint.path && endpoint.path != '/') || host ==~ /[0-9.]+/ || host.contains(':') ||
+            host ==~ /.*(^|\.)(localhost|local|internal|invalid|example|test)$/ || host ==~ /(^|.*\.)example\.(com|org|net)$/) fail()
+        if (!finoraRelease.storeFile?.isAbsolute() || !finoraRelease.storeFile.isFile() ||
+            !finoraRelease.keyAlias || finoraRelease.keyAlias.equalsIgnoreCase('androiddebugkey') ||
+            !finoraRelease.storePassword || finoraRelease.storePassword.length() < 12 ||
+            !finoraRelease.keyPassword || finoraRelease.keyPassword.length() < 12) fail()
+        try {
+            def store = java.security.KeyStore.getInstance(finoraRelease.storeFile, finoraRelease.storePassword.toCharArray())
+            def certificate = store.getCertificate(finoraRelease.keyAlias)
+            def key = store.getKey(finoraRelease.keyAlias, finoraRelease.keyPassword.toCharArray())
+            if (!(key instanceof java.security.PrivateKey) || !(certificate instanceof java.security.cert.X509Certificate) ||
+                certificate.subjectX500Principal.name.toLowerCase().contains('android debug') ||
+                certificate.sigAlgName.toUpperCase().contains('SHA1')) fail()
+            certificate.checkValidity()
+            if (key instanceof java.security.interfaces.RSAKey && key.modulus.bitLength() < 2048) fail()
+        } catch (Exception ignored) { fail() }
+        if (android.buildTypes.release.signingConfig != finoraRelease || android.buildTypes.release.debuggable) fail()
+    }
+}
+tasks.configureEach { task ->
+    if (task.name != 'validateFinoraReleaseInputs' && task.name.toLowerCase().contains('release')) task.dependsOn(finoraGuard)
+}
