@@ -6,7 +6,7 @@ import { getEnv } from '../config/env';
 export async function sendPasswordReset(email: string, token: string) {
   const env = getEnv();
   const link = new URL('/reset-password', env.APP_URL);
-  link.searchParams.set('token', token);
+  link.hash = `token=${token}`;
   const message = {
     to: email,
     subject: 'Reset your Finora password',

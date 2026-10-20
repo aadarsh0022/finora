@@ -163,7 +163,9 @@ describe('password recovery and account lifecycle', () => {
       text: string;
     };
     const url = message.text.match(/http:\/\/\S+/)?.[0];
-    return new URL(url!).searchParams.get('token')!;
+    const link = new URL(url!);
+    expect(link.search).toBe('');
+    return new URLSearchParams(link.hash.slice(1)).get('token')!;
   }
   it('delivers a local recovery link, stores only its hash, consumes once and invalidates sessions', async () => {
     const first = await createUser();

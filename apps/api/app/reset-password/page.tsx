@@ -18,7 +18,7 @@ export default function ResetPassword() {
     setBusy(true);
     setMessage('');
     try {
-      const token = new URLSearchParams(window.location.search).get('token');
+      const token = new URLSearchParams(window.location.hash.slice(1)).get('token');
       const response = await fetch('/api/v1/auth/reset-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
