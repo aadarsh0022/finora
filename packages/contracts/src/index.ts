@@ -4,6 +4,7 @@ import { currencySchema } from './primitives';
 export * from './finance';
 export * from './primitives';
 export * from './advanced';
+export * from './backup';
 
 export const emailSchema = z.string().trim().toLowerCase().pipe(z.email().max(254));
 export const passwordSchema = z.string().min(12, 'Use at least 12 characters').max(128);

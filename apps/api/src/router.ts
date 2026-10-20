@@ -12,6 +12,7 @@ import * as auth from './modules/auth/service';
 import { rateLimit } from './security/rate-limit';
 import { financeRoute, onboardingRoute } from './modules/finance/router';
 import { advancedRoute } from './modules/advanced/router';
+import { exportsRoute } from './modules/exports/router';
 import { ApiError, handle, readBody, success } from './utils/http';
 
 export function dispatch(request: Request) {
@@ -21,7 +22,8 @@ export function dispatch(request: Request) {
     const financial =
       (await financeRoute(request, requestId)) ??
       (await onboardingRoute(request, requestId)) ??
-      (await advancedRoute(request, requestId));
+      (await advancedRoute(request, requestId)) ??
+      (await exportsRoute(request, requestId));
     if (financial) return financial;
     const authNames = [
       'register',
