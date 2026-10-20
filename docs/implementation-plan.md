@@ -36,12 +36,24 @@ Source: the user's Finora product brief, 20 October 2026.
 
 - Workspace initially empty; no inherited AGENTS.md; GitHub CLI authenticated.
 - Node 24.21.0, npm 11.19.0, pnpm 12.4.1; Git and gh available.
-- Docker installed but engine unavailable. Android SDK/adb present; Java is 11.
-- No MongoDB/email credentials in this process. Atlas deployment, verified email
-  sender, signing credentials and real-device/store checks remain release gates.
+- Docker installed but engine unavailable. Android SDK/adb present; default Java
+  is 11, but Android Studio JDK 25 is used for the verified native build.
+- Atlas development credentials are stored only in ignored server configuration.
+  A private local upload key exists. Production hosting/email, least-privilege
+  credentials and real-device/store checks remain release gates.
 - Private GitHub repository chosen to avoid inadvertently publishing business work.
 
 ## Progress
 
 Implementation in progress. See docs/testing.md for commands actually executed and
 docs/known-limitations.md for outstanding requirements. No release readiness claimed.
+
+- Phase 0/1: workspace, actual Atlas connection and tested identity backend verified.
+- Phase 2: accounts/categories/ledger, budgets/goals/recurrence, range reports,
+  entitlement adapter and previewed merge restore implemented with MongoDB tests.
+- Phase 3/4: connected mobile auth/finance/planning/security/backup screens implemented;
+  five tabs/charts and optional biometric lock are connected. Expo compatibility,
+  Android JavaScript bundle and native component tests passed. Native QA pending.
+- Phase 5: initial native debug build, private signing workflow/guards, branding,
+  focused boundary review and release documents prepared; production configuration,
+  successful signed release/device tests and store gates remain open.

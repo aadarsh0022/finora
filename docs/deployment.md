@@ -27,8 +27,26 @@ Mobile: put public EXPO_PUBLIC_API_URL in apps/mobile/.env.local. Emulator uses
 http://10.0.2.2:3000; devices use a reachable LAN address or deployed HTTPS endpoint.
 Run pnpm dev:mobile. SDK 58 initially needs a development build while Expo Go rolls
 out. pnpm --filter @finora/mobile android generates/runs a local debug build.
-Android SDK, adb and a supported JDK are required. This machine has Java 11; native
-build verification is pending a supported JDK. Bundling alone is not native QA.
+Android SDK, adb and a supported JDK are required. The default Java is 11, but the
+installed Android Studio JBR provides Java 25. Use its JDK for SDK 58's Gradle 9.4.1
+build. Native prebuild and an initial four-ABI debug APK build passed. The first wrapper download timed out; the official
+Gradle archive was downloaded and checked against its published SHA-256 to retry.
+The existing emulator stalled during installation/boot, and another configured AVD
+has a missing system image. No native launch or real-device workflow pass is claimed.
 
-Release signing, launcher assets, AAB generation, package-name ownership and Play
-Console/closed testing remain release gates. Never commit signing credentials.
+Native commands from apps/mobile: `pnpm exec expo prebuild --platform android`,
+then from android/ run `gradlew.bat app:assembleDebug` with JAVA_HOME set to the
+supported JDK and ANDROID_HOME to the SDK path. Release AAB requires real HTTPS API
+configuration and separately managed signing; never ship the emulator HTTP URL.
+The release client rejects HTTP origins. Files are selected through Android's system
+picker; broad storage/overlay/vibration permissions are blocked. Android automatic
+application backup is disabled; private manual JSON export remains available.
+
+Adaptive/monochrome icons and light/dark splash assets are configured. Verify their
+deterministic output with `node scripts/generate-brand.mjs --check`.
+Use [the release workflow](android-build.md) to generate/validate a private upload
+key and build a signed AAB once the actual HTTPS API is deployed. A local private
+key has been generated under ignored `.local/android-signing`; back up both private
+files securely. The release guard rejects missing inputs, HTTP and debug keys.
+AAB generation, native QA, package ownership and Play Console/closed testing remain
+gates. Never commit signing credentials.

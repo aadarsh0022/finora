@@ -27,3 +27,10 @@ as well as transactions. Default seeding obeys the same record cap as manual cre
 Confirmed recurring transaction edits/deletion update occurrence links atomically.
 Deletion includes import previews and savings contributions. A localhost-only real HTTP
 smoke script verifies disposable records without printing secrets.
+
+Recovery links carry their token in a URL fragment. The web form sends it only in
+the JSON reset request, avoiding credential-bearing query strings in access logs.
+Optional local access control is documented in [app lock](app-lock.md). Review
+[open dependency findings](dependency-review.md) and [release signing](android-build.md)
+before distributing a build. Source/bundle comparison against configured secrets
+can be run with `pnpm exec tsx scripts/check-secrets.ts`.

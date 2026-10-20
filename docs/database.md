@@ -22,3 +22,9 @@ It verifies ping and indexes without printing credentials.
 Deletion removes the user and every owned collection atomically, including sessions.
 External backup retention still requires a release policy. Integration tests always
 create a randomized disposable MongoDB replica set, independent of Atlas settings.
+
+Additional indexes cover transaction date/account/category/amount, monthly budgets,
+unique recurring occurrences, savings contributions, default-category keys and
+expiring import previews. Deletion includes savings_contributions and import_previews.
+See [advanced finance](advanced-finance.md) and [backup](backup.md) for the implemented
+application modules and their explicit limits.

@@ -21,7 +21,8 @@ All responses include X-Request-Id and Cache-Control: no-store.
 
 Protected routes require `Authorization: Bearer <accessToken>`. Tokens are random
 43-character base64url strings; expiresIn is 900 seconds. Public responses omit hashes.
-Financial endpoints remain planned until explicitly documented here as implemented.
+Implemented finance routes follow below. See also [budgets/goals/recurrence](advanced-finance.md)
+and [export/import](backup.md) for the remaining implemented endpoint contracts.
 
 ## Accounts and categories (implemented)
 
@@ -71,5 +72,9 @@ Auth mutations are limited to 60 network attempts per 10-minute bucket. Registra
 login and recovery additionally allow 10 attempts per normalized email per bucket.
 429 includes Retry-After. Forwarded IPs require a trusted proxy that replaces headers.
 
-Reset emails link to the working web form at /reset-password?token=... . Local outbox
+Reset emails link to the working web form at /reset-password#token=... . The fragment
+is not sent in HTTP request URLs, so reset tokens stay out of URL access logs. Local outbox
 messages are written to ignored .local/outbox under the API process working directory.
+Additional contracts: [range reports](reporting.md) and
+[trusted entitlements](entitlements.md). `GET /api/v1/reports/summary` returns all
+report sections from one snapshot for the mobile Reports screen.
