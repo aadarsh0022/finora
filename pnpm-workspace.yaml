@@ -36,3 +36,5 @@ minimumReleaseAgeExclude:
 saveExact: true
 strictPeerDependencies: true
 nodeLinker: isolated
+overrides:
+  'xcode>uuid': 11.1.1
