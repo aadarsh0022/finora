@@ -66,6 +66,7 @@ function Navigation() {
           <Stack.Screen name="categories" options={{ title: 'Categories' }} />
           <Stack.Screen name="security" options={{ title: 'Security' }} />
           <Stack.Screen name="planning" options={{ title: 'Plan ahead' }} />
+          <Stack.Screen name="backup" options={{ title: 'Export & backup' }} />
         </Stack.Protected>
       </Stack>
     </>

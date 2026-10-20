@@ -62,6 +62,11 @@ export default function Settings() {
         onPress={() => router.push('/planning')}
       />
       <AppButton
+        title="Export or import your data"
+        variant="secondary"
+        onPress={() => router.push('/backup')}
+      />
+      <AppButton
         title="Password and security"
         variant="secondary"
         onPress={() => router.push('/security')}
