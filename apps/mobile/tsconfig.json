@@ -1,5 +1,7 @@
 {
   "extends": "../../packages/config/tsconfig.base.json",
-  "compilerOptions": { "types": ["react"] },
-  "include": ["app", "src", "tests", "app.config.ts", ".expo/types/**/*.ts", "expo-env.d.ts"]
+  "compilerOptions": {
+    "types": ["react", "jest"]
+  },
+  "include": ["app", "src", "tests", "app.config.ts"]
 }

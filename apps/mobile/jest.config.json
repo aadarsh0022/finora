@@ -1,0 +1,7 @@
+{
+  "preset": "jest-expo",
+  "testMatch": ["<rootDir>/tests/native/**/*.test.tsx"],
+  "clearMocks": true,
+  "restoreMocks": true,
+  "testTimeout": 15000
+}
