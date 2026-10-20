@@ -15,6 +15,7 @@ const config: ExpoConfig = {
     'expo-status-bar',
     'expo-splash-screen',
     'expo-font',
+    'expo-sharing',
   ],
 };
 export default config;

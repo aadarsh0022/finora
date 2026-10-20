@@ -1,5 +1,5 @@
 {
   "extends": "../../packages/config/tsconfig.base.json",
   "compilerOptions": { "types": ["react"] },
-  "include": ["app", "src", "app.config.ts", ".expo/types/**/*.ts", "expo-env.d.ts"]
+  "include": ["app", "src", "tests", "app.config.ts", ".expo/types/**/*.ts", "expo-env.d.ts"]
 }
