@@ -26,7 +26,13 @@ export function formatMoney(minor: string, currency: Currency, locale: string): 
   const absolute = amount < 0n ? -amount : amount;
   const scale = 10n ** BigInt(exponent);
   const whole = absolute / scale;
-  const fraction = (absolute % scale).toString().padStart(exponent, '0');
+  const fraction =
+    exponent === 0
+      ? ''
+      : new Intl.NumberFormat(locale, {
+          useGrouping: false,
+          minimumIntegerDigits: exponent,
+        }).format(absolute % scale);
   // Format bigint parts; never convert a large amount through Number.
   const formatter = new Intl.NumberFormat(locale, {
     style: 'currency',
@@ -35,14 +41,12 @@ export function formatMoney(minor: string, currency: Currency, locale: string): 
     maximumFractionDigits: exponent,
   });
   return formatter
-    .formatToParts(amount < 0n ? -whole : whole)
+    .formatToParts(amount < 0n ? (whole === 0n ? -0 : -whole) : whole)
     .map((part) => {
       if (part.type === 'fraction') return fraction;
-      if (part.type === 'integer' && amount < 0n && whole === 0n) return part.value;
       return part.value;
     })
-    .join('')
-    .replace(/^/, amount < 0n && whole === 0n ? '-' : '');
+    .join('');
 }
 
 export interface LedgerEntry {

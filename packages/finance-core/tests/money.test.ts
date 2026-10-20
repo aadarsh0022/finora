@@ -24,6 +24,14 @@ describe('exact money', () => {
     expect(formatMoney('900719925474099301', 'USD', 'en-US')).toBe('$9,007,199,254,740,993.01');
     expect(formatMoney('-1', 'USD', 'en-US')).toBe('-$0.01');
   });
+  it('uses locale digits and negative-zero placement for subunit amounts', () => {
+    expect(formatMoney('-1', 'KWD', 'ar-KW')).toBe(
+      new Intl.NumberFormat('ar-KW', { style: 'currency', currency: 'KWD' }).format(-0.001),
+    );
+    expect(formatMoney('1', 'KWD', 'ar-KW')).toBe(
+      new Intl.NumberFormat('ar-KW', { style: 'currency', currency: 'KWD' }).format(0.001),
+    );
+  });
 });
 
 describe('ledger invariants', () => {
