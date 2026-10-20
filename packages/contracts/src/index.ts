@@ -102,3 +102,4 @@ export type ApiResponse<T> =
       meta: { requestId: string };
     };
 export * from './reports';
+export * from './entitlements';

@@ -14,6 +14,7 @@ import { financeRoute, onboardingRoute } from './modules/finance/router';
 import { advancedRoute } from './modules/advanced/router';
 import { exportsRoute } from './modules/exports/router';
 import { reportsRoute } from './modules/reports/router';
+import { entitlementsRoute } from './modules/entitlements/router';
 import { ApiError, handle, readBody, success } from './utils/http';
 
 export function dispatch(request: Request) {
@@ -22,6 +23,7 @@ export function dispatch(request: Request) {
     const key = `${request.method} ${path}`;
     const financial =
       (await reportsRoute(request, requestId)) ??
+      (await entitlementsRoute(request, requestId)) ??
       (await financeRoute(request, requestId)) ??
       (await onboardingRoute(request, requestId)) ??
       (await advancedRoute(request, requestId)) ??
