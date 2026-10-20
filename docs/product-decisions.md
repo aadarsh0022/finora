@@ -1,0 +1,31 @@
+# Product and implementation decisions
+
+- Modular monolith; REST /api/v1, shared Zod contracts, framework-free finance-core.
+- Financial data belongs to a verified session's userId. Public entity IDs are UUIDs.
+- Money is a canonical base-10 integer string on JSON/storage boundaries; arithmetic
+  uses bigint, avoiding MongoDB double precision and JSON bigint serialization issues.
+- Accounts share one base currency in the MVP. Currency changes are prohibited once
+  financial records exist. No FX conversion, banking integrations or LLM calls.
+- Transfers are one transaction document containing both account references.
+- Authentication uses random opaque access and refresh tokens, only SHA-256 token
+  digests persist. This permits immediate logout/password-change revocation without
+  trusting client token claims. Access expires after 15 minutes; families after 30 days.
+- Refresh tokens rotate with a conditional update. Previously used token digests
+  identify replay and revoke that entire device family. Concurrent mobile refresh is
+  single-flight; replay is deliberately fail-closed, including concurrent replay.
+- Password reset uses Resend HTTPS API in production, restricted local disk outbox
+  only outside production. Missing production email configuration blocks readiness.
+- Free manual tracking remains available; no billing UI until backend verification
+  and merchant onboarding are complete. No advertising or analytics SDKs initially.
+- No deployment, Play publication or live billing is authorized by repository pushes.
+
+## Verified official sources
+
+Consulted 20 October 2026; exact installed versions are recorded in the lockfile.
+
+- [Next.js installation](https://nextjs.org/docs/app/getting-started/installation)
+- [Expo SDK 58 release](https://expo.dev/changelog/sdk-58)
+- [Expo Router installation](https://docs.expo.dev/router/installation/)
+- [MongoDB transactions](https://www.mongodb.com/docs/drivers/node/current/crud/transactions/)
+- [Argon2 Node bindings](https://github.com/ranisalt/node-argon2)
+- [Resend email API](https://resend.com/docs/api-reference/emails/send-email)
