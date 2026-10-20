@@ -78,6 +78,21 @@ async function ensureIndexes(db: Db) {
   for (const name of ownedCollections) {
     await db.collection(name).createIndex({ userId: 1, id: 1 }, { unique: true });
   }
+  await db
+    .collection('transactions')
+    .createIndexes([
+      { key: { userId: 1, date: -1, id: 1 } },
+      { key: { userId: 1, accountId: 1, date: -1 } },
+      { key: { userId: 1, destinationAccountId: 1, date: -1 } },
+      { key: { userId: 1, categoryId: 1, date: -1 } },
+      { key: { userId: 1, amountSort: 1, id: 1 } },
+    ]);
+  await db
+    .collection('categories')
+    .createIndex(
+      { userId: 1, defaultKey: 1 },
+      { unique: true, partialFilterExpression: { defaultKey: { $type: 'string' } } },
+    );
 }
 
 export async function closeDatabase() {

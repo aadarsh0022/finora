@@ -65,6 +65,13 @@ export const changePasswordSchema = z
 export const deleteAccountSchema = z
   .object({ password: z.string().min(1).max(128), confirmation: z.literal('DELETE') })
   .strict();
+export const settingsUpdateSchema = z
+  .object({ preferences: preferencesSchema, version: z.number().int().positive() })
+  .strict();
+export const settingsSchema = z.object({
+  preferences: preferencesSchema,
+  version: z.number().int().positive(),
+});
 export const userSchema = z.object({
   id: z.uuid(),
   email: emailSchema,

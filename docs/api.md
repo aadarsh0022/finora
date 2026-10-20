@@ -38,6 +38,35 @@ transaction serialization protects reference validation and deletion races.
 Accounts use the profile currency; input cannot supply ownership or currency.
 Initial safety limits: 200 accounts and 300 categories per user, including archives.
 
+## Transactions and overview (implemented)
+
+GET/POST /transactions; GET/PATCH/DELETE /transactions/:id. POST/PATCH accepts type,
+accountId, positive amountMinor integer string, offset-aware date, optional merchant,
+note/tags; categoryId for income/expense, destinationAccountId only for transfer.
+PATCH also requires version; DELETE requires version and confirmation: "DELETE".
+Duplicate a transaction by POSTing its editable fields with a new operation key.
+
+GET filters: page/pageSize (max 100), type, accountId (source or destination), categoryId,
+from/to UTC timestamps, minAmount/maxAmount, q (literal note/merchant search), sort
+(newest/oldest/highest/lowest). Amount sorting/filtering uses exact Decimal128 values.
+Responses contain items/total/page/pageSize. All queries are scoped to the user.
+
+Transfers are one atomic ledger document. Balance is opening + income - expense +
+incoming transfers - outgoing transfers. Edits/deletion automatically affect derived
+balances. GET /accounts and /accounts/:id include balanceMinor. Archived history
+remains readable; new references to archived accounts/categories are rejected.
+
+GET /reports/overview?month=YYYY-MM uses the user's timezone and returns actual
+tracked balance (including archived accounts), monthly income/expenses/net flow,
+savings rate (null with zero income), category spending and recent records.
+Snapshot reads keep accounts/ledger internally consistent. Initial cap: 10,000
+transactions per user; no unbounded report scans. No FX mixing or income/expense
+inflation from transfers. Refunds currently count as income and do not reduce expense
+budgets; later budgeting must follow this explicit policy.
+
+GET/PATCH /settings returns/persists preferences and version. Updates are idempotent,
+reject stale versions, and prohibit currency changes after account creation.
+
 Auth mutations are limited to 60 network attempts per 10-minute bucket. Registration,
 login and recovery additionally allow 10 attempts per normalized email per bucket.
 429 includes Retry-After. Forwarded IPs require a trusted proxy that replaces headers.

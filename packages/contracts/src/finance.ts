@@ -35,7 +35,9 @@ export const accountSchema = accountInputSchema
     archived: z.boolean(),
   })
   .strip();
-export const accountWithBalanceSchema = accountSchema.extend({ balanceMinor: minorSchema });
+export const accountWithBalanceSchema = accountSchema.extend({
+  balanceMinor: z.string().regex(/^(0|-?[1-9]\d{0,34})$/),
+});
 export const categoryInputSchema = z
   .object({
     name: z.string().trim().min(1).max(50),
@@ -145,3 +147,24 @@ export type Category = z.infer<typeof categorySchema>;
 export type Transaction = z.infer<typeof transactionSchema>;
 export type TransactionInput = z.infer<typeof transactionInputSchema>;
 export type TransactionFilters = z.infer<typeof transactionFilterSchema>;
+
+export const overviewSchema = z.object({
+  month: z.string(),
+  timezone: z.string(),
+  currency: currencySchema,
+  totalBalanceMinor: z.string().regex(/^(0|-?[1-9]\d*)$/),
+  incomeMinor: z.string().regex(/^\d+$/),
+  expensesMinor: z.string().regex(/^\d+$/),
+  netMinor: z.string().regex(/^(0|-?[1-9]\d*)$/),
+  savingsRateBasisPoints: z.number().nullable(),
+  accounts: z.array(accountWithBalanceSchema),
+  categorySpending: z.record(z.string(), z.string()),
+  recentTransactions: z.array(transactionSchema),
+});
+export const transactionPageSchema = z.object({
+  items: z.array(transactionSchema),
+  total: z.number().int().nonnegative(),
+  page: z.number().int(),
+  pageSize: z.number().int(),
+});
+export type Overview = z.infer<typeof overviewSchema>;

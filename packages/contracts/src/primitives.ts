@@ -4,7 +4,6 @@ export const currencySchema = z.enum(['USD', 'CAD', 'GBP', 'AUD', 'INR', 'JPY', 
 export const minorSchema = z
   .string()
   .regex(/^(0|-?[1-9]\d{0,29})$/, 'Enter a canonical integer amount');
-export const positiveMinorSchema = minorSchema.refine(
-  (value) => BigInt(value) > 0n,
-  'Amount must be greater than zero',
+export const positiveMinorSchema = minorSchema.pipe(
+  z.string().refine((value) => BigInt(value) > 0n, 'Amount must be greater than zero'),
 );

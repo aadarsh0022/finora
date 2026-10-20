@@ -8,6 +8,7 @@ export const userRecordSchema = z.object({
   preferences: preferencesSchema,
   passwordHash: z.string(),
   authVersion: z.number().int().nonnegative(),
+  settingsVersion: z.number().int().positive().default(1),
   createdAt: z.date(),
   updatedAt: z.date(),
   resetHash: z.string().optional(),

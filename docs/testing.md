@@ -12,6 +12,12 @@ Account/category additions: 4 integration tests for CRUD, owner isolation, stale
 version conflicts, concurrent idempotent creates, payload/key conflict, archive/restore
 and repeatable default-category seeding. Total after this slice: 26 tests in 4 files.
 
+Ledger additions verify actual persisted income/expense/transfer balances, conservation
+of tracked money, reports after editing/deletion, logout/relogin persistence, cross-user
+references and access, category type validation, invalid amounts, same-account transfers,
+duplicate writes, literal search, exact large-value sorting, destination account filtering,
+timezone month boundaries, archived reference checks and conflict-safe preferences.
+
 Tests invoke real Route Handlers with Argon2 and a disposable real MongoDB replica
 set. They cover validation, persistence, normalized identity duplicates, credential
 hashing, generic login errors, token expiry/revocation, refresh/replay/concurrency,

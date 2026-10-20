@@ -1,11 +1,15 @@
 import { expect, it } from 'vitest';
-import { minorSchema, registerSchema } from '../src/index';
+import { minorSchema, positiveMinorSchema, registerSchema } from '../src/index';
 
 it('accepts only canonical bounded integer money values', () => {
   for (const input of ['0', '1', '-10', '900719925474099301'])
     expect(minorSchema.safeParse(input).success).toBe(true);
   for (const input of ['-0', '01', '1.1', '1e2', '', '1'.repeat(31)])
     expect(minorSchema.safeParse(input).success).toBe(false);
+});
+it('rejects malformed positive amounts without throwing from bigint conversion', () => {
+  for (const input of ['1.01', 'NaN', '0', '-1', '01', '1e2'])
+    expect(positiveMinorSchema.safeParse(input).success).toBe(false);
 });
 it('rejects unsafe input shapes and supplies explicit user preferences', () => {
   const input = {
