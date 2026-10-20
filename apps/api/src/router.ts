@@ -11,6 +11,7 @@ import { publicUser } from './database/models';
 import * as auth from './modules/auth/service';
 import { rateLimit } from './security/rate-limit';
 import { financeRoute, onboardingRoute } from './modules/finance/router';
+import { advancedRoute } from './modules/advanced/router';
 import { ApiError, handle, readBody, success } from './utils/http';
 
 export function dispatch(request: Request) {
@@ -18,9 +19,23 @@ export function dispatch(request: Request) {
     const path = new URL(request.url).pathname.replace(/\/$/, '');
     const key = `${request.method} ${path}`;
     const financial =
-      (await financeRoute(request, requestId)) ?? (await onboardingRoute(request, requestId));
+      (await financeRoute(request, requestId)) ??
+      (await onboardingRoute(request, requestId)) ??
+      (await advancedRoute(request, requestId));
     if (financial) return financial;
-    if (path.startsWith('/api/v1/auth/') && request.method !== 'GET')
+    const authNames = [
+      'register',
+      'login',
+      'refresh',
+      'forgot-password',
+      'reset-password',
+      'me',
+      'logout',
+      'logout-other-sessions',
+      'change-password',
+      'account',
+    ];
+    if (authNames.some((name) => path === `/api/v1/auth/${name}`) && request.method !== 'GET')
       await rateLimit(request, path);
     switch (key) {
       case 'POST /api/v1/auth/register': {
