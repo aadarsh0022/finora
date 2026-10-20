@@ -28,11 +28,13 @@ const entity = {
   createdAt: z.iso.datetime(),
   updatedAt: z.iso.datetime(),
 };
-export const accountSchema = accountInputSchema.extend({
-  ...entity,
-  currency: currencySchema,
-  archived: z.boolean(),
-});
+export const accountSchema = accountInputSchema
+  .extend({
+    ...entity,
+    currency: currencySchema,
+    archived: z.boolean(),
+  })
+  .strip();
 export const accountWithBalanceSchema = accountSchema.extend({ balanceMinor: minorSchema });
 export const categoryInputSchema = z
   .object({
@@ -51,7 +53,9 @@ export const categoryInputSchema = z
 export const categoryUpdateSchema = categoryInputSchema
   .extend({ version: versionSchema, archived: z.boolean() })
   .strict();
-export const categorySchema = categoryInputSchema.extend({ ...entity, archived: z.boolean() });
+export const categorySchema = categoryInputSchema
+  .extend({ ...entity, archived: z.boolean() })
+  .strip();
 export const archiveSchema = z.object({ version: versionSchema }).strict();
 export const deleteRecordSchema = archiveSchema
   .extend({ confirmation: z.literal('DELETE') })
