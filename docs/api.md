@@ -23,6 +23,21 @@ Protected routes require `Authorization: Bearer <accessToken>`. Tokens are rando
 43-character base64url strings; expiresIn is 900 seconds. Public responses omit hashes.
 Financial endpoints remain planned until explicitly documented here as implemented.
 
+## Accounts and categories (implemented)
+
+GET/POST /accounts; GET/PATCH/DELETE /accounts/:id; GET/POST /categories;
+PATCH/DELETE /categories/:id. GET lists optionally accept includeArchived=true.
+DELETE archives these entities and preserves financial history; PATCH restores them.
+Updates send full editable DTO plus version; stale versions return 409.
+POST /onboarding/categories with {} creates 17 defaults once, even across retries.
+
+Every financial mutation requires a UUID Idempotency-Key header. Retrying the same
+method/path/input with the same key returns the original result. Reusing a key for
+different data returns 409. Keys are scoped to the authenticated user. User-level
+transaction serialization protects reference validation and deletion races.
+Accounts use the profile currency; input cannot supply ownership or currency.
+Initial safety limits: 200 accounts and 300 categories per user, including archives.
+
 Auth mutations are limited to 60 network attempts per 10-minute bucket. Registration,
 login and recovery additionally allow 10 attempts per normalized email per bucket.
 429 includes Retry-After. Forwarded IPs require a trusted proxy that replaces headers.

@@ -8,6 +8,10 @@ Executed locally on Windows / Node 24.21.0, 20 October 2026:
   privacy/terms/support/password-reset pages.
 - Atlas database check: ping and explicit index initialization passed.
 
+Account/category additions: 4 integration tests for CRUD, owner isolation, stale
+version conflicts, concurrent idempotent creates, payload/key conflict, archive/restore
+and repeatable default-category seeding. Total after this slice: 26 tests in 4 files.
+
 Tests invoke real Route Handlers with Argon2 and a disposable real MongoDB replica
 set. They cover validation, persistence, normalized identity duplicates, credential
 hashing, generic login errors, token expiry/revocation, refresh/replay/concurrency,

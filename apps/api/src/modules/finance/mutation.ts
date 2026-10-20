@@ -1,0 +1,85 @@
+import { createHash } from 'node:crypto';
+import { type ClientSession, type Db } from 'mongodb';
+import { z } from 'zod';
+import { database } from '../../database/client';
+import type { AuthContext } from '../auth/service';
+import { ApiError } from '../../utils/http';
+
+export async function mutate<T>(
+  context: AuthContext,
+  request: Request,
+  input: unknown,
+  action: (db: Db, session: ClientSession) => Promise<T>,
+): Promise<T> {
+  const id = z.uuid().parse(request.headers.get('Idempotency-Key'));
+  const fingerprint = createHash('sha256')
+    .update(`${request.method}|${new URL(request.url).pathname}|${JSON.stringify(input)}`)
+    .digest('hex');
+  const { client, db, users } = await database();
+  const session = client.startSession();
+  try {
+    return await session.withTransaction(async () => {
+      // Serializes financial mutations against account deletion, password revocation,
+      // archived references, duplicate default seeding and conflicting writes.
+      const lock = await users.updateOne(
+        { id: context.user.id, authVersion: context.user.authVersion },
+        { $inc: { financeVersion: 1 } },
+        { session },
+      );
+      if (!lock.matchedCount) throw new ApiError(401, 'UNAUTHORIZED', 'Please sign in again.');
+      const records = db.collection<{
+        userId: string;
+        id: string;
+        fingerprint: string;
+        result: T;
+        createdAt: string;
+      }>('idempotency_records');
+      const existing = await records.findOne({ userId: context.user.id, id }, { session });
+      if (existing) {
+        if (existing.fingerprint !== fingerprint)
+          throw new ApiError(
+            409,
+            'IDEMPOTENCY_CONFLICT',
+            'This operation key was already used for different data.',
+          );
+        return existing.result;
+      }
+      const result = await action(db, session);
+      await records.insertOne(
+        { userId: context.user.id, id, fingerprint, result, createdAt: new Date().toISOString() },
+        { session },
+      );
+      return result;
+    });
+  } finally {
+    await session.endSession();
+  }
+}
+
+export function requireVersion(actual: number, expected: number) {
+  if (actual !== expected)
+    throw new ApiError(
+      409,
+      'VERSION_CONFLICT',
+      'This record changed on another device. Refresh before editing.',
+    );
+}
+export const notFound = () => new ApiError(404, 'NOT_FOUND', 'This record was not found.');
+
+export async function enforceLimit(
+  db: Db,
+  session: ClientSession,
+  collection: string,
+  userId: string,
+  maximum: number,
+) {
+  const count = await db
+    .collection(collection)
+    .countDocuments({ userId }, { session, limit: maximum });
+  if (count >= maximum)
+    throw new ApiError(
+      409,
+      'RECORD_LIMIT',
+      `This version supports up to ${maximum} ${collection.replaceAll('_', ' ')}. Export or archive records as appropriate.`,
+    );
+}

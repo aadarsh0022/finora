@@ -10,12 +10,16 @@ import {
 import { publicUser } from './database/models';
 import * as auth from './modules/auth/service';
 import { rateLimit } from './security/rate-limit';
+import { financeRoute, onboardingRoute } from './modules/finance/router';
 import { ApiError, handle, readBody, success } from './utils/http';
 
 export function dispatch(request: Request) {
   return handle(async (requestId) => {
     const path = new URL(request.url).pathname.replace(/\/$/, '');
     const key = `${request.method} ${path}`;
+    const financial =
+      (await financeRoute(request, requestId)) ?? (await onboardingRoute(request, requestId));
+    if (financial) return financial;
     if (path.startsWith('/api/v1/auth/') && request.method !== 'GET')
       await rateLimit(request, path);
     switch (key) {
