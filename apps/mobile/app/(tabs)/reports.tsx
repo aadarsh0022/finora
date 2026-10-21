@@ -2,26 +2,29 @@ import { reportRangeSchema, reportSummarySchema, type ReportRange } from '@finor
 import { calendarDate } from '@finora/finance-core';
 import { useMutation } from '@tanstack/react-query';
 import { useState } from 'react';
+import { Pressable, View } from 'react-native';
 import { File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import * as Crypto from 'expo-crypto';
-import {
-  AppButton,
-  AppText,
-  Card,
-  Choice,
-  Feedback,
-  Field,
-  Loading,
-  Screen,
-} from '../../src/components/ui';
+import { AppButton, AppText, Card, Feedback, Loading, Screen } from '../../src/components/ui';
+import { DateField, FlowSheet, SelectField } from '../../src/components/flow';
 import { useMoney, useRead } from '../../src/features/finance/shared';
 import { AccountDistribution, ExpenseDonut, MonthlyChart } from '../../src/features/reports/charts';
 import { percentageFromBasisPoints, reportCsv } from '../../src/features/reports/values';
 import { useApp } from '../../src/providers/app-provider';
+import { useTheme } from '../../src/theme';
+
+const periods = [
+  { value: 'current-month', label: 'This month' },
+  { value: 'previous-month', label: 'Last month' },
+  { value: 'last-3-months', label: 'Last 3 months' },
+  { value: 'last-6-months', label: 'Last 6 months' },
+  { value: 'custom', label: 'Custom dates' },
+] as const;
 
 export default function Reports() {
   const { user } = useApp();
+  const theme = useTheme();
   const today = calendarDate(new Date(), user?.preferences.timezone ?? 'Asia/Kolkata');
   const money = useMoney();
   const [range, setRange] = useState<ReportRange['range']>('current-month');
@@ -29,10 +32,19 @@ export default function Reports() {
   const [to, setTo] = useState(today);
   const [queryString, setQueryString] = useState('range=current-month');
   const [error, setError] = useState('');
+  const [customOpen, setCustomOpen] = useState(false);
+  const [aboutOpen, setAboutOpen] = useState(false);
   const [exportNotice, setExportNotice] = useState('');
   const query = useRead(`reports/summary?${queryString}`, reportSummarySchema);
   const data = query.data;
-  function apply(value = range) {
+  const dateLabel = (value: string, includeYear = true) =>
+    new Intl.DateTimeFormat(user?.preferences.locale ?? 'en-IN', {
+      day: 'numeric',
+      month: 'short',
+      year: includeYear ? 'numeric' : undefined,
+      timeZone: 'UTC',
+    }).format(new Date(`${value}T12:00:00Z`));
+  function apply(value: ReportRange['range']) {
     const validated = reportRangeSchema.safeParse(
       value === 'custom' ? { range: value, from, to } : { range: value },
     );
@@ -44,6 +56,8 @@ export default function Reports() {
     if (validated.data.from) params.set('from', validated.data.from);
     if (validated.data.to) params.set('to', validated.data.to);
     setQueryString(params.toString());
+    setRange(validated.data.range);
+    setCustomOpen(false);
     setError('');
     setExportNotice('');
   }
@@ -70,41 +84,62 @@ export default function Reports() {
     },
   });
   return (
-    <Screen title="Reports" subtitle="Understand where your money goes.">
-      <Card>
-        <Choice
-          label="Period"
-          value={range}
-          onChange={(value) => {
-            setRange(value);
-            if (value !== 'custom') apply(value);
-          }}
-          options={[
-            { value: 'current-month', label: 'Current month' },
-            { value: 'previous-month', label: 'Previous month' },
-            { value: 'last-3-months', label: 'Last 3 months' },
-            { value: 'last-6-months', label: 'Last 6 months' },
-            { value: 'custom', label: 'Custom' },
-          ]}
+    <Screen
+      title="Reports"
+      subtitle="Understand where your money goes."
+      refreshing={query.isFetching && !query.isPending}
+      onRefresh={() => {
+        void query.refetch();
+      }}
+    >
+      <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 12 }}>
+        <View style={{ flex: 1 }}>
+          <SelectField
+            label="Period"
+            value={range}
+            onChange={(value) => {
+              if (value !== 'custom') apply(value);
+              else {
+                setFrom(data?.period.from ?? from);
+                setTo(data?.period.to ?? to);
+                setError('');
+                setCustomOpen(true);
+              }
+            }}
+            options={periods}
+          />
+        </View>
+        <AppButton
+          title="Export CSV"
+          variant="secondary"
+          loading={exportReport.isPending}
+          disabled={!data || query.isFetching}
+          onPress={() => exportReport.mutate()}
         />
-        {range === 'custom' && (
-          <>
-            <Field label="From (YYYY-MM-DD)" value={from} onChangeText={setFrom} maxLength={10} />
-            <Field
-              label="Through (YYYY-MM-DD, inclusive)"
-              value={to}
-              onChangeText={setTo}
-              maxLength={10}
-            />
-            <AppButton title="Apply dates" variant="secondary" onPress={() => apply()} />
-          </>
-        )}
-        {error ? (
-          <AppText tone="danger" accessibilityRole="alert">
-            {error}
+      </View>
+      {range === 'custom' && (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Edit custom dates"
+          onPress={() => {
+            setFrom(data?.period.from ?? from);
+            setTo(data?.period.to ?? to);
+            setError('');
+            setCustomOpen(true);
+          }}
+          style={{ minHeight: 44, justifyContent: 'center', marginVertical: -12 }}
+        >
+          <AppText tone="accent" style={{ fontSize: 13 }}>
+            Edit dates ›
           </AppText>
-        ) : null}
-      </Card>
+        </Pressable>
+      )}
+      {exportReport.error && <Feedback error={exportReport.error} />}
+      {exportNotice ? (
+        <AppText tone="accent" accessibilityRole="alert">
+          {exportNotice}
+        </AppText>
+      ) : null}
       {query.isPending && <Loading />}
       {query.isError && (
         <Feedback
@@ -116,32 +151,76 @@ export default function Reports() {
       )}
       {data && (
         <>
-          <AppText tone="muted">
-            {data.period.from} through {data.period.to} · {data.period.timezone} ·{' '}
-            {data.period.currency}
+          <AppText tone="muted" style={{ fontSize: 13, lineHeight: 20 }}>
+            {dateLabel(
+              data.period.from,
+              data.period.from.slice(0, 4) !== data.period.to.slice(0, 4),
+            )}{' '}
+            – {dateLabel(data.period.to)} · {data.period.currency}
           </AppText>
           <Card>
-            <AppText accessibilityRole="header" style={{ fontFamily: 'DMSansBold', fontSize: 22 }}>
-              Income and expenses
+            <AppText tone="muted" style={{ fontSize: 14 }}>
+              Net cash flow
             </AppText>
-            <AppText>Income</AppText>
-            <AppText tone="accent" style={{ fontSize: 28, lineHeight: 36 }}>
-              {money(data.cashflow.incomeMinor)}
+            <AppText
+              tone={BigInt(data.cashflow.netMinor) < 0n ? 'danger' : 'accent'}
+              style={{
+                fontFamily: 'DMSansBold',
+                fontSize: 32,
+                lineHeight: 40,
+                fontVariant: ['tabular-nums'],
+              }}
+            >
+              {money(data.cashflow.netMinor)}
             </AppText>
-            <AppText>Expenses</AppText>
-            <AppText style={{ fontSize: 28, lineHeight: 36 }}>
-              {money(data.cashflow.expensesMinor)}
-            </AppText>
-            <AppText style={{ fontFamily: 'DMSansBold' }}>
-              Net {money(data.cashflow.netMinor)}
-            </AppText>
-            <AppText tone="muted">
+            <View
+              style={{
+                flexDirection: 'row',
+                gap: 16,
+                borderTopWidth: 1,
+                borderTopColor: theme.border,
+                paddingTop: 14,
+              }}
+            >
+              <View style={{ flex: 1, gap: 4 }}>
+                <AppText tone="muted" style={{ fontSize: 13 }}>
+                  ↙ Income
+                </AppText>
+                <AppText
+                  tone="accent"
+                  style={{
+                    fontFamily: 'DMSansBold',
+                    fontSize: 20,
+                    lineHeight: 28,
+                    fontVariant: ['tabular-nums'],
+                  }}
+                >
+                  {money(data.cashflow.incomeMinor)}
+                </AppText>
+              </View>
+              <View style={{ flex: 1, gap: 4 }}>
+                <AppText tone="muted" style={{ fontSize: 13 }}>
+                  ↗ Expenses
+                </AppText>
+                <AppText
+                  tone="danger"
+                  style={{
+                    fontFamily: 'DMSansBold',
+                    fontSize: 20,
+                    lineHeight: 28,
+                    fontVariant: ['tabular-nums'],
+                  }}
+                >
+                  {money(data.cashflow.expensesMinor)}
+                </AppText>
+              </View>
+            </View>
+            <AppText tone="muted" style={{ fontSize: 13, lineHeight: 20 }}>
               {data.cashflow.savingsRateBasisPoints === null
-                ? 'Savings rate is unavailable because no income was recorded.'
-                : `Savings rate ${percentageFromBasisPoints(data.cashflow.savingsRateBasisPoints)} · (income − expenses) ÷ income`}
-            </AppText>
-            <AppText tone="muted">
-              Transfers between your accounts are excluded from income, expenses, and savings rate.
+                ? 'No income recorded in this period'
+                : BigInt(data.cashflow.savingsRateBasisPoints) < 0n
+                  ? 'Expenses exceeded income in this period'
+                  : `${percentageFromBasisPoints(data.cashflow.savingsRateBasisPoints)} of income saved`}
             </AppText>
           </Card>
           {data.cashflow.incomeMinor === '0' && data.cashflow.expensesMinor === '0' && (
@@ -156,61 +235,121 @@ export default function Reports() {
             </Card>
           )}
           <Card>
-            <AppText accessibilityRole="header" style={{ fontFamily: 'DMSansBold', fontSize: 22 }}>
+            <AppText accessibilityRole="header" style={{ fontFamily: 'DMSansBold', fontSize: 20 }}>
               Spending by category
             </AppText>
             <ExpenseDonut categories={data.categories} />
           </Card>
+          {data.trends.length > 1 && (
+            <Card>
+              <AppText
+                accessibilityRole="header"
+                style={{ fontFamily: 'DMSansBold', fontSize: 20 }}
+              >
+                Cash flow over time
+              </AppText>
+              <MonthlyChart trends={data.trends} />
+            </Card>
+          )}
           <Card>
-            <AppText accessibilityRole="header" style={{ fontFamily: 'DMSansBold', fontSize: 22 }}>
-              Income versus expenses over time
-            </AppText>
-            <MonthlyChart trends={data.trends} />
-          </Card>
-          <Card>
-            <AppText accessibilityRole="header" style={{ fontFamily: 'DMSansBold', fontSize: 22 }}>
+            <AppText accessibilityRole="header" style={{ fontFamily: 'DMSansBold', fontSize: 20 }}>
               Income categories
             </AppText>
             {data.categories
               .filter((category) => category.type === 'INCOME')
               .map((category) => (
-                <AppText key={category.categoryId}>
-                  {category.name} · {money(category.amountMinor)} ·{' '}
-                  {(category.shareBasisPoints / 100).toFixed(2)}%
-                </AppText>
+                <View
+                  key={category.categoryId}
+                  style={{ flexDirection: 'row', gap: 12, alignItems: 'center' }}
+                >
+                  <View style={{ flex: 1, gap: 2 }}>
+                    <AppText style={{ fontSize: 14 }}>{category.name}</AppText>
+                    <AppText tone="muted" style={{ fontSize: 12 }}>
+                      {(category.shareBasisPoints / 100).toFixed(2)}% of income
+                    </AppText>
+                  </View>
+                  <AppText tone="accent" style={{ fontFamily: 'DMSansBold' }}>
+                    {money(category.amountMinor)}
+                  </AppText>
+                </View>
               ))}
             {!data.categories.some((category) => category.type === 'INCOME') && (
               <AppText tone="muted">No categorized income for this period.</AppText>
             )}
           </Card>
           <Card>
-            <AppText accessibilityRole="header" style={{ fontFamily: 'DMSansBold', fontSize: 22 }}>
+            <AppText accessibilityRole="header" style={{ fontFamily: 'DMSansBold', fontSize: 20 }}>
               Account breakdown
             </AppText>
             <AccountDistribution accounts={data.accounts} />
           </Card>
-          {exportReport.error && <Feedback error={exportReport.error} />}
-          {exportNotice ? (
-            <AppText tone="accent" accessibilityRole="alert">
-              {exportNotice}
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="About this report"
+            onPress={() => setAboutOpen(true)}
+            style={{ minHeight: 48, alignItems: 'center', justifyContent: 'center' }}
+          >
+            <AppText tone="accent" style={{ fontSize: 14 }}>
+              About this report ⓘ
             </AppText>
-          ) : null}
-          <AppButton
-            title="Export this report to CSV"
-            loading={exportReport.isPending}
-            disabled={query.isFetching}
-            onPress={() => exportReport.mutate()}
-          />
-          <AppButton
-            title="Refresh report"
-            variant="secondary"
-            loading={query.isFetching}
-            onPress={() => {
-              void query.refetch();
-            }}
-          />
+          </Pressable>
         </>
       )}
+      <FlowSheet
+        title="Custom period"
+        visible={customOpen}
+        onClose={() => {
+          setCustomOpen(false);
+          setError('');
+        }}
+        footer={
+          <>
+            <AppButton title="Apply dates" onPress={() => apply('custom')} />
+            <AppButton
+              title="Cancel"
+              variant="secondary"
+              onPress={() => {
+                setCustomOpen(false);
+                setError('');
+              }}
+            />
+          </>
+        }
+      >
+        <AppText tone="muted">Choose a start and end date. Both dates are included.</AppText>
+        <DateField label="From date" value={from} onChange={setFrom} />
+        <DateField label="Through date" value={to} onChange={setTo} />
+        {error ? (
+          <AppText tone="danger" accessibilityRole="alert">
+            {error}
+          </AppText>
+        ) : null}
+      </FlowSheet>
+      <FlowSheet title="About this report" visible={aboutOpen} onClose={() => setAboutOpen(false)}>
+        <AppText>
+          Transfers between your accounts are excluded from income, expenses, and savings rate.
+        </AppText>
+        <AppText>
+          Savings rate = (income − expenses) ÷ income. It is unavailable when no income was
+          recorded.
+        </AppText>
+        {data && (
+          <>
+            <AppText tone="muted">
+              Savings rate:{' '}
+              {percentageFromBasisPoints(data.cashflow.savingsRateBasisPoints) ?? 'Unavailable'}
+            </AppText>
+            <AppText tone="muted">
+              Dates include the full start and end days in {data.period.timezone}.
+            </AppText>
+          </>
+        )}
+        <AppText tone="muted">
+          Monthly bars use the same scale across the selected period. Account bars show each
+          positive closing balance as a share of positive balances; negative balances are excluded
+          from these bars.
+        </AppText>
+      </FlowSheet>
     </Screen>
   );
 }

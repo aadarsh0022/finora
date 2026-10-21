@@ -41,3 +41,12 @@ negative percentage. Category spending is sorted by exact minor units and shown 
 up to five compact bars; Reports opens the full breakdown. Recent activity has a
 View all link, and pull-to-refresh replaces the separate Refresh dashboard button.
 This preserves the existing total-balance visibility setting and server queries.
+
+Reports uses a compact period selector and calendar-based custom range sheet. Custom
+dates are drafts until Apply; cancelling preserves the current report. CSV export is
+at the top, and pull-to-refresh replaces a separate button. Net cash flow and paired
+income/expense totals lead the page; definitions, timezone and the exact savings rate
+remain available in About this report. Donut legends are compact and sorted by exact
+amount, multi-month periods show monthly comparisons, and account details expand on
+request. Native workflow tests cover custom-range cancellation/validation, account
+detail access, and selected-period CSV export including temporary-file cleanup.
