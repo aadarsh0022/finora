@@ -26,23 +26,52 @@ export function formatMoney(minor: string, currency: Currency, locale: string): 
   const absolute = amount < 0n ? -amount : amount;
   const scale = 10n ** BigInt(exponent);
   const whole = absolute / scale;
-  const fraction =
-    exponent === 0
-      ? ''
-      : new Intl.NumberFormat(locale, {
-          useGrouping: false,
-          minimumIntegerDigits: exponent,
-        }).format(absolute % scale);
-  // Format bigint parts; never convert a large amount through Number.
   const formatter = new Intl.NumberFormat(locale, {
     style: 'currency',
     currency,
     minimumFractionDigits: exponent,
     maximumFractionDigits: exponent,
   });
+  const digitFormatter = new Intl.NumberFormat(locale, { useGrouping: false });
+  const localizedDigits = new Map(
+    Array.from({ length: 10 }, (_, digit) => [
+      String(digit),
+      digitFormatter
+        .formatToParts(digit)
+        .filter((part) => part.type === 'integer')
+        .map((part) => part.value)
+        .join(''),
+    ]),
+  );
+  const localize = (digits: string) =>
+    Array.from(digits, (digit) => localizedDigits.get(digit) ?? digit).join('');
+  const groupingParts = new Intl.NumberFormat(locale, {
+    maximumFractionDigits: 0,
+  }).formatToParts(123456789012345);
+  const integerGroups = groupingParts.filter((part) => part.type === 'integer');
+  const groupSeparator = groupingParts.find((part) => part.type === 'group')?.value;
+  const primaryGroupSize = Array.from(integerGroups.at(-1)?.value ?? '').length;
+  const secondaryGroupSize = Array.from(
+    integerGroups.at(-2)?.value ?? integerGroups.at(-1)?.value ?? '',
+  ).length;
+  const wholeDigits = whole.toString();
+  const groups: string[] = [];
+  let remaining = wholeDigits;
+  let groupSize = primaryGroupSize;
+  while (groupSeparator && groupSize > 0 && remaining.length > groupSize) {
+    groups.unshift(remaining.slice(-groupSize));
+    remaining = remaining.slice(0, -groupSize);
+    groupSize = secondaryGroupSize;
+  }
+  groups.unshift(remaining);
+  const localizedWhole = groups.map(localize).join(groupSeparator ?? '');
+  const fraction =
+    exponent === 0 ? '' : localize((absolute % scale).toString().padStart(exponent, '0'));
+
   return formatter
-    .formatToParts(amount < 0n ? (whole === 0n ? -0 : -whole) : whole)
+    .formatToParts(amount < 0n ? -1 : 1)
     .map((part) => {
+      if (part.type === 'integer') return localizedWhole;
       if (part.type === 'fraction') return fraction;
       return part.value;
     })

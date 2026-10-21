@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   accountBalance,
   calendarDate,
@@ -10,6 +10,23 @@ import {
 } from '../src/index';
 
 describe('exact money', () => {
+  it('works when native Intl rejects bigint inputs, as Hermes does', () => {
+    const original = Intl.NumberFormat.prototype.formatToParts;
+    const spy = vi.spyOn(Intl.NumberFormat.prototype, 'formatToParts').mockImplementation(function (
+      this: Intl.NumberFormat,
+      value?: number | bigint,
+    ) {
+      if (typeof value === 'bigint') throw new TypeError('Cannot convert BigInt to number');
+      return original.call(this, value);
+    });
+    try {
+      expect(formatMoney('0', 'INR', 'en-IN')).toBe('₹0.00');
+      expect(formatMoney('900719925474099301', 'USD', 'en-US')).toBe('$9,007,199,254,740,993.01');
+      expect(formatMoney('-1', 'KWD', 'en-US')).toContain('0.001');
+    } finally {
+      spy.mockRestore();
+    }
+  });
   it('supports 0, 2 and 3 decimal currencies without rounding', () => {
     expect(parseMoney('10.50', 'USD')).toBe('1050');
     expect(parseMoney('250.75', 'INR')).toBe('25075');
@@ -22,6 +39,7 @@ describe('exact money', () => {
   it('preserves amounts beyond Number safe integer limits', () => {
     expect(parseMoney('9007199254740993.01', 'USD')).toBe('900719925474099301');
     expect(formatMoney('900719925474099301', 'USD', 'en-US')).toBe('$9,007,199,254,740,993.01');
+    expect(formatMoney('900719925474099301', 'USD', 'en-IN')).toBe('$9,00,71,99,25,47,40,993.01');
     expect(formatMoney('-1', 'USD', 'en-US')).toBe('-$0.01');
   });
   it('uses locale digits and negative-zero placement for subunit amounts', () => {
