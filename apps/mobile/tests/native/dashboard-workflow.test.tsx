@@ -198,7 +198,8 @@ test('renders exact balances and financial summaries, privacy toggle and transac
   await mount(populated);
   expect(await screen.findByText('₹9,007,199,254,740,993.01')).toBeOnTheScreen();
   expect(screen.getByText('₹1,000.00')).toBeOnTheScreen();
-  expect(screen.getByText('Net ₹987.50 · 98.8% savings rate')).toBeOnTheScreen();
+  expect(screen.getByText('₹987.50')).toBeOnTheScreen();
+  expect(screen.getByText('98.8% of income saved')).toBeOnTheScreen();
   expect(screen.getByText('Groceries')).toBeOnTheScreen();
   expect(screen.getByText('Food')).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole('button', { name: 'Hide total balance' }));
@@ -208,8 +209,12 @@ test('renders exact balances and financial summaries, privacy toggle and transac
   expect(screen.getByText('₹9,007,199,254,740,993.01')).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole('button', { name: 'Add a transaction' }));
   expect(router.push).toHaveBeenCalledWith('/transaction');
-  await fireEvent.press(screen.getByRole('button', { name: 'Manage accounts' }));
+  await fireEvent.press(screen.getByRole('button', { name: 'Accounts' }));
   expect(router.push).toHaveBeenCalledWith('/accounts');
+  await fireEvent.press(screen.getByRole('button', { name: 'View all transactions' }));
+  expect(router.push).toHaveBeenCalledWith('/(tabs)/transactions');
+  await fireEvent.press(screen.getByRole('button', { name: 'View spending reports' }));
+  expect(router.push).toHaveBeenCalledWith('/(tabs)/reports');
   await fireEvent.press(screen.getByRole('button', { name: 'View or edit Groceries' }));
   expect(router.push).toHaveBeenCalledWith({
     pathname: '/transaction',
@@ -217,17 +222,22 @@ test('renders exact balances and financial summaries, privacy toggle and transac
   });
 });
 
-test('validates month filters before refetch and requests the chosen month', async () => {
+test('selects a valid report month without typing and requests it immediately', async () => {
   await mount(empty);
-  await screen.findByLabelText('Report month (YYYY-MM)');
-  await fireEvent.changeText(screen.getByLabelText('Report month (YYYY-MM)'), '2026-13');
-  await fireEvent.press(screen.getByRole('button', { name: 'View monthly report' }));
-  expect(screen.getByRole('alert')).toHaveTextContent('Choose a month as YYYY-MM.');
+  await screen.findByRole('button', { name: 'Choose report month' });
+  const first = paths.find((path) => path.startsWith('reports/overview'))!;
+  const year = Number(
+    new URL(`https://native.test/${first}`).searchParams.get('month')!.slice(0, 4),
+  );
+  const target = `${year - 1}-02`;
+  await fireEvent.press(screen.getByRole('button', { name: 'Choose report month' }));
+  await fireEvent.press(screen.getByRole('button', { name: 'Previous year' }));
   expect(paths.filter((path) => path.startsWith('reports/overview'))).toHaveLength(1);
-  await fireEvent.changeText(screen.getByLabelText('Report month (YYYY-MM)'), '2025-02');
-  await fireEvent.press(screen.getByRole('button', { name: 'View monthly report' }));
-  await waitFor(() => expect(paths).toContain('reports/overview?month=2025-02'));
-  expect(await screen.findByText('Monthly summary · 2025-02')).toBeOnTheScreen();
+  await fireEvent.press(screen.getByRole('radio', { name: target }));
+  await waitFor(() => expect(paths).toContain(`reports/overview?month=${target}`));
+  expect(
+    await screen.findByRole('button', { name: 'Choose report month' }),
+  ).toHaveAccessibilityValue({ text: `February ${year - 1}` });
 });
 
 test('labels the offline state while displaying available data', async () => {

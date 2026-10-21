@@ -19,8 +19,8 @@ separate from mocked component coverage.
 
 First delivered slice: Transactions now opens with filters closed, compact rows,
 local-date groups, a searchable option sheet, explicit Apply/Cancel/Reset, removable
-active filters and exact date/amount bounds. Home and individual form redesigns are
-separate follow-up slices. The saved-form navigation guard now clears its enabled
+active filters and exact date/amount bounds. Individual form redesigns remain
+follow-up slices. The saved-form navigation guard now clears its enabled
 state when releasing navigation, matching the Expo Router contract.
 
 Transactions keeps search and Filters together at the top. A floating Add transaction
@@ -33,3 +33,11 @@ Transaction cards use clearer title/amount alignment, tabular amount digits, qui
 account/category details, and crisp direction icons. Expense icons and amounts are
 red, income green, transfers neutral. Type labels preserve meaning without relying
 on color; long amounts can wrap instead of being truncated. The full card opens details.
+
+Home now puts the privacy toggle inside the balance card and groups quick actions
+in one row. A month picker applies directly, with income/expense tiles and a compact
+net cash flow summary. Negative savings rates use plain language rather than a large
+negative percentage. Category spending is sorted by exact minor units and shown as
+up to five compact bars; Reports opens the full breakdown. Recent activity has a
+View all link, and pull-to-refresh replaces the separate Refresh dashboard button.
+This preserves the existing total-balance visibility setting and server queries.
