@@ -7,6 +7,10 @@ submission. This document does not authorize publication.
 
 Finora
 
+Android package: `app.finora.money`. Release identifiers and public app branding
+must not contain the owner's personal name. No earlier Play upload has registered
+this application identity.
+
 ## Short description
 
 Track spending, plan budgets, and build savings with clear money records.

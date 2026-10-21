@@ -22,6 +22,7 @@ import { useFinanceMutation, useUnsavedChanges } from '../../src/hooks/finance';
 import { useApp } from '../../src/providers/app-provider';
 import { useTheme } from '../../src/theme';
 import { confirmDiscard } from '../../src/features/planning/common';
+import { publicPageUrl } from '../../src/public-site';
 
 export default function Settings() {
   const { api, user, clearSession } = useApp();
@@ -29,9 +30,7 @@ export default function Settings() {
   const settings = useRead('settings', settingsSchema);
   const legal = useMutation({
     mutationFn: async (path: 'privacy' | 'terms' | 'support') => {
-      const base = process.env.EXPO_PUBLIC_API_URL;
-      if (!base) throw new Error('The service URL is not configured.');
-      await openURL(new URL(`/${path}`, base).toString());
+      await openURL(publicPageUrl(path));
     },
   });
   const logout = useMutation({

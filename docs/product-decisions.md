@@ -27,6 +27,11 @@
 - Free manual tracking remains available; no billing UI until backend verification
   and merchant onboarding are complete. No advertising or analytics SDKs initially.
 - No deployment, Play publication or live billing is authorized by repository pushes.
+- Public help pages use Finora branding and the hosted Vercel origin, including
+  during local API development. At the user's request, the first release package
+  uses `app.finora.money` instead of a personal-name development identifier. Google
+  developer-profile disclosure rules are separate from app branding; do not submit
+  publicly while the user's identity-privacy requirement remains unresolved.
 
 ## Verified official sources
 

@@ -9,7 +9,7 @@ const config: ExpoConfig = {
   userInterfaceStyle: 'automatic',
   icon: './assets/brand/icon.png',
   android: {
-    package: 'com.aadarshchandanvandan.finora',
+    package: 'app.finora.money',
     versionCode: 1,
     allowBackup: false,
     adaptiveIcon: {
@@ -24,7 +24,7 @@ const config: ExpoConfig = {
       'android.permission.VIBRATE',
     ],
   },
-  ios: { bundleIdentifier: 'com.aadarshchandanvandan.finora' },
+  ios: { bundleIdentifier: 'app.finora.money' },
   plugins: [
     'expo-router',
     'expo-secure-store',
