@@ -38,6 +38,7 @@ export function Screen({
   refreshing = false,
   bottomAction,
   floatingAction,
+  includeTopInset = true,
 }: {
   title?: string;
   subtitle?: string;
@@ -46,12 +47,13 @@ export function Screen({
   refreshing?: boolean;
   bottomAction?: ReactNode;
   floatingAction?: ReactNode;
+  includeTopInset?: boolean;
 }) {
   const theme = useTheme();
   const network = useNetworkState();
   return (
     <SafeAreaView
-      edges={['top', 'left', 'right']}
+      edges={includeTopInset ? ['top', 'left', 'right'] : ['left', 'right']}
       style={{ flex: 1, backgroundColor: theme.background }}
     >
       <KeyboardAvoidingView

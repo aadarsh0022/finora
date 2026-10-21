@@ -61,3 +61,10 @@ Budget browsing and editing use the month/year picker instead of text input. Bro
 applies immediately; a new budget starts in that selected month. Expense categories
 use the searchable selector. A native workflow verifies the selected year/month is
 used in the validated exact-money creation request.
+
+Planning uses the native back header once and omits its duplicate top safe-area inset.
+Its compact tabs stay above the selected list. Goals open directly from progress
+cards; detail screens keep Edit/Archive side by side, a clear progress bar, and a
+calendar-based contribution form. Target dates also use the calendar. Recording a
+contribution still tracks savings only, keeps version/idempotency protections, and
+does not create ledger transactions; a native workflow verifies that request boundary.

@@ -10,8 +10,12 @@ import {
 } from '@finora/contracts';
 import { calendarDate, parseMoney } from '@finora/finance-core';
 import { useEffect, useState } from 'react';
+import { Pressable, View } from 'react-native';
 import { z } from 'zod';
 import { AppButton, AppText, Card, Feedback, Field, Loading } from '../../components/ui';
+import { DateField } from '../../components/flow';
+import { PlanningProgress } from './progress';
+import { chartRatio } from '../reports/values';
 import { useFinanceMutation, useUnsavedChanges } from '../../hooks/finance';
 import { useApp } from '../../providers/app-provider';
 import { decimalAmount, useMoney, useRead } from '../finance/shared';
@@ -21,7 +25,6 @@ const goalDetailSchema = goalProgressSchema.extend({ contributions: z.array(cont
 export function Goals({ onEditing }: { onEditing: (editing: boolean) => void }) {
   const query = useRead('goals', z.array(goalProgressSchema));
   const [selected, setSelected] = useState<string | null>(null);
-  const money = useMoney();
   function select(id: string | null) {
     setSelected(id);
     onEditing(id !== null);
@@ -30,9 +33,8 @@ export function Goals({ onEditing }: { onEditing: (editing: boolean) => void }) 
   if (selected) return <GoalDetail id={selected} done={() => select(null)} />;
   return (
     <>
-      <AppText tone="muted">
-        Goals earmark savings you have already recorded. Contributions do not move money or change
-        your account balances.
+      <AppText tone="muted" style={{ fontSize: 14 }}>
+        Track savings toward your next milestone.
       </AppText>
       <AppButton title="Create savings goal" onPress={() => select('new')} />
       {query.isPending && <Loading />}
@@ -48,18 +50,18 @@ export function Goals({ onEditing }: { onEditing: (editing: boolean) => void }) 
         <AppText tone="muted">Give your next milestone a name and a target.</AppText>
       )}
       {query.data?.map((goal) => (
-        <Card key={goal.id}>
-          <AppText style={{ fontSize: 22, fontFamily: 'DMSansBold' }}>{goal.name}</AppText>
-          <AppText>
-            {money(goal.savedMinor)} saved of {money(goal.targetMinor)}
-          </AppText>
-          <AppText tone={goal.complete ? 'accent' : 'muted'}>
-            {goal.archived ? 'Archived · ' : ''}
-            {goal.complete ? 'Target reached' : `${money(goal.remainingMinor)} to go`}
-            {goal.targetDate ? ` · Target ${goal.targetDate}` : ''}
-          </AppText>
-          <AppButton title="Manage goal" variant="secondary" onPress={() => select(goal.id)} />
-        </Card>
+        <Pressable
+          key={goal.id}
+          accessibilityRole="button"
+          accessibilityLabel={`Open ${goal.name} goal`}
+          accessibilityHint="View progress and record saved money"
+          onPress={() => select(goal.id)}
+          style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}
+        >
+          <Card>
+            <GoalOverview goal={goal} showChevron />
+          </Card>
+        </Pressable>
       ))}
     </>
   );
@@ -117,11 +119,11 @@ function GoalForm({ goal, done }: { goal?: Goal; done: () => void }) {
         keyboardType="decimal-pad"
         maxLength={35}
       />
-      <Field
-        label="Target date (YYYY-MM-DD, optional)"
+      <DateField
+        label="Target date (optional)"
         value={form.date}
-        onChangeText={(date) => setForm((current) => ({ ...current, date }))}
-        maxLength={10}
+        onChange={(date) => setForm((current) => ({ ...current, date }))}
+        allowClear
       />
       {error ? <Feedback error={new Error(error)} /> : null}
       <AppButton
@@ -144,7 +146,6 @@ function GoalDetail({ id, done }: { id: string; done: () => void }) {
   const query = useRead(`goals/${id}`, goalDetailSchema);
   const [editing, setEditing] = useState(false);
   const [contributionDirty, setContributionDirty] = useState(false);
-  const money = useMoney();
   const update = useFinanceMutation(`goals/${id}`, goalSchema, 'PATCH');
   const remove = useFinanceMutation(`goals/${id}`, deletedSchema, 'DELETE');
   if (query.isPending) return <Loading />;
@@ -164,42 +165,51 @@ function GoalDetail({ id, done }: { id: string; done: () => void }) {
   if (editing) return <GoalForm key={goal.version} goal={goal} done={() => setEditing(false)} />;
   return (
     <>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Back to goals"
+        onPress={() => confirmDiscard(contributionDirty, done)}
+        style={{ minHeight: 44, justifyContent: 'center' }}
+      >
+        <AppText tone="accent" style={{ fontSize: 14 }}>
+          ‹ All goals
+        </AppText>
+      </Pressable>
       <Card>
-        <AppText style={{ fontSize: 26, fontFamily: 'DMSansBold' }}>{goal.name}</AppText>
-        <AppText>
-          {money(goal.savedMinor)} saved of {money(goal.targetMinor)}
-        </AppText>
-        <AppText tone="muted">
-          {goal.complete ? 'Target reached' : `${money(goal.remainingMinor)} remaining`}
-          {goal.archived ? ' · Archived' : ''}
-        </AppText>
-        <AppButton
-          title="Edit goal"
-          variant="secondary"
-          disabled={update.isPending || remove.isPending}
-          onPress={() => confirmDiscard(contributionDirty, () => setEditing(true))}
-        />
-        <AppButton
-          title={goal.archived ? 'Restore goal' : 'Archive goal'}
-          variant="secondary"
-          loading={update.isPending}
-          disabled={remove.isPending}
-          onPress={() =>
-            confirmDiscard(contributionDirty, () =>
-              update.mutate({
-                name: goal.name,
-                targetMinor: goal.targetMinor,
-                ...(goal.targetDate ? { targetDate: goal.targetDate } : {}),
-                archived: !goal.archived,
-                version: goal.version,
-              }),
-            )
-          }
-        />
+        <GoalOverview goal={goal} />
+        <View style={{ flexDirection: 'row', gap: 10, marginTop: 4 }}>
+          <View style={{ flex: 1 }}>
+            <AppButton
+              title="Edit goal"
+              variant="secondary"
+              disabled={update.isPending || remove.isPending}
+              onPress={() => confirmDiscard(contributionDirty, () => setEditing(true))}
+            />
+          </View>
+          <View style={{ flex: 1 }}>
+            <AppButton
+              title={goal.archived ? 'Restore goal' : 'Archive goal'}
+              variant="secondary"
+              loading={update.isPending}
+              disabled={remove.isPending}
+              onPress={() =>
+                confirmDiscard(contributionDirty, () =>
+                  update.mutate({
+                    name: goal.name,
+                    targetMinor: goal.targetMinor,
+                    ...(goal.targetDate ? { targetDate: goal.targetDate } : {}),
+                    archived: !goal.archived,
+                    version: goal.version,
+                  }),
+                )
+              }
+            />
+          </View>
+        </View>
         {(update.error || remove.error) && <Feedback error={update.error ?? remove.error} />}
       </Card>
       {!goal.archived && <ContributionForm key={id} goal={goal} onDirty={setContributionDirty} />}
-      <AppText accessibilityRole="header" style={{ fontSize: 22, fontFamily: 'DMSansBold' }}>
+      <AppText accessibilityRole="header" style={{ fontSize: 20, fontFamily: 'DMSansBold' }}>
         Recorded contributions
       </AppText>
       {!goal.contributions.length && <AppText tone="muted">No contributions yet.</AppText>}
@@ -219,11 +229,6 @@ function GoalDetail({ id, done }: { id: string; done: () => void }) {
               .catch(() => undefined);
           })
         }
-      />
-      <AppButton
-        title="Back to goals"
-        variant="secondary"
-        onPress={() => confirmDiscard(contributionDirty, done)}
       />
     </>
   );
@@ -272,9 +277,9 @@ function ContributionForm({
   }
   return (
     <Card>
-      <AppText style={{ fontFamily: 'DMSansBold' }}>Record money already saved</AppText>
-      <AppText tone="muted">
-        This tracks progress only. Record any account transfer separately in Activity.
+      <AppText style={{ fontFamily: 'DMSansBold', fontSize: 20 }}>Add saved money</AppText>
+      <AppText tone="muted" style={{ fontSize: 13, lineHeight: 20 }}>
+        Tracks goal progress only. Your account balances stay unchanged.
       </AppText>
       <Field
         label={`Contribution (${currency})`}
@@ -282,8 +287,9 @@ function ContributionForm({
         onChangeText={setAmount}
         keyboardType="decimal-pad"
         maxLength={35}
+        placeholder="0.00"
       />
-      <Field label="Saved on (YYYY-MM-DD)" value={date} onChangeText={setDate} maxLength={10} />
+      <DateField label="Saved on" value={date} onChange={setDate} />
       {error ? <Feedback error={new Error(error)} /> : null}
       {notice ? (
         <AppText tone="accent" accessibilityRole="alert">
@@ -293,6 +299,7 @@ function ContributionForm({
       <AppButton
         title="Record contribution"
         loading={add.isPending}
+        disabled={!amount.trim()}
         onPress={() => {
           void submit();
         }}
@@ -308,6 +315,7 @@ function ContributionRow({
   version: number;
 }) {
   const money = useMoney();
+  const dateLabel = useGoalDate();
   const remove = useFinanceMutation(
     `goals/${contribution.goalId}/contributions/${contribution.id}`,
     deletedSchema.extend({ goalVersion: z.number().int().positive() }),
@@ -315,18 +323,93 @@ function ContributionRow({
   );
   return (
     <Card>
-      <AppText>
-        {money(contribution.amountMinor)} · {contribution.date}
-      </AppText>
+      <View
+        style={{ flexDirection: 'row', gap: 12, justifyContent: 'space-between', flexWrap: 'wrap' }}
+      >
+        <AppText tone="accent" style={{ fontSize: 20, fontFamily: 'DMSansBold' }}>
+          {money(contribution.amountMinor)}
+        </AppText>
+        <AppText tone="muted" style={{ fontSize: 13 }}>
+          {dateLabel(contribution.date)}
+        </AppText>
+      </View>
       {remove.error && <Feedback error={remove.error} />}
-      <AppButton
-        title="Reverse contribution"
-        variant="danger"
-        loading={remove.isPending}
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Reverse contribution"
+        accessibilityState={{ disabled: remove.isPending, busy: remove.isPending }}
+        disabled={remove.isPending}
+        style={{ minHeight: 44, justifyContent: 'center', alignSelf: 'flex-start' }}
         onPress={() =>
           confirmDelete('contribution', () => remove.mutate({ version, confirmation: 'DELETE' }))
         }
-      />
+      >
+        <AppText tone="danger" style={{ fontSize: 13 }}>
+          {remove.isPending ? 'Reversing…' : 'Reverse contribution'}
+        </AppText>
+      </Pressable>
     </Card>
+  );
+}
+
+function useGoalDate() {
+  const { user } = useApp();
+  return (day: string) =>
+    new Intl.DateTimeFormat(user?.preferences.locale ?? 'en-IN', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+      timeZone: 'UTC',
+    }).format(new Date(`${day}T12:00:00Z`));
+}
+function GoalOverview({
+  goal,
+  showChevron = false,
+}: {
+  goal: z.infer<typeof goalProgressSchema>;
+  showChevron?: boolean;
+}) {
+  const money = useMoney();
+  const dateLabel = useGoalDate();
+  return (
+    <View style={{ gap: 12 }}>
+      <View style={{ flexDirection: 'row', gap: 12, alignItems: 'center' }}>
+        <AppText style={{ flex: 1, fontFamily: 'DMSansBold', fontSize: 21 }}>{goal.name}</AppText>
+        {showChevron && (
+          <AppText tone="muted" style={{ fontSize: 24 }}>
+            ›
+          </AppText>
+        )}
+      </View>
+      <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 6, flexWrap: 'wrap' }}>
+        <AppText tone="accent" style={{ fontFamily: 'DMSansBold', fontSize: 26, lineHeight: 34 }}>
+          {money(goal.savedMinor)}
+        </AppText>
+        <AppText tone="muted" style={{ fontSize: 13 }}>
+          of {money(goal.targetMinor)}
+        </AppText>
+      </View>
+      <PlanningProgress
+        amount={goal.savedMinor}
+        target={goal.targetMinor}
+        label={`${goal.name} savings progress`}
+      />
+      <View
+        style={{ flexDirection: 'row', gap: 12, justifyContent: 'space-between', flexWrap: 'wrap' }}
+      >
+        <AppText tone={goal.complete ? 'accent' : 'muted'} style={{ fontSize: 13 }}>
+          {goal.archived ? 'Archived · ' : ''}
+          {goal.complete ? 'Target reached' : `${money(goal.remainingMinor)} to go`}
+        </AppText>
+        <AppText tone="muted" style={{ fontSize: 13 }}>
+          {Math.floor(chartRatio(goal.savedMinor, goal.targetMinor) * 100)}%
+        </AppText>
+      </View>
+      {goal.targetDate && (
+        <AppText tone="muted" style={{ fontSize: 12 }}>
+          Target {dateLabel(goal.targetDate)}
+        </AppText>
+      )}
+    </View>
   );
 }
