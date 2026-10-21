@@ -10,6 +10,20 @@ export default function Support() {
         description. Never send passwords, recovery links, financial backups or sensitive
         transaction details.
       </p>
+      <h2 id="delete-records">Delete records while keeping your account</h2>
+      <p>
+        To remove a transaction, open Transactions, select the entry, choose Delete transaction and
+        confirm. This permanently removes that entry from the active application database and
+        recalculates the affected balances; your profile and other records remain. It does not
+        delete files you previously exported or shared. Provider-held backups and operational
+        records have separate retention, described in the <a href="/privacy">privacy policy</a>.
+      </p>
+      <p>
+        To request help removing specific data without closing your account, email{' '}
+        <a href={`mailto:${supportEmail}`}>{supportEmail}</a> from your account email and describe
+        the type of data to remove. Do not include transaction details, passwords or backup files.
+        We may need to verify ownership before processing a request.
+      </p>
       <h2>Delete in the application</h2>
       <p>
         Open Settings → Password and security → Delete Finora account. Enter your current password
