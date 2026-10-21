@@ -12,8 +12,10 @@ import {
 } from '@finora/contracts';
 import { calendarDate, parseMoney } from '@finora/finance-core';
 import { useState } from 'react';
+import { Pressable, View } from 'react-native';
 import { z } from 'zod';
 import { AppButton, AppText, Card, Choice, Feedback, Field, Loading } from '../../components/ui';
+import { DateField, FlowSheet, SelectField } from '../../components/flow';
 import { useFinanceMutation, useUnsavedChanges } from '../../hooks/finance';
 import { useApp } from '../../providers/app-provider';
 import {
@@ -28,8 +30,10 @@ import { confirmDelete, confirmDiscard, deletedSchema, failureMessage } from './
 
 export function Recurring({ onEditing }: { onEditing: (editing: boolean) => void }) {
   const money = useMoney();
+  const dateLabel = useScheduleDate();
   const rules = useRead('recurring', z.array(recurringRuleSchema));
   const [status, setStatus] = useState('PENDING');
+  const [helpOpen, setHelpOpen] = useState(false);
   const occurrences = useRead(
     `recurring-occurrences?status=${status}`,
     z.array(recurringOccurrenceSchema),
@@ -75,21 +79,26 @@ export function Recurring({ onEditing }: { onEditing: (editing: boolean) => void
     );
   return (
     <>
-      <AppText tone="muted">
-        Every due item needs your confirmation. Checking due items creates reminders; confirming an
-        item records a real transaction and updates your balances.
+      <AppText tone="muted" style={{ fontSize: 14 }}>
+        Review each due item before it affects your balance.
       </AppText>
-      <AppButton
-        title="Create recurring item"
-        disabled={!accounts.data || !categories.data}
-        onPress={() => edit('new')}
-      />
-      <AppButton
-        title="Check for due items"
-        variant="secondary"
-        loading={generate.isPending}
-        onPress={() => generate.mutate({})}
-      />
+      <View style={{ flexDirection: 'row', gap: 10 }}>
+        <View style={{ flex: 1 }}>
+          <AppButton
+            title="New recurring item"
+            disabled={!accounts.data || !categories.data}
+            onPress={() => edit('new')}
+          />
+        </View>
+        <View style={{ flex: 1 }}>
+          <AppButton
+            title="Check due items"
+            variant="secondary"
+            loading={generate.isPending}
+            onPress={() => generate.mutate({})}
+          />
+        </View>
+      </View>
       {generate.error && <Feedback error={generate.error} />}
       {generate.data && (
         <AppText tone="accent" accessibilityRole="alert">
@@ -107,24 +116,12 @@ export function Recurring({ onEditing }: { onEditing: (editing: boolean) => void
           }}
         />
       )}
-      <AppText accessibilityRole="header" style={{ fontFamily: 'DMSansBold', fontSize: 22 }}>
-        Your recurring items
-      </AppText>
-      {rules.isPending && <Loading />}
-      {rules.data?.length === 0 && (
-        <AppText tone="muted">
-          Add regular income, rent, bills, or other repeating transactions.
-        </AppText>
-      )}
-      {rules.data?.map((rule) => (
-        <RuleCard key={rule.id} rule={rule} edit={() => edit(rule)} />
-      ))}
       <Choice
-        label="Due item history"
+        label="Due items"
         value={status}
         onChange={setStatus}
         options={[
-          { value: 'PENDING', label: 'Awaiting confirmation' },
+          { value: 'PENDING', label: 'Upcoming' },
           { value: 'POSTED', label: 'Posted' },
         ]}
       />
@@ -138,27 +135,41 @@ export function Recurring({ onEditing }: { onEditing: (editing: boolean) => void
         />
       )}
       {occurrences.data?.length === 0 && (
-        <AppText tone="muted">
-          {status === 'PENDING'
-            ? 'No pending items. Check for due items to refresh your reminders.'
-            : 'No recurring transactions posted yet.'}
-        </AppText>
+        <Card>
+          <AppText style={{ fontFamily: 'DMSansBold' }}>
+            {status === 'PENDING' ? 'No upcoming items' : 'No posted items'}
+          </AppText>
+          <AppText tone="muted" style={{ fontSize: 13, lineHeight: 20 }}>
+            {status === 'PENDING'
+              ? 'Check due items to load your scheduled reminders.'
+              : 'Confirmed recurring transactions will appear here.'}
+          </AppText>
+        </Card>
       )}
       {occurrences.data?.map((item) => (
         <Card key={item.id}>
-          <AppText style={{ fontFamily: 'DMSansBold' }}>
-            {rules.data?.find((rule) => rule.id === item.ruleId)?.name ?? 'Recurring transaction'}
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 12 }}>
+            <AppText style={{ fontFamily: 'DMSansBold', flex: 1 }}>
+              {rules.data?.find((rule) => rule.id === item.ruleId)?.name ?? 'Recurring transaction'}
+            </AppText>
+            {item.amountMinor && (
+              <AppText
+                tone={item.type === 'EXPENSE' ? 'danger' : 'accent'}
+                style={{ fontFamily: 'DMSansBold', fontSize: 18, flexShrink: 1 }}
+              >
+                {money(item.amountMinor)}
+              </AppText>
+            )}
+          </View>
+          <AppText tone="muted" style={{ fontSize: 13 }}>
+            Due {dateLabel(item.dueDate)} · {item.type === 'INCOME' ? 'Income' : 'Expense'}
           </AppText>
-          <AppText tone="muted">
-            Due {item.dueDate} · {item.type.toLowerCase()} · {item.timezone}
-          </AppText>
-          <AppText>
-            {item.amountMinor ? `${money(item.amountMinor)} · ` : ''}
+          <AppText tone="muted" style={{ fontSize: 13 }}>
             {item.status === 'POSTED'
-              ? 'Recorded in Activity'
+              ? 'Recorded in Transactions'
               : item.amountMode === 'VARIABLE'
                 ? 'Enter the actual amount to confirm'
-                : 'Fixed amount · Ready to confirm'}
+                : 'Ready for your confirmation'}
           </AppText>
           {item.status === 'PENDING' && (
             <AppButton
@@ -169,15 +180,53 @@ export function Recurring({ onEditing }: { onEditing: (editing: boolean) => void
           )}
         </Card>
       ))}
-      <AppText tone="muted">
-        Shows the latest 100 items for the selected status. Schedules use their original timezone.
-        Pausing stops new reminders; existing reminders remain available.
+      <AppText accessibilityRole="header" style={{ fontFamily: 'DMSansBold', fontSize: 20 }}>
+        Your schedules
       </AppText>
+      {rules.isPending && <Loading />}
+      {rules.data?.length === 0 && (
+        <Card>
+          <AppText style={{ fontFamily: 'DMSansBold' }}>
+            Make regular payments easier to track
+          </AppText>
+          <AppText tone="muted" style={{ fontSize: 13, lineHeight: 20 }}>
+            Add income, rent or bills with New recurring item.
+          </AppText>
+        </Card>
+      )}
+      {rules.data?.map((rule) => (
+        <RuleCard key={rule.id} rule={rule} edit={() => edit(rule)} />
+      ))}
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="How recurring works"
+        onPress={() => setHelpOpen(true)}
+        style={{ minHeight: 48, alignItems: 'center', justifyContent: 'center' }}
+      >
+        <AppText tone="accent" style={{ fontSize: 14 }}>
+          How recurring works ⓘ
+        </AppText>
+      </Pressable>
+      <FlowSheet title="How recurring works" visible={helpOpen} onClose={() => setHelpOpen(false)}>
+        <AppText>
+          Checking due items creates reminders. Only confirming an item creates a real transaction
+          and updates your balances.
+        </AppText>
+        <AppText tone="muted">
+          Each list shows the latest 100 items for its selected status. Schedules use their original
+          timezone.
+        </AppText>
+        <AppText tone="muted">
+          Pausing stops new reminders; existing reminders remain available. Items with generated
+          history must be paused instead of deleted.
+        </AppText>
+      </FlowSheet>
     </>
   );
 }
 function RuleCard({ rule, edit }: { rule: RecurringRule; edit: () => void }) {
   const money = useMoney();
+  const dateLabel = useScheduleDate();
   const pause = useFinanceMutation(
     `recurring/${rule.id}/${rule.paused ? 'resume' : 'pause'}`,
     recurringRuleSchema,
@@ -185,43 +234,62 @@ function RuleCard({ rule, edit }: { rule: RecurringRule; edit: () => void }) {
   const remove = useFinanceMutation(`recurring/${rule.id}`, deletedSchema, 'DELETE');
   return (
     <Card>
-      <AppText style={{ fontFamily: 'DMSansBold', fontSize: 22 }}>{rule.name}</AppText>
-      <AppText>
+      <View style={{ flexDirection: 'row', gap: 12, alignItems: 'center' }}>
+        <AppText style={{ fontFamily: 'DMSansBold', fontSize: 20, flex: 1 }}>{rule.name}</AppText>
+        <AppText tone={rule.paused ? 'muted' : 'accent'} style={{ fontSize: 12 }}>
+          {rule.paused ? 'Paused' : 'Active'}
+        </AppText>
+      </View>
+      <AppText
+        tone={rule.type === 'EXPENSE' ? 'danger' : 'accent'}
+        style={{ fontFamily: 'DMSansBold', fontSize: 20 }}
+      >
         {rule.amountMinor ? money(rule.amountMinor) : 'Variable amount'} ·{' '}
         {rule.frequency.toLowerCase()}
       </AppText>
-      <AppText tone="muted">
-        {rule.paused ? 'Paused' : 'Active'} · From {rule.startDate}
-        {rule.endDate ? ` until ${rule.endDate}` : ''}
+      <AppText tone="muted" style={{ fontSize: 13 }}>
+        From {dateLabel(rule.startDate)}
+        {rule.endDate ? ` until ${dateLabel(rule.endDate)}` : ''}
       </AppText>
-      <AppButton
-        title="Edit recurring item"
-        variant="secondary"
-        disabled={pause.isPending || remove.isPending}
-        onPress={edit}
-      />
-      <AppButton
-        title={rule.paused ? 'Resume' : 'Pause'}
-        variant="secondary"
-        loading={pause.isPending}
-        disabled={remove.isPending}
-        onPress={() => pause.mutate({ version: rule.version })}
-      />
+      <View style={{ flexDirection: 'row', gap: 10 }}>
+        <View style={{ flex: 1 }}>
+          <AppButton
+            title="Edit item"
+            variant="secondary"
+            disabled={pause.isPending || remove.isPending}
+            onPress={edit}
+          />
+        </View>
+        <View style={{ flex: 1 }}>
+          <AppButton
+            title={rule.paused ? 'Resume' : 'Pause'}
+            variant="secondary"
+            loading={pause.isPending}
+            disabled={remove.isPending}
+            onPress={() => pause.mutate({ version: rule.version })}
+          />
+        </View>
+      </View>
       {(pause.error || remove.error) && <Feedback error={pause.error ?? remove.error} />}
-      <AppButton
-        title="Delete recurring item"
-        variant="danger"
-        loading={remove.isPending}
-        disabled={pause.isPending}
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Delete recurring item"
+        accessibilityState={{
+          disabled: pause.isPending || remove.isPending,
+          busy: remove.isPending,
+        }}
+        disabled={pause.isPending || remove.isPending}
+        style={{ minHeight: 44, justifyContent: 'center', alignSelf: 'flex-start' }}
         onPress={() =>
           confirmDelete('recurring item', () =>
             remove.mutate({ version: rule.version, confirmation: 'DELETE' }),
           )
         }
-      />
-      <AppText tone="muted">
-        Items with generated history must be paused instead of deleted.
-      </AppText>
+      >
+        <AppText tone="danger" style={{ fontSize: 13 }}>
+          {remove.isPending ? 'Deleting…' : 'Delete item'}
+        </AppText>
+      </Pressable>
     </Card>
   );
 }
@@ -309,7 +377,7 @@ function RuleForm({
           { value: 'INCOME', label: 'Income' },
         ]}
       />
-      <Choice
+      <SelectField
         label="Account"
         value={form.accountId}
         onChange={(value) => set('accountId', value)}
@@ -317,7 +385,7 @@ function RuleForm({
           .filter((item) => !item.archived)
           .map((item) => ({ value: item.id, label: item.name }))}
       />
-      <Choice
+      <SelectField
         label="Category"
         value={form.categoryId}
         onChange={(value) => set('categoryId', value)}
@@ -357,19 +425,18 @@ function RuleForm({
         </AppText>
       ) : (
         <>
-          <Field
-            label="First due date (YYYY-MM-DD)"
+          <DateField
+            label="First due date"
             value={form.startDate}
-            onChangeText={(value) => set('startDate', value)}
-            maxLength={10}
+            onChange={(value) => set('startDate', value)}
           />
-          <Field
-            label="Last due date (optional, YYYY-MM-DD)"
+          <DateField
+            label="Last due date (optional)"
             value={form.endDate}
-            onChangeText={(value) => set('endDate', value)}
-            maxLength={10}
+            onChange={(value) => set('endDate', value)}
+            allowClear
           />
-          <Choice
+          <SelectField
             label="Repeats"
             value={form.frequency}
             onChange={(value) => set('frequency', value)}
@@ -382,7 +449,7 @@ function RuleForm({
           />
         </>
       )}
-      <AppText tone="muted">
+      <AppText tone="muted" style={{ fontSize: 13, lineHeight: 20 }}>
         Each item requires confirmation before it affects your balance.
       </AppText>
       {error ? <Feedback error={new Error(error)} /> : null}
@@ -461,7 +528,7 @@ function ConfirmOccurrence({
       />
       <AppText tone="muted">
         Confirming creates one transaction on the due date and updates your account balance. It will
-        appear in Activity.
+        appear in Transactions.
       </AppText>
       {error ? <Feedback error={new Error(error)} /> : null}
       <AppButton
@@ -479,4 +546,15 @@ function ConfirmOccurrence({
       />
     </Card>
   );
+}
+
+function useScheduleDate() {
+  const { user } = useApp();
+  return (day: string) =>
+    new Intl.DateTimeFormat(user?.preferences.locale ?? 'en-IN', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+      timeZone: 'UTC',
+    }).format(new Date(`${day}T12:00:00Z`));
 }

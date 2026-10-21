@@ -68,3 +68,10 @@ cards; detail screens keep Edit/Archive side by side, a clear progress bar, and 
 calendar-based contribution form. Target dates also use the calendar. Recording a
 contribution still tracks savings only, keeps version/idempotency protections, and
 does not create ledger transactions; a native workflow verifies that request boundary.
+
+Recurring puts Upcoming/Posted due items before schedules, groups creation and due
+checks in one row, and moves detailed guidance into How recurring works. Schedules
+show state, amount and compact Edit/Pause actions. Account/category/frequency use
+selectors; start/end dates use calendars. Confirmation remains explicit. A native
+workflow verifies generation only creates reminders and a separate review/confirm
+action sends the exact amount and schedule-timezone date for posting.
