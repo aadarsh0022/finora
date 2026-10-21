@@ -61,7 +61,11 @@ export function dispatch(request: Request) {
       case 'POST /api/v1/auth/forgot-password': {
         const input = await readBody(request, forgotPasswordSchema);
         await rateLimit(request, path, input.email);
-        await auth.forgotPassword(input.email);
+        const recovery = await auth.forgotPassword(input.email);
+        if (recovery === 'delivery-failed')
+          console.error(
+            JSON.stringify({ level: 'error', requestId, code: 'RECOVERY_DELIVERY_FAILED' }),
+          );
         return success(
           { message: 'If an account exists, a recovery email has been sent.' },
           requestId,

@@ -9,7 +9,8 @@ no-store responses and basic HTTP security headers.
 
 Credentials, outbox and signing files are ignored. No secrets in EXPO_PUBLIC values.
 Resend uses a fixed HTTPS endpoint with a timeout. Delivery failure removes the
-reset token and returns an error. Production rejects local email, missing sender/key,
+reset token and preserves the same public recovery response as an unknown email.
+Only an allowlisted failure code and request ID are logged. Production rejects local email, missing sender/key,
 non-HTTPS APP_URL and absent trusted-proxy configuration.
 
 Release gates: least-privilege Atlas user, verified HTTPS hosting/proxy behavior,

@@ -197,6 +197,47 @@ describe('password recovery and account lifecycle', () => {
     expect(link.search).toBe('');
     return new URLSearchParams(link.hash.slice(1)).get('token')!;
   }
+  it('keeps recovery responses uniform for HTTP and network delivery failures without retaining reset tokens', async () => {
+    const first = await createUser();
+    vi.stubEnv('EMAIL_TRANSPORT', 'resend');
+    vi.stubEnv('RESEND_API_KEY', 'unit-resend-key-not-real');
+    vi.stubEnv('EMAIL_FROM', 'Finora <no-reply@example.com>');
+    const logs = vi.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      for (const failure of ['http', 'network']) {
+        vi.stubGlobal(
+          'fetch',
+          failure === 'http'
+            ? vi.fn(async () => Response.json({ message: 'provider unavailable' }, { status: 500 }))
+            : vi.fn(async () => {
+                throw new Error('provider unavailable');
+              }),
+        );
+        const existing = await call('POST', 'auth/forgot-password', { email: first.user.email });
+        const missing = await call('POST', 'auth/forgot-password', {
+          email: 'missing@example.com',
+        });
+        expect(existing.status).toBe(200);
+        expect(missing.status).toBe(200);
+        expect(existing.json.success && existing.json.data).toEqual(
+          missing.json.success && missing.json.data,
+        );
+        const record = await (await database()).users.findOne({ id: first.user.id });
+        expect(record?.resetHash).toBeUndefined();
+        expect(record?.resetExpiresAt).toBeUndefined();
+      }
+      expect(logs).toHaveBeenCalledTimes(2);
+      for (const [entry] of logs.mock.calls) {
+        const metadata = JSON.parse(String(entry)) as Record<string, unknown>;
+        expect(Object.keys(metadata).sort()).toEqual(['code', 'level', 'requestId']);
+        expect(metadata.code).toBe('RECOVERY_DELIVERY_FAILED');
+      }
+    } finally {
+      logs.mockRestore();
+      vi.unstubAllGlobals();
+      vi.unstubAllEnvs();
+    }
+  });
   it('delivers a local recovery link, stores only its hash, consumes once and invalidates sessions', async () => {
     const first = await createUser();
     const token = await recoveryToken();

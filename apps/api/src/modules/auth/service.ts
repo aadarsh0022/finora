@@ -203,12 +203,13 @@ export async function forgotPassword(email: string) {
   if (!user) return;
   try {
     await sendPasswordReset(email, token);
-  } catch (error) {
+  } catch {
     await users.updateOne(
       { id: user.id, resetHash: digest },
       { $unset: { resetHash: '', resetExpiresAt: '' } },
     );
-    throw error;
+    // Do not expose provider failures only for registered addresses.
+    return 'delivery-failed' as const;
   }
 }
 

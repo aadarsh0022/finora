@@ -30,7 +30,7 @@ Rerun pnpm install --frozen-lockfile, pnpm check and pnpm build:api.
 First integration run downloads MongoDB from its official download service; Docker
 is unnecessary. Tests never read server .env.local or target Atlas.
 
-Latest integrated run (21 October 2026): **91 Vitest tests in 20 files and 37 native component tests
+Latest integrated run (21 October 2026): **92 Vitest tests in 20 files and 37 native component tests
 in 10 files passed**, with strict types, zero-warning ESLint and formatting. Next.js
 production build, Expo SDK compatibility check and Android Hermes export with
 source maps passed. The component runner uses Jest/Expo/RN Testing Library with
@@ -41,6 +41,9 @@ health, login and authenticated reads remain available; recovery returns the sam
 unavailable response for existing/missing emails and issues no reset token. Separate
 configuration tests preserve HTTPS/proxy guards and require complete Resend inputs
 when that transport is selected.
+Resend HTTP/network failures are simulated against disposable MongoDB: existing
+and missing emails receive the same successful public response, failed delivery
+leaves no reset token and logs contain only safe request metadata.
 
 Website deletion tests exercise the browser request flow against actual Route
 Handlers and disposable MongoDB. They verify exact confirmation before login,
