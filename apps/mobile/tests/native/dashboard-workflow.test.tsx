@@ -210,7 +210,7 @@ test('renders exact balances and financial summaries, privacy toggle and transac
   expect(router.push).toHaveBeenCalledWith('/transaction');
   await fireEvent.press(screen.getByRole('button', { name: 'Manage accounts' }));
   expect(router.push).toHaveBeenCalledWith('/accounts');
-  await fireEvent.press(screen.getByRole('button', { name: 'View or edit' }));
+  await fireEvent.press(screen.getByRole('button', { name: 'View or edit Groceries' }));
   expect(router.push).toHaveBeenCalledWith({
     pathname: '/transaction',
     params: { id: transaction.id },

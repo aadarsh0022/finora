@@ -30,8 +30,8 @@ Rerun pnpm install --frozen-lockfile, pnpm check and pnpm build:api.
 First integration run downloads MongoDB from its official download service; Docker
 is unnecessary. Tests never read server .env.local or target Atlas.
 
-Latest integrated run: **82 Vitest tests in 17 files and 21 native component tests
-in 5 files passed**, with strict types, zero-warning ESLint and formatting. Next.js
+Latest integrated run (21 October 2026): **86 Vitest tests in 18 files and 29 native component tests
+in 8 files passed**, with strict types, zero-warning ESLint and formatting. Next.js
 production build, Expo SDK compatibility check and Android Hermes export with
 source maps passed. The component runner uses Jest/Expo/RN Testing Library with
 mocked transport and operating-system boundaries; it is not a real-device test.
@@ -58,7 +58,9 @@ x86_64 debug build after adding SVG/biometric modules and branding also succeede
 `.local/android-debug/finora-x86_64-debug.apk`; it requires a reachable Metro server,
 is for an x86_64 emulator, and is not a standalone release or ARM phone build.
 Emulator installation/boot stalled; another configured AVD's system
-image was missing. No native launch or device workflow success is claimed.
+image was missing. A later Pixel 8 Pro boot, APK installation and native React
+startup succeeded; subsequent restarts serve the app from Metro. Full native
+workflow, visual and accessibility verification remains incomplete.
 
 Expo prebuild applied the release-signing plugin. Real Gradle missing-input and
 HTTP release attempts failed at the intended guard, and no AAB was produced.

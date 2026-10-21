@@ -3,7 +3,9 @@ import { accountWithBalanceSchema, categorySchema, type Transaction } from '@fin
 import { calendarDate, formatMoney } from '@finora/finance-core';
 import { router } from 'expo-router';
 import { z, type ZodType } from 'zod';
-import { AppButton, AppText, Card } from '../../components/ui';
+import { AppText } from '../../components/ui';
+import { Pressable, View } from 'react-native';
+import { useTheme } from '../../theme';
 import { useApp } from '../../providers/app-provider';
 
 export const accountsSchema = z.array(accountWithBalanceSchema);
@@ -31,12 +33,17 @@ export function TransactionCard({
   item,
   accountName,
   categoryName,
+  destinationAccountName,
+  showDate = true,
 }: {
   item: Transaction;
   accountName?: string;
   categoryName?: string;
+  destinationAccountName?: string;
+  showDate?: boolean;
 }) {
   const money = useMoney();
+  const theme = useTheme();
   const { user } = useApp();
   const date = calendarDate(new Date(item.date), user?.preferences.timezone ?? 'Asia/Kolkata');
   const [year, month, day] = date.split('-');
@@ -47,30 +54,65 @@ export function TransactionCard({
       : format === 'MM/DD/YYYY'
         ? `${month}/${day}/${year}`
         : date;
+  const title =
+    item.merchant ||
+    categoryName ||
+    (item.type === 'TRANSFER' ? 'Account transfer' : item.type === 'INCOME' ? 'Income' : 'Expense');
   return (
-    <Card>
-      <AppText style={{ fontFamily: 'DMSansBold' }}>
-        {item.merchant ||
-          categoryName ||
-          (item.type === 'TRANSFER'
-            ? 'Account transfer'
-            : item.type === 'INCOME'
-              ? 'Income'
-              : 'Expense')}
-      </AppText>
-      <AppText tone={item.type === 'EXPENSE' ? 'text' : 'accent'} style={{ fontSize: 23 }}>
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`View or edit ${title}`}
+      accessibilityHint="Opens transaction details"
+      onPress={() => router.push({ pathname: '/transaction', params: { id: item.id } })}
+      style={({ pressed }) => ({
+        padding: 14,
+        backgroundColor: theme.surface,
+        borderRadius: 16,
+        borderWidth: 1,
+        borderColor: theme.border,
+        opacity: pressed ? 0.75 : 1,
+        flexDirection: 'row',
+        gap: 12,
+        alignItems: 'center',
+        minHeight: 80,
+      })}
+    >
+      <View
+        style={{
+          width: 40,
+          height: 40,
+          borderRadius: 12,
+          backgroundColor: theme.accentSoft,
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <AppText tone="accent" style={{ fontSize: 22 }}>
+          {item.type === 'TRANSFER' ? '⇄' : item.type === 'INCOME' ? '↙' : '↗'}
+        </AppText>
+      </View>
+      <View style={{ flex: 1, gap: 3 }}>
+        <AppText numberOfLines={1} style={{ fontFamily: 'DMSansBold', fontSize: 15 }}>
+          {title}
+        </AppText>
+        <AppText numberOfLines={1} tone="muted" style={{ fontSize: 12, lineHeight: 18 }}>
+          {item.type === 'TRANSFER'
+            ? `${accountName ?? 'Account'} → ${destinationAccountName ?? 'Account'}`
+            : `${accountName ?? 'Account'}${categoryName && categoryName !== title ? ` · ${categoryName}` : ''}`}
+        </AppText>
+        {showDate && (
+          <AppText tone="muted" style={{ fontSize: 11, lineHeight: 16 }}>
+            {displayDate}
+          </AppText>
+        )}
+      </View>
+      <AppText
+        tone={item.type === 'INCOME' ? 'accent' : 'text'}
+        style={{ fontSize: 16, fontFamily: 'DMSansBold', flexShrink: 1, textAlign: 'right' }}
+      >
         {item.type === 'EXPENSE' ? '−' : item.type === 'INCOME' ? '+' : ''}
         {money(item.amountMinor)}
       </AppText>
-      <AppText tone="muted">
-        {accountName ?? 'Account'} · {displayDate} · {item.type.toLowerCase()}
-      </AppText>
-      {item.note ? <AppText>{item.note}</AppText> : null}
-      <AppButton
-        title="View or edit"
-        variant="secondary"
-        onPress={() => router.push({ pathname: '/transaction', params: { id: item.id } })}
-      />
-    </Card>
+    </Pressable>
   );
 }
