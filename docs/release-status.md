@@ -40,16 +40,28 @@ Resend verified the sending subdomain and its TLS-enforced sender is configured.
 The authorized branded support inbox and receiving MX exist. Actual recovery
 delivery and support-inbox monitoring remain operational gates.
 
-The owner authorized only creation of a free Finora Play draft and accepted its
-two creation declarations. Draft app ID: `4975403263611892390`. The hosted privacy
-URL was entered and Save was clicked; persistence still needs verification after
-browser control reconnects. No release upload, tester invitations, rollout or
-public publication occurred. Chrome lists the dashboard but browser controls
-cannot currently attach to it.
+The owner authorized a free Finora Play draft and accepted its two creation
+declarations. Draft app ID: `4975403263611892390`. Chrome control recovered and
+the hosted privacy-policy task is confirmed complete. The owner manually uploaded
+the verified AAB after browser file access blocked automated selection. Play
+accepted version `1 (0.1.0)`, minimum API 24, target API 36 and four ABIs. The internal
+release and factual notes were saved as draft. Its validation preview shows one
+warning: no testers are selected. No rollout or public publication occurred.
+
+The dashboard confirms 6 of 11 app setup tasks complete: privacy policy, no ads,
+non-government app, no health features, financial features and category/contact.
+Financial features use Other with an explicit manual expense/budget/savings
+description; no regulated service is claimed. The category is Finance and public
+contacts use the branded support address and hosted Vercel website. Sign-in
+details, content rating, target audience, Data safety and final listing remain.
+No tester invitations or account-owner agreements beyond the two creation
+declarations were submitted. Console screenshots are retained under ignored
+`.local/deployment/play-upload-validated.jpg` and `play-setup-progress.jpg`.
 
 ## Remaining external release gates
 
-- Finish truthful Play setup, Data safety, reviewer access, rating and listing;
+- Finish the five remaining Play setup tasks, including Data safety, reviewer
+  access, rating, target audience and listing;
   obtain actual release screenshots and enroll Play signing as required.
 - Verify recovery delivery, support operations, restricted Atlas application and
   migration roles, provider retention, key backup and database restore procedures.

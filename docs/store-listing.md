@@ -9,8 +9,9 @@ Finora
 
 Android package: `app.finora.money`. Release identifiers and public app branding
 must not contain the owner's personal name. No earlier Play upload has registered
-this application identity. A free draft was created on 21 October 2026; no binary
-was uploaded or released. See release-status.md for the signed local artifacts.
+this application identity. A free draft was created on 21 October 2026; the signed
+version 1 (0.1.0) was uploaded and saved as an internal draft. No rollout occurred.
+See release-status.md for the signed local artifacts and remaining setup tasks.
 
 ## Short description
 

@@ -122,7 +122,8 @@ succeeded from clean revision `d9fe5bd`, using the hosted HTTPS API and the priv
 non-debug upload key. Google bundletool validated the AAB; a standalone APK was
 generated and its signer verified. Actual manifest and secret-comparison evidence,
 artifact hashes and remaining gates are recorded in [release status](release-status.md).
-Neither artifact was uploaded or published to Play.
+The owner subsequently uploaded the AAB to Play. Version 1 (0.1.0) was accepted and
+saved as an internal draft, with a no-testers warning. No release was published.
 
 References: [Expo config plugin mods](https://docs.expo.dev/config-plugins/mods/),
 [Expo local plugins](https://docs.expo.dev/config-plugins/plugins/),

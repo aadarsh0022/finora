@@ -18,9 +18,10 @@ implemented. This is an engineering build, not a verified closed-test release.
   operational release gates; a page implementation is not legal certification.
 - A signed AAB and standalone APK passed signature and manifest validation from a
   clean revision; see release-status.md. Final store screenshots, authenticated
-  native QA and closed testing remain incomplete. A free Finora Play draft exists,
-  but browser attachment currently blocks further Console setup. No release was
-  uploaded or published. The Console requires 12 testers continuously for 14 days;
+  native QA and closed testing remain incomplete. The uploaded version 1 (0.1.0)
+  is saved as an internal Play draft; validation warns that no testers are selected.
+  Six of eleven app setup tasks are complete. No rollout or public publication
+  occurred. The Console requires 12 testers continuously for 14 days;
   the owner's public-identity privacy requirement also remains unresolved.
   Original launcher, splash and feature-graphic assets are prepared. No billing,
   ads, bank integrations or AI enabled.
