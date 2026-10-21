@@ -119,3 +119,18 @@ No reset link, password, merchant or transaction note is included in this eviden
 Not executed yet: full native workflow/visual/accessibility tests, completion of a
 production password reset or Play testing/review. Route integration and artifact
 verification are not complete device end-to-end tests.
+
+## Native sign-out regression — 22 October 2026
+
+The signed version 1 build showed a persistent blank screen after successful
+sign-out on Pixel 8 Pro. The root index and tabs index both resolve to `/`; the
+router's default protected-route fallback repeatedly redirected through that
+ambiguous path. Explicit group-qualified destinations now send expired/signed-out
+sessions to `/(auth)/login` and signed-in auth screens to `/(tabs)`.
+
+Two tests run the actual Expo Router with Finora's root layout: sign-out/login
+without a process restart, and an unauthenticated private deep link. Removing the
+fix reproduced an unbounded navigation update loop; with the fix both tests pass.
+The release config is bumped to 0.1.1 / version code 2. The previously uploaded
+version 1 is superseded and must not be rolled out. A replacement signed build and
+native validation are required before tester distribution.

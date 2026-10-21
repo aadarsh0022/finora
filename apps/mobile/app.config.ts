@@ -4,13 +4,13 @@ const config: ExpoConfig = {
   name: 'Finora',
   slug: 'finora',
   scheme: 'finora',
-  version: '0.1.0',
+  version: '0.1.1',
   orientation: 'portrait',
   userInterfaceStyle: 'automatic',
   icon: './assets/brand/icon.png',
   android: {
     package: 'app.finora.money',
-    versionCode: 1,
+    versionCode: 2,
     allowBackup: false,
     adaptiveIcon: {
       foregroundImage: './assets/brand/adaptive-foreground.png',

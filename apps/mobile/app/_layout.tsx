@@ -54,10 +54,10 @@ function Navigation() {
         }}
       >
         <Stack.Screen name="index" options={{ headerShown: false }} />
-        <Stack.Protected guard={!user}>
+        <Stack.Protected guard={!user} redirectTo="/(tabs)">
           <Stack.Screen name="(auth)" options={{ headerShown: false }} />
         </Stack.Protected>
-        <Stack.Protected guard={!!user}>
+        <Stack.Protected guard={!!user} redirectTo="/(auth)/login">
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           <Stack.Screen name="account" options={{ title: 'Account' }} />
           <Stack.Screen name="accounts" options={{ title: 'Accounts' }} />
