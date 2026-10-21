@@ -77,7 +77,7 @@ startup succeeded; subsequent restarts serve the app from Metro. Full native
 workflow, visual and accessibility verification remains incomplete.
 
 Expo prebuild applied the release-signing plugin. Real Gradle missing-input and
-HTTP release attempts failed at the intended guard, and no AAB was produced.
+HTTP release attempts failed at the intended guard during initial setup.
 Private local upload-key generation succeeded with restricted Windows ACLs.
 Three guard unit tests cover unsafe URLs, signing inputs and plugin transformation.
 
@@ -92,6 +92,19 @@ loaded the hosted origin and reopened/bundled the app on Pixel 8 Pro without
 observed runtime errors. No production user or financial data was created by these
 checks; full cloud authentication/finance workflows remain unverified.
 
-Not executed yet: full native workflow/visual/accessibility tests, signed AAB,
-production email delivery or Play testing/review. Route integration is not a
-complete device end-to-end test.
+The signed release build subsequently passed from clean revision `d9fe5bd` with
+the hosted API. AAB JAR verification, Google bundletool validation and matching
+standalone APK signature checks passed. Actual manifest inspection confirmed the
+Finora-only package, target API 36 and the restricted permission inventory.
+Comparison against local server secrets/upload-key passwords found no matches
+across 2,639 uncompressed AAB/APK entries; cloud-only values were not retrieved.
+See release-status.md for artifact hashes and provenance.
+
+The signed standalone APK installed and cold-launched on Pixel_8_Pro (API 37)
+without Metro. The process remained alive, with zero captured AndroidRuntime fatal
+or ReactNativeJS error lines for its process during the startup check. No native
+UI interaction or authenticated workflow is claimed by this developer-CLI smoke test.
+
+Not executed yet: full native workflow/visual/accessibility tests, production
+email delivery or Play testing/review. Route integration and artifact verification
+are not complete device end-to-end tests.

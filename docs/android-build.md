@@ -117,8 +117,12 @@ Play signing enrollment and store review remain separate gates.
 Verified locally: Expo prebuild reapplied the tracked release configuration; a
 missing-input Gradle validation task and an HTTP-input `bundleRelease` both failed
 at the Finora guard. Private upload-key generation succeeded with restricted
-Windows ACLs and ignored files. No release AAB was produced: the actual deployed
-HTTPS API origin is still required.
+Windows ACLs and ignored files. On 21 October 2026 the signed release command
+succeeded from clean revision `d9fe5bd`, using the hosted HTTPS API and the private
+non-debug upload key. Google bundletool validated the AAB; a standalone APK was
+generated and its signer verified. Actual manifest and secret-comparison evidence,
+artifact hashes and remaining gates are recorded in [release status](release-status.md).
+Neither artifact was uploaded or published to Play.
 
 References: [Expo config plugin mods](https://docs.expo.dev/config-plugins/mods/),
 [Expo local plugins](https://docs.expo.dev/config-plugins/plugins/),

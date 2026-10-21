@@ -3,8 +3,9 @@
 The identity and finance APIs, connected Expo screens and automated checks are
 implemented. This is an engineering build, not a verified closed-test release.
 
-- Real-device installation, visual/gesture/accessibility checks and full native
-  workflows have not been executed. Bundling does not prove the Android app launches.
+- The signed standalone APK installed and launched on Pixel 8 Pro emulator without
+  Metro, with no captured fatal/React startup errors. Physical-device installation,
+  visual/gesture/accessibility checks and full native workflows remain unverified.
 - Hosted health and unauthenticated access checks pass. Full cloud user workflows,
   verified recovery email, least-privilege Atlas credentials,
   operator/support identity and infrastructure retention remain gates. Atlas is
@@ -15,10 +16,14 @@ implemented. This is an engineering build, not a verified closed-test release.
 - Branded privacy/terms/support and self-service web deletion are implemented.
   Operator review, infrastructure retention and support-inbox monitoring remain
   operational release gates; a page implementation is not legal certification.
-- No signed release AAB, final store screenshots, Play submission
-  or closed test completed. Original adaptive/themed launcher and splash assets
-  and original feature-graphic assets are prepared. Signing tooling and a private upload key exist locally; a real
-  deployed HTTPS API is configured. No billing, ads, bank integrations or AI enabled.
+- A signed AAB and standalone APK passed signature and manifest validation from a
+  clean revision; see release-status.md. Final store screenshots, authenticated
+  native QA and closed testing remain incomplete. A free Finora Play draft exists,
+  but browser attachment currently blocks further Console setup. No release was
+  uploaded or published. The Console requires 12 testers continuously for 14 days;
+  the owner's public-identity privacy requirement also remains unresolved.
+  Original launcher, splash and feature-graphic assets are prepared. No billing,
+  ads, bank integrations or AI enabled.
 - One currency per profile, locked once financial records exist. Refunds count as
   income and do not reduce category expense/budget totals.
 - Recurrence requires confirmation. Generation is bounded to 100 per request and

@@ -54,6 +54,7 @@ docs/known-limitations.md for outstanding requirements. No release readiness cla
 - Phase 3/4: connected mobile auth/finance/planning/security/backup screens implemented;
   five tabs/charts and optional biometric lock are connected. Expo compatibility,
   Android JavaScript bundle and native component tests passed. Native QA pending.
-- Phase 5: initial native debug build, private signing workflow/guards, branding,
-  focused boundary review and release documents prepared; production configuration,
-  successful signed release/device tests and store gates remain open.
+- Phase 5: signed AAB/standalone APK, hosted API/help/deletion pages, verified sending
+  domain/support inbox and free Play draft prepared. Native workflows, recovery
+  delivery, infrastructure operations, identity privacy and store testing/review
+  remain open; see docs/release-status.md for verified evidence and external gates.

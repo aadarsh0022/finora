@@ -9,7 +9,8 @@ Finora
 
 Android package: `app.finora.money`. Release identifiers and public app branding
 must not contain the owner's personal name. No earlier Play upload has registered
-this application identity.
+this application identity. A free draft was created on 21 October 2026; no binary
+was uploaded or released. See release-status.md for the signed local artifacts.
 
 ## Short description
 
@@ -46,8 +47,10 @@ These assets are local drafts for review; no store upload has been performed.
 
 ## Materials still required
 
-- Final operator identity and monitored support contact.
-- Published privacy policy, terms, support and account-deletion URLs.
+- Resolve developer-profile identity disclosure and establish support monitoring.
+  The branded contact is support@finora.aadarshx.in.
+- Review the published privacy, terms, support and account-deletion pages at
+  https://finora-api-olive.vercel.app against final operations and provider retention.
 - Review and approval of the prepared icon and feature graphic against the release.
 - Screenshots from the actual released Android build, with synthetic financial
   data and no real account information.

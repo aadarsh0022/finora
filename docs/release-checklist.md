@@ -5,8 +5,8 @@ Repository pushes do not authorize deployment, Play publication or billing.
 
 ## Engineering verification
 
-- [ ] Run `pnpm check` on the final commit; retain the resulting test evidence.
-- [ ] Build the API in production mode and smoke-test the running HTTP server.
+- [x] Run `pnpm check` on the release source; retain the resulting test evidence.
+- [x] Build the API in production mode and smoke-test hosted health/public access.
 - [x] Verify Expo dependencies and produce a successful Android JavaScript bundle.
 - [x] Build an initial native Android debug APK (four ABIs).
 - [x] Test local signing-key creation and fail-closed release guards; keep the
@@ -28,11 +28,12 @@ Repository pushes do not authorize deployment, Play publication or billing.
 
 - [ ] Configure a production Atlas environment with separate application and
       migration permissions; keep credentials outside Git and mobile bundles.
-- [ ] Configure and verify the production email sender and recovery delivery.
+- [x] Configure the verified production email sender and branded support inbox.
+- [ ] Verify actual recovery delivery and support monitoring.
 - [ ] Establish an operator name, monitored support contact, retention policy,
       incident handling, database recovery objectives and deletion procedures.
-- [ ] Review privacy, terms, support and deletion pages for accuracy and publish
-      their final public URLs. Development drafts are insufficient.
+- [x] Publish branded privacy, terms, support, recovery and web-deletion pages.
+- [ ] Complete operator/legal review against infrastructure retention and operations.
 - [ ] Verify password changes, session revocation, password-reset replay and
       confirmed account deletion against the deployed configuration.
 - [ ] Confirm logs and monitoring exclude credentials, session tokens, merchant
@@ -40,8 +41,8 @@ Repository pushes do not authorize deployment, Play publication or billing.
 
 ## Android and Play preparation
 
-- [ ] Set final application identity and release version, signing ownership and
-      secure signing-key backup. Generate and inspect a signed AAB.
+- [x] Set final application identity/version and generate/inspect a signed AAB/APK.
+- [ ] Confirm signing ownership, secure off-workstation key backup and Play enrollment.
 - [x] Configure original adaptive/themed launcher icons and light/dark splash assets.
 - [x] Prepare an original 1024×500 feature graphic alongside the store icon.
 - [ ] Supply device screenshots and truthful final
@@ -53,5 +54,6 @@ Repository pushes do not authorize deployment, Play publication or billing.
 - [ ] Validate the public privacy and account-deletion URLs from Play Console.
 - [ ] Obtain explicit authorization before any store publication or billing work.
 
-No Play upload/publication, signed release, closed test, native device QA or live
-billing activation is performed merely by maintaining this checklist.
+The signed artifacts and free Play draft are recorded in release-status.md.
+No Play upload/publication, closed test, native device QA or live billing activation
+is performed merely by maintaining this checklist.

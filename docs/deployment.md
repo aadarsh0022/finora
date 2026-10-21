@@ -76,5 +76,7 @@ Use [the release workflow](android-build.md) to generate/validate a private uplo
 key and build a signed AAB once the actual HTTPS API is deployed. A local private
 key has been generated under ignored `.local/android-signing`; back up both private
 files securely. The release guard rejects missing inputs, HTTP and debug keys.
-AAB generation, native QA, package ownership and Play Console/closed testing remain
-gates. Never commit signing credentials.
+Signed AAB and standalone APK generation passed on 21 October 2026 with the
+Finora-only package `app.finora.money`; see release-status.md for inspected artifacts.
+Native QA, Play signing/setup and closed testing remain gates. Never commit signing
+credentials.
