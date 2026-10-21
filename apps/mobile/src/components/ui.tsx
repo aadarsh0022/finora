@@ -3,6 +3,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Pressable,
+  RefreshControl,
   ScrollView,
   Text,
   TextInput,
@@ -33,10 +34,16 @@ export function Screen({
   title,
   subtitle,
   children,
+  onRefresh,
+  refreshing = false,
+  bottomAction,
 }: {
   title?: string;
   subtitle?: string;
   children: ReactNode;
+  onRefresh?: () => void;
+  refreshing?: boolean;
+  bottomAction?: ReactNode;
 }) {
   const theme = useTheme();
   const network = useNetworkState();
@@ -51,9 +58,20 @@ export function Screen({
       >
         <ScrollView
           keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+          refreshControl={
+            onRefresh ? (
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={onRefresh}
+                tintColor={theme.accent}
+                colors={[theme.accent]}
+              />
+            ) : undefined
+          }
           contentContainerStyle={{
-            padding: 24,
-            paddingBottom: 48,
+            padding: 20,
+            paddingBottom: bottomAction ? 24 : 40,
             gap: 20,
             maxWidth: 720,
             width: '100%',
@@ -85,6 +103,22 @@ export function Screen({
           )}
           {children}
         </ScrollView>
+        {bottomAction && (
+          <SafeAreaView
+            edges={['bottom']}
+            style={{
+              backgroundColor: theme.surface,
+              borderTopWidth: 1,
+              borderTopColor: theme.border,
+            }}
+          >
+            <View
+              style={{ padding: 16, gap: 8, maxWidth: 720, width: '100%', alignSelf: 'center' }}
+            >
+              {bottomAction}
+            </View>
+          </SafeAreaView>
+        )}
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -99,8 +133,8 @@ export function Card({ style, ...props }: ViewProps) {
           backgroundColor: theme.surface,
           borderColor: theme.border,
           borderWidth: 1,
-          borderRadius: 20,
-          padding: 20,
+          borderRadius: 18,
+          padding: 18,
           gap: 12,
         },
         style,
@@ -155,12 +189,13 @@ export function AppButton({
 export function Field({
   label,
   error,
+  hint,
   ...props
-}: TextInputProps & { label: string; error?: string }) {
+}: TextInputProps & { label: string; error?: string; hint?: string }) {
   const theme = useTheme();
   return (
     <View style={{ gap: 7 }}>
-      <AppText>{label}</AppText>
+      <AppText style={{ fontSize: 14, fontFamily: 'DMSansBold' }}>{label}</AppText>
       <TextInput
         {...props}
         accessibilityLabel={label}
@@ -185,6 +220,11 @@ export function Field({
           {error}
         </AppText>
       )}
+      {!error && hint ? (
+        <AppText tone="muted" style={{ fontSize: 13, lineHeight: 18 }}>
+          {hint}
+        </AppText>
+      ) : null}
     </View>
   );
 }
