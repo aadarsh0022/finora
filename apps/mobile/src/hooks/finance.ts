@@ -29,7 +29,7 @@ export function useFinanceMutation<T>(
 }
 export function useUnsavedChanges(dirty: boolean) {
   const [enabled, setEnabled] = useState(true);
-  return usePreventRemove(enabled && dirty, ({ repeat }) =>
+  const disablePrevention = usePreventRemove(enabled && dirty, ({ repeat }) =>
     Alert.alert('Discard unsaved changes?', 'Your changes have not been saved.', [
       { text: 'Keep editing', style: 'cancel' },
       {
@@ -42,4 +42,8 @@ export function useUnsavedChanges(dirty: boolean) {
       },
     ]),
   );
+  return () => {
+    setEnabled(false);
+    disablePrevention();
+  };
 }
