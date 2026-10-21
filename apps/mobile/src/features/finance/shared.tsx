@@ -107,7 +107,7 @@ export function TransactionCard({
         )}
       </View>
       <AppText
-        tone={item.type === 'INCOME' ? 'accent' : 'text'}
+        tone={item.type === 'INCOME' ? 'accent' : item.type === 'EXPENSE' ? 'danger' : 'text'}
         style={{ fontSize: 16, fontFamily: 'DMSansBold', flexShrink: 1, textAlign: 'right' }}
       >
         {item.type === 'EXPENSE' ? '−' : item.type === 'INCOME' ? '+' : ''}
