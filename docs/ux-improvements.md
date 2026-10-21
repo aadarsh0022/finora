@@ -26,3 +26,5 @@ state when releasing navigation, matching the Expo Router contract.
 Transactions keeps search and Filters together at the top. A floating Add transaction
 button sits above the bottom navigation, with extra scroll space so the final record
 stays reachable. Income amounts use green, expenses red, and transfers neutral text.
+The selected transaction type is shown only in its type button; it does not add a
+duplicate chip or a Clear all action. Other applied filters retain removable chips.

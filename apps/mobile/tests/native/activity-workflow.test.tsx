@@ -106,6 +106,11 @@ test('shows transaction information with filters closed on arrival and opens row
     pathname: '/transaction',
     params: { id: transaction.id },
   });
+  await fireEvent.press(screen.getByRole('radio', { name: 'Expense' }));
+  await waitFor(() => expect(paths.some((path) => path.includes('type=EXPENSE'))).toBe(true));
+  expect(screen.getByRole('radio', { name: 'Expense', checked: true })).toBeOnTheScreen();
+  expect(screen.queryByRole('button', { name: 'Remove filter expense' })).toBeNull();
+  expect(screen.queryByRole('button', { name: 'Clear all filters' })).toBeNull();
 });
 test('cancel discards draft filters and apply changes the real server query', async () => {
   await mount();

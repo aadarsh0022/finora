@@ -63,6 +63,7 @@ export default function Transactions() {
     (key) => applied[key] !== emptyActivityFilters[key],
   );
   const count = active.filter((key) => key !== 'q' && key !== 'type').length;
+  const chips = active.filter((key) => key !== 'type');
   function chip(key: keyof ActivityFilters) {
     if (key === 'accountId')
       return accounts.data?.find((account) => account.id === applied[key])?.name ?? 'Account';
@@ -158,9 +159,9 @@ export default function Transactions() {
           { value: 'TRANSFER', label: 'Transfer' },
         ]}
       />
-      {!!active.length && (
+      {!!chips.length && (
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-          {active.map((key) => (
+          {chips.map((key) => (
             <Pressable
               key={key}
               accessibilityRole="button"
