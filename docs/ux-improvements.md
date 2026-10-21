@@ -22,3 +22,7 @@ local-date groups, a searchable option sheet, explicit Apply/Cancel/Reset, remov
 active filters and exact date/amount bounds. Home and individual form redesigns are
 separate follow-up slices. The saved-form navigation guard now clears its enabled
 state when releasing navigation, matching the Expo Router contract.
+
+Transactions keeps search and Filters together at the top. A floating Add transaction
+button sits above the bottom navigation, with extra scroll space so the final record
+stays reachable. Income amounts use green, expenses red, and transfers neutral text.

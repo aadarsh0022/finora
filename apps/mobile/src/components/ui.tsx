@@ -37,6 +37,7 @@ export function Screen({
   onRefresh,
   refreshing = false,
   bottomAction,
+  floatingAction,
 }: {
   title?: string;
   subtitle?: string;
@@ -44,6 +45,7 @@ export function Screen({
   onRefresh?: () => void;
   refreshing?: boolean;
   bottomAction?: ReactNode;
+  floatingAction?: ReactNode;
 }) {
   const theme = useTheme();
   const network = useNetworkState();
@@ -71,7 +73,7 @@ export function Screen({
           }
           contentContainerStyle={{
             padding: 20,
-            paddingBottom: bottomAction ? 24 : 40,
+            paddingBottom: floatingAction ? 104 : bottomAction ? 24 : 40,
             gap: 20,
             maxWidth: 720,
             width: '100%',
@@ -103,6 +105,9 @@ export function Screen({
           )}
           {children}
         </ScrollView>
+        {floatingAction && (
+          <View style={{ position: 'absolute', right: 20, bottom: 20 }}>{floatingAction}</View>
+        )}
         {bottomAction && (
           <SafeAreaView
             edges={['bottom']}

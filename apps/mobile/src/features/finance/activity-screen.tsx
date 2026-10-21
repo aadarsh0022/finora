@@ -93,10 +93,42 @@ export default function Transactions() {
       onRefresh={() => {
         void query.refetch();
       }}
+      floatingAction={
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Add transaction"
+          accessibilityHint="Opens a new transaction form"
+          onPress={() => router.push('/transaction')}
+          style={({ pressed }) => ({
+            width: 60,
+            height: 60,
+            borderRadius: 30,
+            backgroundColor: theme.accent,
+            alignItems: 'center',
+            justifyContent: 'center',
+            elevation: 6,
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 3 },
+            shadowOpacity: 0.25,
+            shadowRadius: 6,
+            opacity: pressed ? 0.75 : 1,
+          })}
+        >
+          <AppText style={{ color: theme.onAccent, fontSize: 36, lineHeight: 42 }}>+</AppText>
+        </Pressable>
+      }
     >
-      <View style={{ flexDirection: 'row', gap: 10, alignItems: 'center' }}>
+      <View style={{ flexDirection: 'row', gap: 10, alignItems: 'flex-end' }}>
         <View style={{ flex: 1 }}>
-          <AppButton title="+ Add transaction" onPress={() => router.push('/transaction')} />
+          <Field
+            label="Search transactions"
+            placeholder="Merchant or note"
+            value={search}
+            onChangeText={setSearch}
+            maxLength={80}
+            returnKeyType="search"
+            onSubmitEditing={() => apply({ ...applied, q: search })}
+          />
         </View>
         <AppButton
           title={count ? `Filters (${count})` : 'Filters'}
@@ -108,15 +140,6 @@ export default function Transactions() {
           }}
         />
       </View>
-      <Field
-        label="Search transactions"
-        placeholder="Merchant or note"
-        value={search}
-        onChangeText={setSearch}
-        maxLength={80}
-        returnKeyType="search"
-        onSubmitEditing={() => apply({ ...applied, q: search })}
-      />
       {search !== applied.q && (
         <AppButton
           title="Search"
