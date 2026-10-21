@@ -75,3 +75,13 @@ show state, amount and compact Edit/Pause actions. Account/category/frequency us
 selectors; start/end dates use calendars. Confirmation remains explicit. A native
 workflow verifies generation only creates reminders and a separate review/confirm
 action sends the exact amount and schedule-timezone date for posting.
+
+Transaction search applies automatically after 350 ms of inactivity once at least
+three trimmed characters are present. Shorter input clears the search filter without
+sending short search terms; clearing restores the current non-search filters. The
+Search button is removed. Timers cancel on subsequent typing/unmount, and background
+search does not dismiss an open advanced-filter draft. Native fake-timer coverage
+checks the threshold, debounce, reset and open-sheet behavior.
+An inline Clear search button replaces the duplicate search chip and its Clear all
+row. Clearing search preserves other filters. The minimum-length hint sits below
+the search/Filters row so the input and button remain aligned.

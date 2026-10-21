@@ -1,7 +1,7 @@
 import { transactionPageSchema } from '@finora/contracts';
 import { calendarDate } from '@finora/finance-core';
 import { router } from 'expo-router';
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Pressable, View } from 'react-native';
 import { z } from 'zod';
 import {
@@ -38,24 +38,36 @@ export default function Transactions() {
     `transactions?page=${page}&pageSize=20&${queryString}`,
     transactionPageSchema,
   );
-  function apply(next: ActivityFilters) {
-    try {
-      setQueryString(activityQuery(next, currency, timezone));
-      setApplied(next);
-      setSearch(next.q);
-      setPage(1);
-      setError('');
-      setOpen(false);
-    } catch (failure) {
-      setError(
-        failure instanceof z.ZodError
-          ? failure.issues.map((issue) => issue.message).join('\n')
-          : failure instanceof Error
-            ? failure.message
-            : 'Check your filters.',
-      );
-    }
-  }
+  const apply = useCallback(
+    (next: ActivityFilters, closeSheet = true) => {
+      try {
+        const term = next.q.trim();
+        const normalized = { ...next, q: term.length >= 3 ? term : '' };
+        setQueryString(activityQuery(normalized, currency, timezone));
+        setApplied(normalized);
+        setSearch(next.q);
+        setPage(1);
+        setError('');
+        if (closeSheet) setOpen(false);
+      } catch (failure) {
+        setError(
+          failure instanceof z.ZodError
+            ? failure.issues.map((issue) => issue.message).join('\n')
+            : failure instanceof Error
+              ? failure.message
+              : 'Check your filters.',
+        );
+      }
+    },
+    [currency, timezone],
+  );
+  useEffect(() => {
+    const term = search.trim();
+    const eligible = term.length >= 3 ? term : '';
+    if (eligible === applied.q) return;
+    const timeout = setTimeout(() => apply({ ...applied, q: search }, false), eligible ? 350 : 0);
+    return () => clearTimeout(timeout);
+  }, [search, applied, apply]);
   function set<K extends keyof ActivityFilters>(key: K, value: ActivityFilters[K]) {
     setDraft((current) => ({ ...current, [key]: value }));
   }
@@ -63,7 +75,7 @@ export default function Transactions() {
     (key) => applied[key] !== emptyActivityFilters[key],
   );
   const count = active.filter((key) => key !== 'q' && key !== 'type').length;
-  const chips = active.filter((key) => key !== 'type');
+  const chips = active.filter((key) => key !== 'type' && key !== 'q');
   function chip(key: keyof ActivityFilters) {
     if (key === 'accountId')
       return accounts.data?.find((account) => account.id === applied[key])?.name ?? 'Account';
@@ -127,8 +139,23 @@ export default function Transactions() {
             value={search}
             onChangeText={setSearch}
             maxLength={80}
-            returnKeyType="search"
-            onSubmitEditing={() => apply({ ...applied, q: search })}
+            autoCorrect={false}
+            autoCapitalize="none"
+            returnKeyType="done"
+            trailingAction={
+              search.length > 0 ? (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Clear search"
+                  onPress={() => setSearch('')}
+                  style={{ width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }}
+                >
+                  <AppText tone="muted" style={{ fontSize: 25 }}>
+                    ×
+                  </AppText>
+                </Pressable>
+              ) : undefined
+            }
           />
         </View>
         <AppButton
@@ -141,17 +168,15 @@ export default function Transactions() {
           }}
         />
       </View>
-      {search !== applied.q && (
-        <AppButton
-          title="Search"
-          variant="secondary"
-          onPress={() => apply({ ...applied, q: search })}
-        />
+      {search.trim().length > 0 && search.trim().length < 3 && (
+        <AppText tone="muted" style={{ fontSize: 12, lineHeight: 18, marginTop: -14 }}>
+          Enter at least 3 characters
+        </AppText>
       )}
       <Choice
         label="Type"
         value={applied.type}
-        onChange={(type) => apply({ ...applied, type, categoryId: 'all' })}
+        onChange={(type) => apply({ ...applied, type, categoryId: 'all', q: search })}
         options={[
           { value: 'all', label: 'All' },
           { value: 'EXPENSE', label: 'Expense' },

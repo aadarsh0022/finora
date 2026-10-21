@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import {
   accountWithBalanceSchema,
   categorySchema,
@@ -108,6 +108,7 @@ test('shows transaction information with filters closed on arrival and opens row
   });
   await fireEvent.press(screen.getByRole('radio', { name: 'Expense' }));
   await waitFor(() => expect(paths.some((path) => path.includes('type=EXPENSE'))).toBe(true));
+  await screen.findByText('Lunch place');
   expect(screen.getByRole('radio', { name: 'Expense', checked: true })).toBeOnTheScreen();
   expect(screen.queryByRole('button', { name: 'Remove filter expense' })).toBeNull();
   expect(screen.queryByRole('button', { name: 'Clear all filters' })).toBeNull();
@@ -123,9 +124,13 @@ test('cancel discards draft filters and apply changes the real server query', as
   await fireEvent.changeText(screen.getByLabelText('Minimum (INR)'), '12.50');
   await fireEvent.press(screen.getByRole('button', { name: 'Apply filters' }));
   await waitFor(() => expect(paths.some((path) => path.includes('minAmount=1250'))).toBe(true));
+  await screen.findByText('Lunch place');
   expect(screen.getByRole('button', { name: 'Filters (1)' })).toBeOnTheScreen();
   expect(screen.queryByRole('button', { name: 'Apply filters' })).toBeNull();
   await fireEvent.press(screen.getByRole('button', { name: 'Clear all filters' }));
+  await act(async () => {
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  });
   expect(screen.getByRole('button', { name: 'Filters' })).toBeOnTheScreen();
 });
 test('invalid filter ranges preserve the draft and do not request invalid data', async () => {
@@ -137,4 +142,64 @@ test('invalid filter ranges preserve the draft and do not request invalid data',
   expect(screen.getByRole('alert')).toHaveTextContent('Minimum must not exceed maximum');
   expect(paths.some((path) => path.includes('minAmount'))).toBe(false);
   expect(screen.getByLabelText('Minimum (INR)')).toHaveDisplayValue('20');
+});
+
+test('search waits for three characters and debounces typing without closing draft filters', async () => {
+  await mount();
+  await fireEvent.press(screen.getByRole('radio', { name: 'Expense' }));
+  await screen.findByText('Lunch place');
+  jest.useFakeTimers();
+  try {
+    const search = screen.getByLabelText('Search transactions');
+    await fireEvent.changeText(search, 'lu');
+    await act(async () => {
+      jest.advanceTimersByTime(400);
+    });
+    expect(paths.some((path) => path.includes('q='))).toBe(false);
+    expect(screen.queryByRole('button', { name: 'Search' })).toBeNull();
+    await fireEvent.changeText(search, 'lun');
+    await act(async () => {
+      jest.advanceTimersByTime(200);
+    });
+    await fireEvent.changeText(search, 'lunch');
+    await act(async () => {
+      jest.advanceTimersByTime(349);
+    });
+    expect(paths.some((path) => path.includes('q='))).toBe(false);
+    await fireEvent.press(screen.getByRole('button', { name: 'Filters' }));
+    await act(async () => {
+      jest.advanceTimersByTime(1);
+    });
+    await waitFor(() => expect(paths.filter((path) => path.includes('q='))).toHaveLength(1));
+    expect(paths.find((path) => path.includes('q='))).toContain('q=lunch');
+    expect(screen.getByRole('button', { name: 'Apply filters' })).toBeOnTheScreen();
+    await fireEvent.press(screen.getByRole('button', { name: 'Cancel' }));
+    expect(screen.queryByRole('button', { name: 'Clear all filters' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Remove filter Search: lunch' })).toBeNull();
+    await fireEvent.press(screen.getByRole('button', { name: 'Clear search' }));
+    await act(async () => {
+      await jest.advanceTimersByTimeAsync(1);
+    });
+    expect(screen.getByRole('radio', { name: 'Expense', checked: true })).toBeOnTheScreen();
+    expect(screen.getByLabelText('Search transactions')).toHaveDisplayValue('');
+    await fireEvent.changeText(screen.getByLabelText('Search transactions'), 'lu');
+    await act(async () => {
+      jest.advanceTimersByTime(0);
+    });
+    expect(screen.queryByRole('button', { name: 'Remove filter Search: lunch' })).toBeNull();
+    expect(paths.some((path) => path.includes('q=lu&') || path.endsWith('q=lu'))).toBe(false);
+    await fireEvent.press(screen.getByRole('button', { name: 'Clear search' }));
+    await act(async () => {
+      jest.advanceTimersByTime(400);
+    });
+    expect(screen.queryByRole('button', { name: 'Search' })).toBeNull();
+    expect(screen.getByLabelText('Search transactions')).toHaveDisplayValue('');
+    expect(screen.queryByRole('button', { name: 'Clear search' })).toBeNull();
+  } finally {
+    await screen.unmount();
+    await act(async () => {
+      await jest.runOnlyPendingTimersAsync();
+    });
+    jest.useRealTimers();
+  }
 });

@@ -197,31 +197,42 @@ export function Field({
   label,
   error,
   hint,
+  trailingAction,
   ...props
-}: TextInputProps & { label: string; error?: string; hint?: string }) {
+}: TextInputProps & { label: string; error?: string; hint?: string; trailingAction?: ReactNode }) {
   const theme = useTheme();
   return (
     <View style={{ gap: 7 }}>
       <AppText style={{ fontSize: 14, fontFamily: 'DMSansBold' }}>{label}</AppText>
-      <TextInput
-        {...props}
-        accessibilityLabel={label}
-        placeholderTextColor={theme.muted}
-        style={[
-          {
-            minHeight: 54,
-            color: theme.text,
-            backgroundColor: theme.surface,
-            borderColor: error ? theme.danger : theme.border,
-            borderWidth: 1,
-            padding: 14,
-            borderRadius: 12,
-            fontSize: 16,
-            fontFamily: 'DMSans',
-          },
-          props.style,
-        ]}
-      />
+      <View>
+        <TextInput
+          {...props}
+          accessibilityLabel={label}
+          placeholderTextColor={theme.muted}
+          style={[
+            {
+              minHeight: 54,
+              color: theme.text,
+              backgroundColor: theme.surface,
+              borderColor: error ? theme.danger : theme.border,
+              borderWidth: 1,
+              padding: 14,
+              paddingRight: trailingAction ? 54 : 14,
+              borderRadius: 12,
+              fontSize: 16,
+              fontFamily: 'DMSans',
+            },
+            props.style,
+          ]}
+        />
+        {trailingAction && (
+          <View
+            style={{ position: 'absolute', right: 5, top: 0, bottom: 0, justifyContent: 'center' }}
+          >
+            {trailingAction}
+          </View>
+        )}
+      </View>
       {error && (
         <AppText tone="danger" accessibilityRole="alert">
           {error}
