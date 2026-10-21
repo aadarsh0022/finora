@@ -28,11 +28,16 @@ creating a reset token. Local outbox delivery remains prohibited in production.
 
 The user-selected deployment is https://finora-api-olive.vercel.app (Vercel project
 finora-api, repository root apps/api). Its public mobile origin is recorded in
-.env.example. Hosted API health must be verified after configuration/redeployment;
-a successful static homepage is not proof of MongoDB connectivity or auth readiness.
+.env.example. On 21 October 2026 its /api/health returned HTTP 200 after an Atlas
+ping; unauthenticated account reads returned 401. Repeat health verification after
+each configuration/redeployment; a static homepage does not prove connectivity.
 Use MONGODB_DB=finora_production for isolated hosted data. Changing the database does
-not migrate local users or financial records. Resend delivery is deferred until a
-sender domain is verified; an API key alone does not enable general email delivery.
+not migrate local users or financial records. On 21 October 2026 the user authorized
+Resend sending from finora.aadarshx.in; its three DNS records were added in Hostinger
+and Resend reports the domain verified. EMAIL_FROM is
+`Finora <no-reply@finora.aadarshx.in>`; EMAIL_TRANSPORT=resend is configured for the
+next production deployment. Email delivery/recovery still needs an end-to-end test.
+Resend requires TLS delivery for this subdomain; open/click tracking is not enabled.
 
 Mobile: put public EXPO_PUBLIC_API_URL in apps/mobile/.env.local. Emulator uses
 http://10.0.2.2:3000; devices use a reachable LAN address or deployed HTTPS endpoint.
@@ -42,8 +47,10 @@ Android SDK, adb and a supported JDK are required. The default Java is 11, but t
 installed Android Studio JBR provides Java 25. Use its JDK for SDK 58's Gradle 9.4.1
 build. Native prebuild and an initial four-ABI debug APK build passed. The first wrapper download timed out; the official
 Gradle archive was downloaded and checked against its published SHA-256 to retry.
-The existing emulator stalled during installation/boot, and another configured AVD
-has a missing system image. No native launch or real-device workflow pass is claimed.
+A later Pixel 8 Pro boot, APK installation and native React startup succeeded.
+On 21 October 2026 Metro restarted with the hosted HTTPS origin, reopened the app
+on Pixel 8 Pro and completed its Android bundle without observed runtime errors.
+Full authenticated native workflows and physical-device QA remain unverified.
 
 Native commands from apps/mobile: `pnpm exec expo prebuild --platform android`,
 then from android/ run `gradlew.bat app:assembleDebug` with JAVA_HOME set to the

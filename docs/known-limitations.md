@@ -5,17 +5,18 @@ implemented. This is an engineering build, not a verified closed-test release.
 
 - Real-device installation, visual/gesture/accessibility checks and full native
   workflows have not been executed. Bundling does not prove the Android app launches.
-- Hosted API verification, verified recovery email, least-privilege Atlas credentials,
+- Hosted health and unauthenticated access checks pass. Full cloud user workflows,
+  verified recovery email, least-privilege Atlas credentials,
   operator/support identity and infrastructure retention remain gates. Atlas is
   connected locally; destructive tests exclusively use disposable MongoDB.
-- Email setup is deferred by the user. EMAIL_TRANSPORT=disabled permits hosted
-  testing with password recovery explicitly unavailable. A verified sender and
-  delivery tests remain necessary before enabling recovery for a public release.
+- The Resend domain finora.aadarshx.in is verified and its sender is configured.
+  Production delivery and complete recovery still need an end-to-end test.
+  EMAIL_TRANSPORT=disabled remains available for environments without email setup.
 - Privacy/terms/support pages are development drafts requiring review before release.
 - No signed release AAB, final store screenshots, Play submission
   or closed test completed. Original adaptive/themed launcher and splash assets
   and original feature-graphic assets are prepared. Signing tooling and a private upload key exist locally; a real
-  deployed HTTPS API is still required. No billing, ads, bank integrations or AI enabled.
+  deployed HTTPS API is configured. No billing, ads, bank integrations or AI enabled.
 - One currency per profile, locked once financial records exist. Refunds count as
   income and do not reduce category expense/budget totals.
 - Recurrence requires confirmation. Generation is bounded to 100 per request and

@@ -19,6 +19,11 @@
   the same unavailable response for every email, before issuing a reset token.
   Production Resend still requires its credentials. Verified email remains a public
   release-readiness gate; no emails are sent in disabled mode.
+- Later on 21 October 2026 the user authorized the Finora sending subdomain and
+  production release preparation. Resend verified finora.aadarshx.in after the
+  scoped Hostinger DNS additions. A signed build, honest Play declarations,
+  device QA and delivery checks remain separate release gates. Billing remains
+  disabled. Store agreements and account-owner declarations require owner review.
 - Free manual tracking remains available; no billing UI until backend verification
   and merchant onboarding are complete. No advertising or analytics SDKs initially.
 - No deployment, Play publication or live billing is authorized by repository pushes.

@@ -78,6 +78,12 @@ found no configured server secrets. The generated Android source map contains no
 node-forge, braces, sprintf-js or xcode module paths; npm audit still retains three
 upstream tooling advisories, documented in dependency-review.md.
 
-Not executed yet: native device workflow/visual/accessibility tests, signed AAB,
-public deployment, production
-email or Play testing/review. Route integration is not a complete device end-to-end test.
+Hosted smoke checks (21 October 2026): the Vercel /api/health endpoint returned
+HTTP 200 with an Atlas ping; unauthenticated account reads returned 401. Metro
+loaded the hosted origin and reopened/bundled the app on Pixel 8 Pro without
+observed runtime errors. No production user or financial data was created by these
+checks; full cloud authentication/finance workflows remain unverified.
+
+Not executed yet: full native workflow/visual/accessibility tests, signed AAB,
+production email delivery or Play testing/review. Route integration is not a
+complete device end-to-end test.
