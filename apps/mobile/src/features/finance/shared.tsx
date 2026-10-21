@@ -5,6 +5,7 @@ import { router } from 'expo-router';
 import { z, type ZodType } from 'zod';
 import { AppText } from '../../components/ui';
 import { Pressable, View } from 'react-native';
+import Svg, { Path } from 'react-native-svg';
 import { useTheme } from '../../theme';
 import { useApp } from '../../providers/app-provider';
 
@@ -58,6 +59,9 @@ export function TransactionCard({
     item.merchant ||
     categoryName ||
     (item.type === 'TRANSFER' ? 'Account transfer' : item.type === 'INCOME' ? 'Income' : 'Expense');
+  const typeLabel =
+    item.type === 'INCOME' ? 'Income' : item.type === 'EXPENSE' ? 'Expense' : 'Transfer';
+  const tone = item.type === 'INCOME' ? 'accent' : item.type === 'EXPENSE' ? 'danger' : 'text';
   return (
     <Pressable
       accessibilityRole="button"
@@ -65,54 +69,90 @@ export function TransactionCard({
       accessibilityHint="Opens transaction details"
       onPress={() => router.push({ pathname: '/transaction', params: { id: item.id } })}
       style={({ pressed }) => ({
-        padding: 14,
+        padding: 16,
         backgroundColor: theme.surface,
-        borderRadius: 16,
+        borderRadius: 18,
         borderWidth: 1,
         borderColor: theme.border,
         opacity: pressed ? 0.75 : 1,
         flexDirection: 'row',
         gap: 12,
         alignItems: 'center',
-        minHeight: 80,
+        minHeight: 92,
       })}
     >
       <View
         style={{
-          width: 40,
-          height: 40,
-          borderRadius: 12,
-          backgroundColor: theme.accentSoft,
+          width: 44,
+          height: 44,
+          borderRadius: 14,
+          backgroundColor:
+            item.type === 'EXPENSE'
+              ? theme.dangerSoft
+              : item.type === 'INCOME'
+                ? theme.accentSoft
+                : theme.background,
           alignItems: 'center',
           justifyContent: 'center',
         }}
       >
-        <AppText tone="accent" style={{ fontSize: 22 }}>
-          {item.type === 'TRANSFER' ? '⇄' : item.type === 'INCOME' ? '↙' : '↗'}
-        </AppText>
+        <Svg width={22} height={22} viewBox="0 0 24 24" accessible={false}>
+          <Path
+            d={
+              item.type === 'TRANSFER'
+                ? 'M4 8h16m-4-4 4 4-4 4M20 16H4m4-4-4 4 4 4'
+                : item.type === 'INCOME'
+                  ? 'M18 6 6 18M6 8v10h10'
+                  : 'M6 18 18 6M8 6h10v10'
+            }
+            stroke={theme[tone]}
+            strokeWidth={2}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            fill="none"
+          />
+        </Svg>
       </View>
-      <View style={{ flex: 1, gap: 3 }}>
-        <AppText numberOfLines={1} style={{ fontFamily: 'DMSansBold', fontSize: 15 }}>
-          {title}
-        </AppText>
-        <AppText numberOfLines={1} tone="muted" style={{ fontSize: 12, lineHeight: 18 }}>
-          {item.type === 'TRANSFER'
-            ? `${accountName ?? 'Account'} → ${destinationAccountName ?? 'Account'}`
-            : `${accountName ?? 'Account'}${categoryName && categoryName !== title ? ` · ${categoryName}` : ''}`}
-        </AppText>
+      <View style={{ flex: 1, gap: 6 }}>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', columnGap: 12, rowGap: 4 }}>
+          <AppText
+            numberOfLines={2}
+            style={{ fontFamily: 'DMSansBold', fontSize: 16, flexGrow: 1, flexBasis: '35%' }}
+          >
+            {title}
+          </AppText>
+          <AppText
+            tone={tone}
+            style={{
+              fontSize: 18,
+              fontFamily: 'DMSansBold',
+              fontVariant: ['tabular-nums'],
+              letterSpacing: -0.3,
+              flexShrink: 1,
+              textAlign: 'right',
+              marginLeft: 'auto',
+            }}
+          >
+            {item.type === 'EXPENSE' ? '−' : item.type === 'INCOME' ? '+' : ''}
+            {money(item.amountMinor)}
+          </AppText>
+        </View>
+        <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
+          <AppText numberOfLines={1} tone="muted" style={{ fontSize: 12, lineHeight: 18, flex: 1 }}>
+            {item.type === 'TRANSFER'
+              ? `${accountName ?? 'Account'} → ${destinationAccountName ?? 'Account'}`
+              : `${accountName ?? 'Account'}${categoryName && categoryName !== title ? ` · ${categoryName}` : ''}`}
+          </AppText>
+          <AppText tone="muted" style={{ fontSize: 11, lineHeight: 18 }}>
+            {typeLabel}
+          </AppText>
+        </View>
         {showDate && (
           <AppText tone="muted" style={{ fontSize: 11, lineHeight: 16 }}>
             {displayDate}
           </AppText>
         )}
       </View>
-      <AppText
-        tone={item.type === 'INCOME' ? 'accent' : item.type === 'EXPENSE' ? 'danger' : 'text'}
-        style={{ fontSize: 16, fontFamily: 'DMSansBold', flexShrink: 1, textAlign: 'right' }}
-      >
-        {item.type === 'EXPENSE' ? '−' : item.type === 'INCOME' ? '+' : ''}
-        {money(item.amountMinor)}
-      </AppText>
     </Pressable>
   );
 }

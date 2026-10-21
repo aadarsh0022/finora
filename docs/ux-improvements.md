@@ -28,3 +28,8 @@ button sits above the bottom navigation, with extra scroll space so the final re
 stays reachable. Income amounts use green, expenses red, and transfers neutral text.
 The selected transaction type is shown only in its type button; it does not add a
 duplicate chip or a Clear all action. Other applied filters retain removable chips.
+
+Transaction cards use clearer title/amount alignment, tabular amount digits, quieter
+account/category details, and crisp direction icons. Expense icons and amounts are
+red, income green, transfers neutral. Type labels preserve meaning without relying
+on color; long amounts can wrap instead of being truncated. The full card opens details.
