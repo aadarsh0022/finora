@@ -1,7 +1,7 @@
 export default function Page() {
   return (
     <>
-      <p className="eyebrow">In development · Android first</p>
+      <p className="eyebrow">Finora · Personal finance</p>
       <h1>
         A little clarity.
         <br />A better money habit.
@@ -10,11 +10,19 @@ export default function Page() {
         Finora is a manual personal finance tracker for your accounts, spending and savings. Your
         financial overview, built from the records you choose to add.
       </p>
-      <p>Development is underway. Public registration and app downloads are not available yet.</p>
+      <p>
+        The Android application is in release testing. These pages provide account recovery, privacy
+        information and account deletion for Finora users.
+      </p>
       <h2>Track with intention</h2>
       <p>
         No bank connections. No real-money transfers. Just a clearer view of the money you track.
       </p>
+      <nav aria-label="Account help">
+        <a href="/support">Get support</a>
+        <a href="/recover-account">Recover your account</a>
+        <a href="/delete-account">Delete your account</a>
+      </nav>
     </>
   );
 }

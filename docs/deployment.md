@@ -35,9 +35,19 @@ Use MONGODB_DB=finora_production for isolated hosted data. Changing the database
 not migrate local users or financial records. On 21 October 2026 the user authorized
 Resend sending from finora.aadarshx.in; its three DNS records were added in Hostinger
 and Resend reports the domain verified. EMAIL_FROM is
-`Finora <no-reply@finora.aadarshx.in>`; EMAIL_TRANSPORT=resend is configured for the
-next production deployment. Email delivery/recovery still needs an end-to-end test.
+`Finora <no-reply@finora.aadarshx.in>`; EMAIL_TRANSPORT=resend is configured in
+production. The subsequent deployment passed its health check; email delivery and
+complete recovery still need an end-to-end test.
 Resend requires TLS delivery for this subdomain; open/click tracking is not enabled.
+
+Public app links are pinned to the hosted Vercel origin even during local API
+development. The website supplies /privacy, /terms, /support, /recover-account,
+/reset-password and /delete-account. Website deletion uses validated credentials,
+explicit DELETE confirmation and a temporary bearer session kept only in memory;
+it shares the existing user-scoped deletion API and attempts session revocation
+on failure. The public support address is support@finora.aadarshx.in; its Resend
+inbox was created with owner authorization and receiving DNS was added separately.
+The owner must monitor it and verify delivery before public release.
 
 Mobile: put public EXPO_PUBLIC_API_URL in apps/mobile/.env.local. Emulator uses
 http://10.0.2.2:3000; devices use a reachable LAN address or deployed HTTPS endpoint.

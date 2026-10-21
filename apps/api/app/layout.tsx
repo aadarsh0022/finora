@@ -21,6 +21,7 @@ export default function Layout({ children }: { children: ReactNode }) {
               <a href="/privacy">Privacy</a>
               <a href="/terms">Terms</a>
               <a href="/support">Support & deletion</a>
+              <a href="/delete-account">Delete account</a>
             </nav>
           </footer>
         </main>

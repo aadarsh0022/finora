@@ -33,3 +33,10 @@ not assumptions. Establish retention for infrastructure backups and support requ
 The financial features declaration should describe manual expense/budget tracking.
 Do not claim lending, investing, payments, transfers of real funds or regulated advice.
 The owner must select the final Console answers and public deletion/support channels.
+
+The prepared public URLs use https://finora-api-olive.vercel.app: /privacy,
+/support and /delete-account. A separately authorized Resend inbox receives support
+requests at support@finora.aadarshx.in. Account deletion is also available without
+the Android app; login credentials and its temporary session remain in browser
+memory only. Support correspondence is additional user-supplied data handled by
+Resend and the operator; include it when completing the final disclosure.

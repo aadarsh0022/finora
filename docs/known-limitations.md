@@ -12,7 +12,9 @@ implemented. This is an engineering build, not a verified closed-test release.
 - The Resend domain finora.aadarshx.in is verified and its sender is configured.
   Production delivery and complete recovery still need an end-to-end test.
   EMAIL_TRANSPORT=disabled remains available for environments without email setup.
-- Privacy/terms/support pages are development drafts requiring review before release.
+- Branded privacy/terms/support and self-service web deletion are implemented.
+  Operator review, infrastructure retention and support-inbox monitoring remain
+  operational release gates; a page implementation is not legal certification.
 - No signed release AAB, final store screenshots, Play submission
   or closed test completed. Original adaptive/themed launcher and splash assets
   and original feature-graphic assets are prepared. Signing tooling and a private upload key exist locally; a real
