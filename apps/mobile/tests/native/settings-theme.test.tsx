@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, renderHook, screen, waitFor } from '@testing-library/react-native';
+import { act, fireEvent, render, renderHook, screen, waitFor } from '@testing-library/react-native';
 import { settingsUpdateSchema, userSchema, type Preferences } from '@finora/contracts';
-import { useColorScheme } from 'react-native';
+import { Alert, useColorScheme } from 'react-native';
 import { router } from 'expo-router';
 import Settings from '../../app/(tabs)/settings';
 import { ApiClient, type HttpTransport } from '../../src/api/client';
@@ -83,11 +83,13 @@ async function mount() {
       <Settings />
     </QueryClientProvider>,
   );
-  await screen.findByRole('radio', { name: 'Dark' });
+  await screen.findByRole('button', { name: 'Preferences' });
 }
 
 test('saves the selected theme through the real versioned mutation before refreshing the profile', async () => {
   await mount();
+  expect(screen.queryByRole('radio', { name: 'Dark' })).toBeNull();
+  await fireEvent.press(screen.getByRole('button', { name: 'Preferences' }));
   expect(screen.getByRole('button', { name: 'Save preferences' })).toBeDisabled();
   expect(screen.getByRole('radio', { name: 'Light' })).toBeChecked();
   await fireEvent.press(screen.getByRole('radio', { name: 'Dark' }));
@@ -124,9 +126,9 @@ test('uses the system scheme when selected and explicit theme preferences overri
 test('settings navigation opens connected management, planning, backup and security destinations', async () => {
   await mount();
   for (const [title, destination] of [
-    ['Manage accounts', '/accounts'],
-    ['Manage categories', '/categories'],
-    ['Export or import your data', '/backup'],
+    ['Accounts', '/accounts'],
+    ['Categories', '/categories'],
+    ['Backup and restore', '/backup'],
     ['Password and security', '/security'],
   ] as const) {
     await fireEvent.press(screen.getByRole('button', { name: title }));
@@ -141,4 +143,22 @@ test('settings navigation opens connected management, planning, backup and secur
     pathname: '/planning',
     params: { mode: 'recurring' },
   });
+});
+
+test('closing preferences confirms unsaved edits and discarding never writes settings', async () => {
+  const alert = jest.spyOn(Alert, 'alert');
+  await mount();
+  await fireEvent.press(screen.getByRole('button', { name: 'Preferences' }));
+  await fireEvent.press(screen.getByRole('radio', { name: 'Dark' }));
+  await fireEvent.press(screen.getByRole('button', { name: 'Cancel' }));
+  expect(alert).toHaveBeenCalledWith('Discard changes?', expect.any(String), expect.any(Array));
+  const buttons = alert.mock.calls.at(-1)?.[2];
+  await act(async () => {
+    buttons?.find((button) => button.text === 'Discard')?.onPress?.();
+  });
+  await waitFor(() => expect(screen.queryByRole('radio', { name: 'Dark' })).toBeNull());
+  expect(writes).toHaveLength(0);
+  await fireEvent.press(screen.getByRole('button', { name: 'Preferences' }));
+  expect(screen.getByRole('radio', { name: 'Light' })).toBeChecked();
+  expect(screen.getByRole('button', { name: 'Save preferences' })).toBeDisabled();
 });

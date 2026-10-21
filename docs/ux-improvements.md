@@ -50,3 +50,9 @@ remain available in About this report. Donut legends are compact and sorted by e
 amount, multi-month periods show monthly comparisons, and account details expand on
 request. Native workflow tests cover custom-range cancellation/validation, account
 detail access, and selected-period CSV export including temporary-file cleanup.
+
+Settings groups compact navigation rows under Personalize, Your money, Data and
+security, and Help and legal. Preferences opens an explicit editor with searchable
+currency/date-format choices and a pinned Save/Cancel footer. Closing dirty edits
+requires the existing discard confirmation. Versioned saves, profile refresh, legal
+links, sign-out confirmation and local-only recovery retain their existing behavior.
