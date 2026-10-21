@@ -3,14 +3,14 @@ import {
   budgetSchema,
   budgetStatusSchema,
   budgetUpdateSchema,
-  monthSchema,
   type Budget,
   type Category,
 } from '@finora/contracts';
 import { calendarDate, parseMoney } from '@finora/finance-core';
 import { useState } from 'react';
 import { z } from 'zod';
-import { AppButton, AppText, Card, Choice, Feedback, Field, Loading } from '../../components/ui';
+import { AppButton, AppText, Card, Feedback, Field, Loading } from '../../components/ui';
+import { MonthPicker, SelectField } from '../../components/flow';
 import { useFinanceMutation, useUnsavedChanges } from '../../hooks/finance';
 import { useApp } from '../../providers/app-provider';
 import { categoriesSchema, decimalAmount, useMoney, useRead } from '../finance/shared';
@@ -20,9 +20,7 @@ export function Budgets({ onEditing }: { onEditing: (editing: boolean) => void }
   const { user } = useApp();
   const money = useMoney();
   const today = calendarDate(new Date(), user?.preferences.timezone ?? 'Asia/Kolkata').slice(0, 7);
-  const [month, setMonth] = useState(today);
   const [activeMonth, setActiveMonth] = useState(today);
-  const [error, setError] = useState('');
   const [editing, setEditing] = useState<Budget | 'new' | null>(null);
   const query = useRead(
     `budgets?month=${encodeURIComponent(activeMonth)}`,
@@ -44,21 +42,7 @@ export function Budgets({ onEditing }: { onEditing: (editing: boolean) => void }
     );
   return (
     <>
-      <Card>
-        <Field label="Budget month (YYYY-MM)" value={month} onChangeText={setMonth} maxLength={7} />
-        <AppButton
-          title="View month"
-          variant="secondary"
-          onPress={() => {
-            const parsed = monthSchema.safeParse(month);
-            if (parsed.success) {
-              setActiveMonth(parsed.data);
-              setError('');
-            } else setError('Choose a month as YYYY-MM.');
-          }}
-        />
-        {error ? <AppText tone="danger">{error}</AppText> : null}
-      </Card>
+      <MonthPicker value={activeMonth} onChange={setActiveMonth} label="budget month" />
       <AppButton
         title="Add monthly budget"
         disabled={!categories.data}
@@ -169,7 +153,7 @@ function BudgetForm({
       <AppText style={{ fontSize: 22, fontFamily: 'DMSansBold' }}>
         {budget ? 'Edit budget' : 'New budget'}
       </AppText>
-      <Choice
+      <SelectField
         label="Expense category"
         value={form.categoryId}
         onChange={(categoryId) => setForm((current) => ({ ...current, categoryId }))}
@@ -184,11 +168,10 @@ function BudgetForm({
           Create an expense category in Settings before adding a budget.
         </AppText>
       )}
-      <Field
-        label="Month (YYYY-MM)"
+      <MonthPicker
+        label="budget month"
         value={form.month}
-        onChangeText={(value) => setForm((current) => ({ ...current, month: value }))}
-        maxLength={7}
+        onChange={(value) => setForm((current) => ({ ...current, month: value }))}
       />
       <Field
         label={`Spending limit (${currency})`}

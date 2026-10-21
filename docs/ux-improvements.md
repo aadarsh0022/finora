@@ -56,3 +56,8 @@ security, and Help and legal. Preferences opens an explicit editor with searchab
 currency/date-format choices and a pinned Save/Cancel footer. Closing dirty edits
 requires the existing discard confirmation. Versioned saves, profile refresh, legal
 links, sign-out confirmation and local-only recovery retain their existing behavior.
+
+Budget browsing and editing use the month/year picker instead of text input. Browsing
+applies immediately; a new budget starts in that selected month. Expense categories
+use the searchable selector. A native workflow verifies the selected year/month is
+used in the validated exact-money creation request.

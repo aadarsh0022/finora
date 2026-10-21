@@ -30,8 +30,8 @@ Rerun pnpm install --frozen-lockfile, pnpm check and pnpm build:api.
 First integration run downloads MongoDB from its official download service; Docker
 is unnecessary. Tests never read server .env.local or target Atlas.
 
-Latest integrated run (21 October 2026): **86 Vitest tests in 18 files and 33 native component tests
-in 9 files passed**, with strict types, zero-warning ESLint and formatting. Next.js
+Latest integrated run (21 October 2026): **86 Vitest tests in 18 files and 34 native component tests
+in 10 files passed**, with strict types, zero-warning ESLint and formatting. Next.js
 production build, Expo SDK compatibility check and Android Hermes export with
 source maps passed. The component runner uses Jest/Expo/RN Testing Library with
 mocked transport and operating-system boundaries; it is not a real-device test.
