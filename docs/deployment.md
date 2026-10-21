@@ -37,7 +37,13 @@ Resend sending from finora.aadarshx.in; its three DNS records were added in Host
 and Resend reports the domain verified. EMAIL_FROM is
 `Finora <no-reply@finora.aadarshx.in>`; EMAIL_TRANSPORT=resend is configured in
 production. The subsequent deployment passed its health check; email delivery and
-complete recovery still need an end-to-end test.
+complete recovery still needed an end-to-end test at that stage.
+Later that day, an authorized recovery test reached the branded support inbox.
+One existing development profile was absent from production, explaining why its
+recovery request sent no email. After the owner approved an insert-only profile
+copy, production recovery for that address was accepted and Resend reported
+Delivered. See [the controlled copy procedure](profile-copy.md). Reset completion
+and inbox placement at external recipients are separate from SMTP delivery.
 Resend requires TLS delivery for this subdomain; open/click tracking is not enabled.
 
 Public app links are pinned to the hosted Vercel origin even during local API

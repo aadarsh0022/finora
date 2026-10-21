@@ -30,7 +30,7 @@ Rerun pnpm install --frozen-lockfile, pnpm check and pnpm build:api.
 First integration run downloads MongoDB from its official download service; Docker
 is unnecessary. Tests never read server .env.local or target Atlas.
 
-Latest integrated run (21 October 2026): **92 Vitest tests in 20 files and 37 native component tests
+Latest integrated run (21 October 2026): **97 Vitest tests in 21 files and 37 native component tests
 in 10 files passed**, with strict types, zero-warning ESLint and formatting. Next.js
 production build, Expo SDK compatibility check and Android Hermes export with
 source maps passed. The component runner uses Jest/Expo/RN Testing Library with
@@ -105,6 +105,17 @@ without Metro. The process remained alive, with zero captured AndroidRuntime fat
 or ReactNativeJS error lines for its process during the startup check. No native
 UI interaction or authenticated workflow is claimed by this developer-CLI smoke test.
 
-Not executed yet: full native workflow/visual/accessibility tests, production
-email delivery or Play testing/review. Route integration and artifact verification
-are not complete device end-to-end tests.
+The administrative profile-copy addition has five disposable MongoDB integration
+tests covering preview, large exact balances/transfer conservation, preserved login,
+owner isolation, excluded sessions/reset tokens, conflict refusal, invalid references
+and rollback after a later insert fails. Current total: 134 tests.
+
+Authorized hosted email checks: a dedicated test account's recovery reached the
+branded support inbox. A read-only lookup identified an existing owner profile in
+development but absent from production. The approved profile copy passed graph and
+exact-record verification; a new recovery email then showed Delivered in Resend.
+No reset link, password, merchant or transaction note is included in this evidence.
+
+Not executed yet: full native workflow/visual/accessibility tests, completion of a
+production password reset or Play testing/review. Route integration and artifact
+verification are not complete device end-to-end tests.
