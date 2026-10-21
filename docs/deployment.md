@@ -19,9 +19,20 @@ Disposable alternative: pnpm db:local in another terminal; copy ignored
 when stopped. Do not accidentally replace working Atlas settings.
 
 Production requires Atlas replica set, restricted DB credential, HTTPS APP_URL,
-EMAIL_TRANSPORT=resend, RESEND_API_KEY from Resend, EMAIL_FROM on a verified domain,
 random 32+ character RATE_LIMIT_SECRET, and TRUST_PROXY=true behind a proxy verified
-to replace forwarded client-IP headers. No paid services or deployment are activated.
+to replace forwarded client-IP headers. Email uses EMAIL_TRANSPORT=resend with a
+RESEND_API_KEY and EMAIL_FROM on a verified domain. For hosted testing while email
+setup is deferred, explicitly set EMAIL_TRANSPORT=disabled: authentication and
+finance remain usable, but recovery uniformly returns RECOVERY_UNAVAILABLE without
+creating a reset token. Local outbox delivery remains prohibited in production.
+
+The user-selected deployment is https://finora-api-olive.vercel.app (Vercel project
+finora-api, repository root apps/api). Its public mobile origin is recorded in
+.env.example. Hosted API health must be verified after configuration/redeployment;
+a successful static homepage is not proof of MongoDB connectivity or auth readiness.
+Use MONGODB_DB=finora_production for isolated hosted data. Changing the database does
+not migrate local users or financial records. Resend delivery is deferred until a
+sender domain is verified; an API key alone does not enable general email delivery.
 
 Mobile: put public EXPO_PUBLIC_API_URL in apps/mobile/.env.local. Emulator uses
 http://10.0.2.2:3000; devices use a reachable LAN address or deployed HTTPS endpoint.

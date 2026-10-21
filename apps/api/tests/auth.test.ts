@@ -1,6 +1,6 @@
 import { readdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { sessionTokensSchema } from '@finora/contracts';
 import { database } from '../src/database/client';
 import { tokenHash } from '../src/security/tokens';
@@ -153,6 +153,36 @@ describe('refresh families and session boundaries', () => {
 });
 
 describe('password recovery and account lifecycle', () => {
+  it('keeps production authentication healthy with email disabled without issuing or leaking recovery tokens', async () => {
+    const first = await createUser();
+    vi.stubEnv('NODE_ENV', 'production');
+    vi.stubEnv('APP_URL', 'https://finora.example.test');
+    vi.stubEnv('TRUST_PROXY', 'true');
+    vi.stubEnv('EMAIL_TRANSPORT', 'disabled');
+    try {
+      expect((await health()).status).toBe(200);
+      expect((await call('GET', 'auth/me', undefined, first.accessToken)).status).toBe(200);
+      expect((await call('POST', 'auth/login', { email: first.user.email, password })).status).toBe(
+        200,
+      );
+      const existing = await call('POST', 'auth/forgot-password', { email: first.user.email });
+      const missing = await call('POST', 'auth/forgot-password', { email: 'missing@example.com' });
+      expect(existing.status).toBe(503);
+      expect(missing.status).toBe(503);
+      expect(existing.json.success ? null : existing.json.error).toEqual({
+        code: 'RECOVERY_UNAVAILABLE',
+        message: 'Password recovery is currently unavailable.',
+      });
+      expect(missing.json.success ? null : missing.json.error).toEqual(
+        existing.json.success ? null : existing.json.error,
+      );
+      const record = await (await database()).users.findOne({ id: first.user.id });
+      expect(record?.resetHash).toBeUndefined();
+      expect(record?.resetExpiresAt).toBeUndefined();
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
   async function recoveryToken() {
     const directory = path.resolve('.local/outbox');
     const before = new Set(await readdir(directory).catch(() => []));

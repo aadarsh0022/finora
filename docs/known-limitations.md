@@ -5,9 +5,12 @@ implemented. This is an engineering build, not a verified closed-test release.
 
 - Real-device installation, visual/gesture/accessibility checks and full native
   workflows have not been executed. Bundling does not prove the Android app launches.
-- Production deployment, verified recovery email, least-privilege Atlas credentials,
+- Hosted API verification, verified recovery email, least-privilege Atlas credentials,
   operator/support identity and infrastructure retention remain gates. Atlas is
   connected locally; destructive tests exclusively use disposable MongoDB.
+- Email setup is deferred by the user. EMAIL_TRANSPORT=disabled permits hosted
+  testing with password recovery explicitly unavailable. A verified sender and
+  delivery tests remain necessary before enabling recovery for a public release.
 - Privacy/terms/support pages are development drafts requiring review before release.
 - No signed release AAB, final store screenshots, Play submission
   or closed test completed. Original adaptive/themed launcher and splash assets

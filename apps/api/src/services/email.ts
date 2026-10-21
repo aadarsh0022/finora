@@ -2,9 +2,17 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import { randomUUID } from 'node:crypto';
 import path from 'node:path';
 import { getEnv } from '../config/env';
+import { ApiError } from '../utils/http';
+
+export function requirePasswordRecovery() {
+  const env = getEnv();
+  if (env.EMAIL_TRANSPORT === 'disabled')
+    throw new ApiError(503, 'RECOVERY_UNAVAILABLE', 'Password recovery is currently unavailable.');
+  return env;
+}
 
 export async function sendPasswordReset(email: string, token: string) {
-  const env = getEnv();
+  const env = requirePasswordRecovery();
   const link = new URL('/reset-password', env.APP_URL);
   link.hash = `token=${token}`;
   const message = {

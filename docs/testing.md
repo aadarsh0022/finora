@@ -30,11 +30,17 @@ Rerun pnpm install --frozen-lockfile, pnpm check and pnpm build:api.
 First integration run downloads MongoDB from its official download service; Docker
 is unnecessary. Tests never read server .env.local or target Atlas.
 
-Latest integrated run (21 October 2026): **86 Vitest tests in 18 files and 37 native component tests
+Latest integrated run (21 October 2026): **89 Vitest tests in 19 files and 37 native component tests
 in 10 files passed**, with strict types, zero-warning ESLint and formatting. Next.js
 production build, Expo SDK compatibility check and Android Hermes export with
 source maps passed. The component runner uses Jest/Expo/RN Testing Library with
 mocked transport and operating-system boundaries; it is not a real-device test.
+
+Explicitly disabled email is covered against disposable MongoDB in production mode:
+health, login and authenticated reads remain available; recovery returns the same
+unavailable response for existing/missing emails and issues no reset token. Separate
+configuration tests preserve HTTPS/proxy guards and require complete Resend inputs
+when that transport is selected.
 
 `scripts/smoke-api.ts` passed against the running local Next.js server connected to
 Atlas finora_development: real HTTP registration, accounts, income, expense,

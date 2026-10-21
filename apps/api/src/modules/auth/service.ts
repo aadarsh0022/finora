@@ -14,7 +14,7 @@ import {
   verifyMissingUser,
   verifyPassword,
 } from '../../security/tokens';
-import { sendPasswordReset } from '../../services/email';
+import { requirePasswordRecovery, sendPasswordReset } from '../../services/email';
 import { ApiError } from '../../utils/http';
 
 const unauthorized = () =>
@@ -185,6 +185,7 @@ export async function logoutOthers(context: AuthContext) {
 }
 
 export async function forgotPassword(email: string) {
+  requirePasswordRecovery();
   const { users } = await database();
   const token = randomToken();
   const digest = tokenHash(token);
