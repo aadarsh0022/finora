@@ -134,3 +134,9 @@ fix reproduced an unbounded navigation update loop; with the fix both tests pass
 The release config is bumped to 0.1.1 / version code 2. The previously uploaded
 version 1 is superseded and must not be rolled out. A replacement signed build and
 native validation are required before tester distribution.
+
+On 22 October, version 2 installed on Pixel 8 Pro and authenticated against the
+hosted API using only the synthetic review account. Home, transaction types,
+budgets, reports and goal balances were visually inspected during release QA.
+The fixed build returned from confirmed sign-out to the login form without an
+app restart. No full physical-device or accessibility certification is claimed.

@@ -128,3 +128,8 @@ saved as an internal draft, with a no-testers warning. No release was published.
 References: [Expo config plugin mods](https://docs.expo.dev/config-plugins/mods/),
 [Expo local plugins](https://docs.expo.dev/config-plugins/plugins/),
 [Android app signing](https://developer.android.com/studio/publish/app-signing).
+
+On 22 October 2026, an actual emulator sign-out regression was fixed using explicit
+protected-route destinations. Version 0.1.1/code 2 passed the 136-test check and
+was rebuilt from clean revision 49b697b, with signed AAB/APK and bundletool checks.
+Version 1 must not be distributed; consult release-status.md for replacement hashes.

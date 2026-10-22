@@ -10,7 +10,7 @@ Finora
 Android package: `app.finora.money`. Release identifiers and public app branding
 must not contain the owner's personal name. No earlier Play upload has registered
 this application identity. A free draft was created on 21 October 2026; the signed
-version 1 (0.1.0) was uploaded and saved as an internal draft. No rollout occurred.
+version 1 (0.1.0) was uploaded and saved as an internal draft. The later testing-release authorization and current status are recorded in release-status.md.
 See release-status.md for the signed local artifacts and remaining setup tasks.
 
 ## Short description
@@ -23,7 +23,7 @@ Finora helps you keep a clear picture of your personal finances through manual
 money tracking.
 
 Organize cash, bank and wallet accounts. Record income and expenses, add your own
-categories, and move money between accounts with linked transfers. See balances
+categories, and record transfers between accounts. See balances
 and monthly spending summaries, and find transactions with filters and search.
 
 Plan category budgets and follow your progress toward savings goals. Keep track
@@ -44,7 +44,7 @@ summaries are based on those records.
 - [Asset sources and regeneration instructions](../apps/mobile/assets/brand/README.md).
   Run `node scripts/generate-brand.mjs --check` to verify the checked-in assets.
 
-These assets are local drafts for review; no store upload has been performed.
+The icon, feature graphic and six actual Android screenshots are saved in the Play draft.
 
 ## Materials still required
 

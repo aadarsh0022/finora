@@ -43,3 +43,12 @@ Consulted 20 October 2026; exact installed versions are recorded in the lockfile
 - [MongoDB transactions](https://www.mongodb.com/docs/drivers/node/current/crud/transactions/)
 - [Argon2 Node bindings](https://github.com/ranisalt/node-argon2)
 - [Resend email API](https://resend.com/docs/api-reference/emails/send-email)
+
+- Update, 22 October 2026: production Resend delivery and branded support receiving
+  are verified. Recovery to an existing development-only profile initially sent
+  nothing by design; the approved exact profile/records copy into production fixed
+  that case, and the resulting email showed Delivered. Password-reset completion
+  and ongoing support monitoring remain separate checks.
+- The owner subsequently expressly authorized a testing release. Play's closed
+  testing version 2 (0.1.1) is in review. Public production publication remains
+  blocked by Google's testing criteria and the unresolved identity-privacy request.

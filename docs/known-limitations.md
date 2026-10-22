@@ -1,48 +1,38 @@
 # Known limitations and release gates
 
-The identity and finance APIs, connected Expo screens and automated checks are
-implemented. This is an engineering build, not a verified closed-test release.
+Finora 0.1.1/code 2 is a testing release candidate. Its closed-test submission is
+in Google review; no public production release or full production readiness is
+claimed. Current artifacts and evidence: [release status](release-status.md).
 
-- The signed standalone APK installed and launched on Pixel 8 Pro emulator without
-  Metro, with no captured fatal/React startup errors. Physical-device installation,
-  visual/gesture/accessibility checks and full native workflows remain unverified.
-- Hosted health and unauthenticated access checks pass. Full cloud user workflows,
-  verified recovery email, least-privilege Atlas credentials,
-  operator/support identity and infrastructure retention remain gates. Atlas is
-  connected locally; destructive tests exclusively use disposable MongoDB.
-- The Resend domain finora.aadarshx.in is verified and its sender is configured.
-  Production delivery and complete recovery still need an end-to-end test.
-  EMAIL_TRANSPORT=disabled remains available for environments without email setup.
-- Branded privacy/terms/support and self-service web deletion are implemented.
-  Operator review, infrastructure retention and support-inbox monitoring remain
-  operational release gates; a page implementation is not legal certification.
-- A signed AAB and standalone APK passed signature and manifest validation from a
-  clean revision; see release-status.md. Final store screenshots, authenticated
-  native QA and closed testing remain incomplete. The uploaded version 1 (0.1.0)
-  is saved as an internal Play draft; validation warns that no testers are selected.
-  Six of eleven app setup tasks are complete. No rollout or public publication
-  occurred. The Console requires 12 testers continuously for 14 days;
-  the owner's public-identity privacy requirement also remains unresolved.
-  Original launcher, splash and feature-graphic assets are prepared. No billing,
-  ads, bank integrations or AI enabled.
+- Pixel 8 Pro emulator checks verified hosted demo login, finance-screen reads and
+  sign-out returning to login without restarting. The navigation-loop regression
+  is fixed. Physical-device, accessibility, biometric, offline/retry and complete
+  export/restore workflows still require device QA.
+- Hosted health/authentication checks pass. Recovery delivery is verified to the
+  branded support inbox and accepted as Delivered for the owner after an expressly
+  approved development-profile copy. Password-reset completion, ongoing support
+  monitoring, restricted Atlas roles, provider retention and restore procedures
+  remain operational gates. Destructive tests use disposable MongoDB only.
+- All eleven Play app/listing tasks are saved. The closed test targets 178 regions
+  with an English listing and four supplied tester addresses. Google requires
+  twelve opted-in testers continuously for fourteen days before production access.
+  List membership does not count as opt-in. Review approval is still pending.
+- The owner's personal-identity privacy requirement remains unresolved for public
+  release: app branding does not override Google's developer-profile disclosure.
+- Signed AAB/APK, restricted manifest permissions and comparison against known
+  local secrets passed. Secure off-machine upload-key backup is unverified. No
+  security certification or penetration test is claimed.
 - One currency per profile, locked once financial records exist. Refunds count as
   income and do not reduce category expense/budget totals.
 - Recurrence requires confirmation. Generation is bounded to 100 per request and
-  history lists latest 100. Schedules are immutable; edit metadata or pause and create
-  another schedule. Posted history prevents deleting its rule.
+  history lists latest 100. Schedules are immutable; edit metadata or pause and
+  create another. Posted history prevents deleting its rule.
 - Initial caps: 200 accounts, 300 categories, 10,000 transactions, 1,200 budgets,
-  200 goals, 10,000 contributions (1,000/goal), 200 rules and 10,000 occurrences.
+  200 goals, 10,000 contributions (1,000 per goal), 200 rules and 10,000 occurrences.
   These are engineering limits, not paid entitlements. Reporting uses bounded reads.
 - Backups are unencrypted, versioned, at most 2 MiB and merge-only. Conflicts never
   overwrite records. Export refuses a backup that cannot fit a valid restore request.
-- The client uses in-memory cached reads and preserves recoverable form state.
-  There is no durable offline editing queue or persisted sensitive finance cache.
-- Range reports, charts, report CSV and optional biometric lock are implemented.
-  Their native visual/accessibility, modal coverage and biometric behavior remain
-  device QA gates. Live purchases remain deferred; the trusted entitlement adapter
-  returns FREE and does not offer a purchase flow.
-- Dependency audit retains three upstream tooling advisories (two high, one
-  moderate) without published patched versions. See dependency-review.md for
-  observed paths, exposure limits and release follow-up. No clean audit is claimed.
-- Focused independent review and regression tests are complete; no external security
-  certification, penetration test or comprehensive native UI QA is claimed.
+- Cached reads are in memory. There is no durable offline editing queue or persisted
+  sensitive finance cache. Billing, ads, bank integration and AI features are absent.
+- Three upstream tooling advisories remain documented in dependency-review.md.
+  No clean dependency audit is claimed.
