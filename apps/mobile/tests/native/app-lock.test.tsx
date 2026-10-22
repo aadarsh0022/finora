@@ -99,7 +99,7 @@ test('hides financial content immediately while reading enabled policy and requi
   );
   await mount();
   expectHidden();
-  expect(screen.getByText('Loading your records…')).toBeOnTheScreen();
+  expect(screen.getByRole('progressbar', { name: 'Loading your records' })).toBeOnTheScreen();
   await act(() => complete('enabled'));
   const unlock = await screen.findByRole('button', { name: 'Unlock with biometrics' });
   expectHidden();

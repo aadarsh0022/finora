@@ -15,7 +15,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNetworkState } from 'expo-network';
 import { useTheme } from '../theme';
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 
 export function AppText({
   tone = 'text',
@@ -35,7 +35,6 @@ export function Screen({
   subtitle,
   children,
   onRefresh,
-  refreshing = false,
   bottomAction,
   floatingAction,
   includeTopInset = true,
@@ -43,14 +42,23 @@ export function Screen({
   title?: string;
   subtitle?: string;
   children: ReactNode;
-  onRefresh?: () => void;
-  refreshing?: boolean;
+  onRefresh?: () => Promise<unknown>;
   bottomAction?: ReactNode;
   floatingAction?: ReactNode;
   includeTopInset?: boolean;
 }) {
   const theme = useTheme();
   const network = useNetworkState();
+  const [refreshing, setRefreshing] = useState(false);
+  async function refresh() {
+    if (!onRefresh || refreshing) return;
+    setRefreshing(true);
+    try {
+      await onRefresh();
+    } finally {
+      setRefreshing(false);
+    }
+  }
   return (
     <SafeAreaView
       edges={includeTopInset ? ['top', 'left', 'right'] : ['left', 'right']}
@@ -61,13 +69,16 @@ export function Screen({
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <ScrollView
+          testID="screen-content"
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="on-drag"
           refreshControl={
             onRefresh ? (
               <RefreshControl
                 refreshing={refreshing}
-                onRefresh={onRefresh}
+                onRefresh={() => {
+                  void refresh();
+                }}
                 tintColor={theme.accent}
                 colors={[theme.accent]}
               />
@@ -296,11 +307,50 @@ export function Feedback({ error, retry }: { error: unknown; retry?: () => void 
     </Card>
   );
 }
-export function Loading() {
+export function Loading({ variant = 'list' }: { variant?: 'list' | 'dashboard' | 'form' }) {
+  const theme = useTheme();
+  const block = { backgroundColor: theme.border, borderRadius: 6 };
   return (
-    <View style={{ padding: 32, alignItems: 'center', gap: 12 }}>
-      <ActivityIndicator />
-      <AppText tone="muted">Loading your records…</AppText>
+    <View
+      accessible
+      accessibilityRole="progressbar"
+      accessibilityLabel="Loading your records"
+      accessibilityState={{ busy: true }}
+      style={{ width: '100%', gap: 12 }}
+    >
+      <View
+        accessibilityElementsHidden
+        importantForAccessibility="no-hide-descendants"
+        style={{ gap: 12 }}
+      >
+        {variant === 'dashboard' && (
+          <Card style={{ minHeight: 164, justifyContent: 'center', gap: 18 }}>
+            <View style={[block, { width: '38%', height: 14 }]} />
+            <View style={[block, { width: '65%', height: 36 }]} />
+            <View style={[block, { width: '48%', height: 12 }]} />
+          </Card>
+        )}
+        {Array.from({ length: 3 }, (_, index) => (
+          <Card
+            key={index}
+            style={{
+              flexDirection: variant === 'form' ? 'column' : 'row',
+              alignItems: variant === 'form' ? 'stretch' : 'center',
+              gap: 14,
+              minHeight: 92,
+            }}
+          >
+            {variant !== 'form' && (
+              <View style={[block, { width: 44, height: 44, borderRadius: 14 }]} />
+            )}
+            <View style={{ flex: 1, gap: 12 }}>
+              <View style={[block, { width: '58%', height: 16 }]} />
+              <View style={[block, { width: '38%', height: variant === 'form' ? 32 : 12 }]} />
+            </View>
+            {variant !== 'form' && <View style={[block, { width: 68, height: 18 }]} />}
+          </Card>
+        ))}
+      </View>
     </View>
   );
 }

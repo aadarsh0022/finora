@@ -102,10 +102,7 @@ export default function Transactions() {
     <Screen
       title="Transactions"
       subtitle="Your money, one entry at a time."
-      refreshing={query.isFetching && !query.isPending}
-      onRefresh={() => {
-        void query.refetch();
-      }}
+      onRefresh={() => query.refetch()}
       floatingAction={
         <Pressable
           accessibilityRole="button"

@@ -87,10 +87,7 @@ export default function Reports() {
     <Screen
       title="Reports"
       subtitle="Understand where your money goes."
-      refreshing={query.isFetching && !query.isPending}
-      onRefresh={() => {
-        void query.refetch();
-      }}
+      onRefresh={() => query.refetch()}
     >
       <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 12 }}>
         <View style={{ flex: 1 }}>
@@ -140,7 +137,7 @@ export default function Reports() {
           {exportNotice}
         </AppText>
       ) : null}
-      {query.isPending && <Loading />}
+      {query.isPending && <Loading variant="dashboard" />}
       {query.isError && (
         <Feedback
           error={query.error}

@@ -57,7 +57,7 @@ function Navigation() {
         <Stack.Protected guard={!user} redirectTo="/(tabs)">
           <Stack.Screen name="(auth)" options={{ headerShown: false }} />
         </Stack.Protected>
-        <Stack.Protected guard={!!user} redirectTo="/(auth)/login">
+        <Stack.Protected guard={!!user} redirectTo="/(auth)/register">
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           <Stack.Screen name="account" options={{ title: 'Account' }} />
           <Stack.Screen name="accounts" options={{ title: 'Accounts' }} />

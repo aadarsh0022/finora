@@ -44,11 +44,7 @@ export default function Home() {
     <Screen
       title={`Hello, ${user?.name.split(' ')[0] ?? 'there'}`}
       subtitle="Make room for what matters."
-      refreshing={overview.isFetching && !overview.isPending}
-      onRefresh={() => {
-        void overview.refetch();
-        void categories.refetch();
-      }}
+      onRefresh={() => Promise.all([overview.refetch(), categories.refetch()])}
     >
       {seed.isPending && <AppText tone="muted">Preparing your suggested categories…</AppText>}
       {seed.error && <Feedback error={seed.error} retry={() => seed.mutate({})} />}
@@ -60,7 +56,7 @@ export default function Home() {
           }}
         />
       )}
-      {overview.isPending && <Loading />}
+      {overview.isPending && <Loading variant="dashboard" />}
       {overview.isError && (
         <Feedback
           error={overview.error}

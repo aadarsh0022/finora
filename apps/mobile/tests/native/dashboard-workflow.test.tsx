@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import {
   accountWithBalanceSchema,
   categorySchema,
@@ -93,11 +93,13 @@ const empty = overviewSchema.parse({
 let paths: string[];
 let failOverviewOnce: boolean;
 let failCategoriesOnce: boolean;
+let holdOverview: Promise<void> | undefined;
 
 beforeEach(() => {
   paths = [];
   failOverviewOnce = false;
   failCategoriesOnce = false;
+  holdOverview = undefined;
   useUi.getState().reset();
   jest.mocked(useNetworkState).mockReturnValue({ isConnected: true, isInternetReachable: true });
 });
@@ -109,6 +111,7 @@ async function mount(data: Overview, hold?: Promise<void>) {
     paths.push(`${path}${parsed.search}`);
     if (path === 'reports/overview') {
       if (hold) await hold;
+      if (holdOverview) await holdOverview;
       if (failOverviewOnce) {
         failOverviewOnce = false;
         return Response.json(
@@ -167,6 +170,7 @@ async function mount(data: Overview, hold?: Promise<void>) {
       <Home />
     </QueryClientProvider>,
   );
+  return query;
 }
 
 test('shows loading before data, then actionable empty states and account creation navigation', async () => {
@@ -175,7 +179,7 @@ test('shows loading before data, then actionable empty states and account creati
     complete = resolve;
   });
   await mount(empty, held);
-  expect(screen.getByText('Loading your records…')).toBeOnTheScreen();
+  expect(screen.getByRole('progressbar', { name: 'Loading your records' })).toBeOnTheScreen();
   expect(screen.queryByText('Start with your first account')).not.toBeOnTheScreen();
   complete();
   expect(await screen.findByText('Start with your first account')).toBeOnTheScreen();
@@ -183,6 +187,40 @@ test('shows loading before data, then actionable empty states and account creati
   expect(screen.getByText('Your transactions will appear here.')).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole('button', { name: 'Create account' }));
   expect(router.push).toHaveBeenCalledWith('/account');
+});
+
+test('background refresh preserves content without skeletons or a pull-to-refresh spinner', async () => {
+  const query = await mount(populated);
+  await screen.findByText('Groceries');
+  let complete: () => void = () => undefined;
+  holdOverview = new Promise<void>((resolve) => {
+    complete = resolve;
+  });
+  await act(async () => {
+    void query.invalidateQueries({ queryKey: [owner] });
+  });
+  await waitFor(() => expect(query.isFetching()).toBeGreaterThan(0));
+  expect(screen.getByText('Groceries')).toBeOnTheScreen();
+  expect(screen.queryByRole('progressbar', { name: 'Loading your records' })).toBeNull();
+  const refreshControl = () => screen.getByTestId('screen-content').props.refreshControl;
+  expect(refreshControl().props.refreshing).toBe(false);
+  await act(async () => {
+    complete();
+  });
+  await waitFor(() => expect(query.isFetching()).toBe(0));
+
+  holdOverview = new Promise<void>((resolve) => {
+    complete = resolve;
+  });
+  await act(async () => {
+    refreshControl().props.onRefresh();
+  });
+  expect(refreshControl().props.refreshing).toBe(true);
+  expect(screen.getByText('Groceries')).toBeOnTheScreen();
+  await act(async () => {
+    complete();
+  });
+  await waitFor(() => expect(refreshControl().props.refreshing).toBe(false));
 });
 
 test('exposes report errors and retry loads the real query result', async () => {

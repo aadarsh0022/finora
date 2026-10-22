@@ -1,6 +1,6 @@
 import { useSyncExternalStore, type ReactNode } from 'react';
 import { Text, Pressable } from 'react-native';
-import { Stack } from 'expo-router';
+import { Link, Stack } from 'expo-router';
 import { act, fireEvent, renderRouter, screen, waitFor } from 'expo-router/testing-library';
 import { userSchema, type User } from '@finora/contracts';
 import Root from '../../app/_layout';
@@ -48,6 +48,12 @@ function DemoHome() {
   );
 }
 const Login = () => <Text>Sign in to Finora</Text>;
+const Register = () => (
+  <>
+    <Text>Create a Finora account</Text>
+    <Link href="/(auth)/login">Already have an account? Sign in</Link>
+  </>
+);
 const PrivatePage = () => <Text>Private financial record</Text>;
 
 async function mount(initialUser: User | null, initialUrl: string) {
@@ -75,6 +81,7 @@ async function mount(initialUser: User | null, initialUrl: string) {
       index: Index,
       '(auth)/_layout': AuthLayout,
       '(auth)/login': Login,
+      '(auth)/register': Register,
       '(tabs)/_layout': () => <Stack screenOptions={{ headerShown: false }} />,
       '(tabs)/index': DemoHome,
       account: PrivatePage,
@@ -89,18 +96,25 @@ async function mount(initialUser: User | null, initialUrl: string) {
   );
 }
 
-test('sign-out reaches login without restarting and login restores the dashboard', async () => {
+test('sign-out reaches signup without restarting and authentication restores the dashboard', async () => {
   await mount(demo, '/(tabs)');
   expect(await screen.findByText('Private dashboard')).toBeVisible();
   await fireEvent.press(screen.getByRole('button', { name: 'Sign out' }));
-  expect(await screen.findByText('Sign in to Finora')).toBeVisible();
+  expect(await screen.findByText('Create a Finora account')).toBeVisible();
   expect(screen.queryByText('Private dashboard')).not.toBeVisible();
   await act(() => selectSession(demo));
   await waitFor(() => expect(screen.getByText('Private dashboard')).toBeVisible());
 });
 
-test('an unauthenticated private deep link resolves to login', async () => {
+test('an unauthenticated private deep link resolves to signup', async () => {
   await mount(null, '/transaction');
-  expect(await screen.findByText('Sign in to Finora')).toBeVisible();
+  expect(await screen.findByText('Create a Finora account')).toBeVisible();
   expect(screen.queryByText('Private financial record')).not.toBeVisible();
+});
+
+test('first launch opens signup and an existing user can choose sign in', async () => {
+  await mount(null, '/');
+  expect(await screen.findByText('Create a Finora account')).toBeVisible();
+  await fireEvent.press(screen.getByText('Already have an account? Sign in'));
+  expect(await screen.findByText('Sign in to Finora')).toBeVisible();
 });

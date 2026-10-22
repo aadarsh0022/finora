@@ -52,3 +52,12 @@ Consulted 20 October 2026; exact installed versions are recorded in the lockfile
 - The owner subsequently expressly authorized a testing release. Play's closed
   testing version 2 (0.1.1) is in review. Public production publication remains
   blocked by Google's testing criteria and the unresolved identity-privacy request.
+
+- Update, 22 October 2026: signed-out entry opens registration, with an explicit
+  sign-in link for existing users. Screen reads use accessible, static skeleton
+  placeholders; existing cached content stays visible during background fetches.
+  The pull-to-refresh indicator is reserved for an explicit refresh gesture.
+  Financial caching remains in memory, isolated by user and cleared on sign-out.
+  SQLite persistence, an offline mutation outbox and conflict-aware synchronization
+  are not implemented; writes still require the hosted API. Version 0.1.2/code 3
+  is being prepared for the existing closed test, not public production.
