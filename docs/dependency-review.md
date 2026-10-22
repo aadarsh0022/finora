@@ -32,6 +32,14 @@ changing audit thresholds. Check the advisories and compatible Expo updates agai
 before release. A downstream risk decision and follow-up remain release tasks.
 No custom cryptographic patch has been introduced.
 
+On 22 October 2026, Expo's compatibility check began requiring SDK 58 patch
+updates. The mobile workspace was aligned to Expo 58.0.17 and its recommended
+constants, linking, network, router, sharing, splash, status-bar and Jest patches.
+The Metro runtime is an explicit compatible peer. Strict peer validation remains
+enabled; pnpm's release-age exceptions list exact package versions for this
+resolved Expo update rather than disabling the release-age policy globally.
+These compatibility updates do not claim to resolve the advisories above.
+
 `pnpm exec tsx scripts/check-secrets.ts` compares the actual locally configured
 server URI/password and secret values against nonignored source files and the
 generated mobile export. It reports paths only on a match. A clean comparison
