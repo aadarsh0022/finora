@@ -131,3 +131,19 @@ and 90 native tests pass; local API tests/build are blocked by Windows Applicati
 Control denying the argon2 native module. The hosted API must be updated and
 verified with the new endpoints and current privacy disclosure before a matching
 mobile testing release can be considered ready. See testing.md for scoped checks.
+
+## Closed-testing update preparation, version 0.2.0
+
+The owner explicitly requested a testing release and authorized pushing the new
+features. Version 0.2.0/code 4 preserves package app.finora.money and the existing
+upload key. GitHub Actions run 39998745702 passed the full check (146 core/API
+and 90 native tests), API production build, Expo dependency check and Android
+export for 19404f7. The Windows argon2 restriction is local to this workstation.
+
+The owner reports deploying the updated hosted API and configuring its AI key.
+The hosted health endpoint returns 200 and the privacy page contains the OpenAI
+disclosure. Play Console currently serves 0.1.2/code 3 to the existing Alpha track
+and shows nine opted-in testers. Public production access is still unavailable.
+The signed version 4 AAB is being built; no new upload or review submission has
+been verified. Browser control currently lists the Play release draft but fails
+to attach. Confirm the final artifact and Play status before claiming submission.

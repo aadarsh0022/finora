@@ -185,3 +185,9 @@ The hosted health endpoint returns 200, and login validates requests, but the
 hosted deployment does not yet contain these new assistant/onboarding endpoints.
 Linux CI and a verified compatible API deployment remain release gates. There
 has been no new Play upload or publication from these changes.
+
+GitHub Actions run 39998745702 subsequently completed successfully on Linux for
+19404f7: all 146 Vitest tests and 90 native tests passed, followed by formatting,
+Next.js production build, Expo dependency validation and Android export. This
+resolves the code-verification gate for that revision without changing Windows
+security policy. The native Jest process exited after its cache timers elapsed.
