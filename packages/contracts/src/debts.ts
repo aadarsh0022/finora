@@ -8,9 +8,11 @@ const details = {
   dueDate: calendarDaySchema.optional(),
   note: z.string().trim().max(1000).default(''),
 };
+export const debtKindSchema = z.enum(['PERSONAL_LOAN', 'REFUND', 'DEPOSIT', 'REIMBURSEMENT']);
 export const debtInputSchema = z
   .object({
     ...details,
+    kind: debtKindSchema.default('PERSONAL_LOAN'),
     direction: z.enum(['BORROWED', 'LENT']),
     amountMinor: positiveMinorSchema,
     date: calendarDaySchema,
@@ -21,6 +23,11 @@ export const debtInputSchema = z
   .refine((v) => !v.dueDate || v.dueDate >= v.date, {
     path: ['dueDate'],
     message: 'Due date must be on or after the start date',
+  })
+  .refine((v) => v.kind === 'PERSONAL_LOAN' || (v.direction === 'LENT' && !v.accountId), {
+    path: ['kind'],
+    message:
+      'Refunds, deposits and reimbursements track expected receipts without an initial account movement',
   });
 export const debtUpdateSchema = z
   .object({
@@ -31,6 +38,7 @@ export const debtUpdateSchema = z
   .strict();
 export const debtSchema = z.object({
   ...details,
+  kind: debtKindSchema.default('PERSONAL_LOAN'),
   id: entityIdSchema,
   userId: entityIdSchema,
   version: versionSchema,

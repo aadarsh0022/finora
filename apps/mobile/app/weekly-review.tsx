@@ -152,6 +152,11 @@ export default function WeeklyReview() {
               variant="secondary"
               onPress={() => router.push('/debts')}
             />
+            <AppButton
+              title="Review money coming back"
+              variant="secondary"
+              onPress={() => router.push('/receivables')}
+            />
           </Card>
           <Card>
             <AppText style={{ fontFamily: 'DMSansBold', fontSize: 19 }}>

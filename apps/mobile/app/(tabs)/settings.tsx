@@ -79,6 +79,12 @@ export default function Settings() {
       )}
       <SettingsGroup title="Your money">
         <SettingsRow
+          title="Money coming back"
+          subtitle="Refunds, deposits and reimbursements"
+          icon="repeat"
+          onPress={() => router.push('/receivables')}
+        />
+        <SettingsRow
           title="Money Ahead"
           subtitle="Commitments, scenarios and purchase previews"
           icon="goal"

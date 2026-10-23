@@ -44,7 +44,7 @@ beforeEach(() => {
   writes = [];
   jest.mocked(useLocalSearchParams).mockReturnValue({});
 });
-async function mount() {
+async function mount(overrides: Partial<typeof debt> = {}) {
   const transport: HttpTransport = async (url, options) => {
     const path = new URL(url).pathname.replace('/api/v1/', '');
     if (options?.method === 'POST') {
@@ -54,7 +54,7 @@ async function mount() {
         success: true,
         data:
           path === 'debts'
-            ? { ...debt, ...body }
+            ? { ...debt, ...overrides, ...body }
             : debtEventSchema.parse({
                 id: '33333333-3333-4333-8333-333333333333',
                 userId: user.id,
@@ -73,7 +73,14 @@ async function mount() {
       data:
         path === 'accounts'
           ? []
-          : { ...debt, repaidMinor: '0', remainingMinor: '5000', status: 'ACTIVE', events: [] },
+          : {
+              ...debt,
+              ...overrides,
+              repaidMinor: '0',
+              remainingMinor: '5000',
+              status: 'ACTIVE',
+              events: [],
+            },
     });
   };
   const api = new ApiClient(
@@ -140,4 +147,38 @@ test('prevents overpayment in the form and submits an exact partial repayment', 
     body: { amountMinor: '1234', version: 1 },
   });
   expect(writes[0]?.body).not.toHaveProperty('accountId');
+});
+
+test('tracks an expected refund only after review, without an initial account movement', async () => {
+  jest.mocked(useLocalSearchParams).mockReturnValue({ receivable: 'true' });
+  const alert = jest.spyOn(Alert, 'alert');
+  await mount();
+  expect(screen.queryByText('Account handling')).toBeNull();
+  await fireEvent.changeText(screen.getByLabelText('Who should pay you?'), 'Demo shop');
+  await fireEvent.changeText(screen.getByLabelText('Expected amount (INR)'), '50');
+  await fireEvent.press(screen.getByRole('button', { name: 'Review receivable' }));
+  expect(writes).toHaveLength(0);
+  await act(async () => {
+    alert.mock.calls
+      .at(-1)?.[2]
+      ?.find((b) => b.text === 'Track receivable')
+      ?.onPress?.();
+  });
+  await waitFor(() => expect(writes).toHaveLength(1));
+  expect(writes[0]?.body).toMatchObject({ kind: 'REFUND', direction: 'LENT', amountMinor: '5000' });
+  expect(writes[0]?.body).not.toHaveProperty('accountId');
+});
+
+test('uses receipt wording and prevents over-collection before a partial receipt', async () => {
+  jest.mocked(useLocalSearchParams).mockReturnValue({ id: debt.id });
+  await mount({ direction: 'LENT', kind: 'REIMBURSEMENT' });
+  await fireEvent.press(await screen.findByRole('button', { name: 'Record money received' }));
+  await fireEvent.changeText(screen.getByLabelText('Received amount (INR)'), '50.01');
+  await fireEvent.press(screen.getByRole('button', { name: 'Confirm receipt' }));
+  expect(screen.getByRole('alert')).toHaveTextContent('Receipt exceeds the remaining amount.');
+  expect(writes).toHaveLength(0);
+  await fireEvent.changeText(screen.getByLabelText('Received amount (INR)'), '12.34');
+  await fireEvent.press(screen.getByRole('button', { name: 'Confirm receipt' }));
+  await waitFor(() => expect(writes).toHaveLength(1));
+  expect(writes[0]?.body).toMatchObject({ amountMinor: '1234', version: 1 });
 });

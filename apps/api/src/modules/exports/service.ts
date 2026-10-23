@@ -213,12 +213,11 @@ function plan(backup: Backup, current: Snapshot) {
     !backupSchema.safeParse({
       ...backup,
       ...merged,
-      version:
-        merged.monthlyLimits.length || merged.budgets.some((b) => b.rollover)
+      version: merged.debts.length
+        ? 4
+        : merged.monthlyLimits.length || merged.budgets.some((b) => b.rollover)
           ? 3
-          : merged.debts.length
-            ? 2
-            : backup.version,
+          : backup.version,
     }).success
   )
     conflicts++;
@@ -258,12 +257,11 @@ export async function exportBackup(context: AuthContext): Promise<Backup> {
         const records = await snapshot(db, session, context.user.id);
         return backupSchema.parse({
           format: 'finora-backup',
-          version:
-            records.monthlyLimits.length || records.budgets.some((b) => b.rollover)
+          version: records.debts.length
+            ? 4
+            : records.monthlyLimits.length || records.budgets.some((b) => b.rollover)
               ? 3
-              : records.debts.length
-                ? 2
-                : 1,
+              : 1,
           exportedAt: new Date().toISOString(),
           currency: await currentCurrency(db, session, context),
           ...records,

@@ -65,7 +65,7 @@ export const backupOccurrenceSchema = recurringOccurrenceSchema
 export const backupSchema = z
   .object({
     format: z.literal('finora-backup'),
-    version: z.union([z.literal(1), z.literal(2), z.literal(3)]),
+    version: z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4)]),
     exportedAt: z.iso.datetime(),
     currency: currencySchema,
     accounts: z.array(backupAccountSchema).max(200),
@@ -144,6 +144,8 @@ export const backupSchema = z
     }
     if (backup.version === 1 && (backup.debts.length || backup.debtEvents.length))
       invalid('version', 'Debt history requires backup version 2');
+    if (backup.version < 4 && backup.debts.some((debt) => debt.kind !== 'PERSONAL_LOAN'))
+      invalid('version', 'Receivable types require backup version 4');
     const debtMap = new Map(backup.debts.map((debt) => [debt.id, debt]));
     for (const debt of backup.debts) {
       const history = backup.debtEvents.filter((e) => e.debtId === debt.id);
@@ -152,6 +154,7 @@ export const backupSchema = z
         .filter((e) => e.kind === 'REPAYMENT' && !e.reversedAt)
         .reduce((sum, e) => sum + BigInt(e.amountMinor), 0n);
       if (
+        (debt.kind !== 'PERSONAL_LOAN' && (debt.direction !== 'LENT' || principal[0]?.accountId)) ||
         debt.currency !== backup.currency ||
         principal.length !== 1 ||
         principal[0]?.amountMinor !== debt.amountMinor ||

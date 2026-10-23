@@ -74,6 +74,7 @@ function Navigation() {
           <Stack.Screen name="reminders" options={{ title: 'Reminders' }} />
           <Stack.Screen name="money-ahead" options={{ title: 'Money Ahead' }} />
           <Stack.Screen name="weekly-review" options={{ title: 'Weekly review' }} />
+          <Stack.Screen name="receivables" options={{ title: 'Money coming back' }} />
           <Stack.Screen name="debt" options={{ title: 'Debt' }} />
           <Stack.Screen name="backup" options={{ title: 'Export & backup' }} />
         </Stack.Protected>

@@ -14,7 +14,7 @@ export function DebtSummary() {
   if (query.data && !query.error && totals.BORROWED === 0n && totals.LENT === 0n) return null;
   return (
     <Card>
-      <AppText style={{ fontFamily: 'DMSansBold', fontSize: 19 }}>Borrowed & lent</AppText>
+      <AppText style={{ fontFamily: 'DMSansBold', fontSize: 19 }}>Money owed</AppText>
       {query.data && (
         <View style={{ flexDirection: 'row', gap: 16 }}>
           {(['BORROWED', 'LENT'] as const).map((kind) => (
@@ -37,7 +37,16 @@ export function DebtSummary() {
           }}
         />
       )}
-      <AppButton title="View debts" variant="secondary" onPress={() => router.push('/debts')} />
+      {totals.BORROWED > 0n && (
+        <AppButton title="View debts" variant="secondary" onPress={() => router.push('/debts')} />
+      )}
+      {totals.LENT > 0n && (
+        <AppButton
+          title="Money coming back"
+          variant="secondary"
+          onPress={() => router.push('/receivables')}
+        />
+      )}
     </Card>
   );
 }

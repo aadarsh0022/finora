@@ -240,7 +240,7 @@ it('supports existing debts, lent money, partial settlement, archive and correct
     ).balanceMinor,
   ).toBe('0');
   const exported = await backup(token);
-  expect(exported.version).toBe(2);
+  expect(exported.version).toBe(4);
   expect(exported.debts).toHaveLength(2);
 });
 
