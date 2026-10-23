@@ -207,6 +207,7 @@ function BudgetForm({
     <FlowSheet
       title={budget ? 'Edit budget' : 'New budget'}
       visible
+      busy={save.isPending || remove.isPending}
       onClose={() => {
         if (!save.isPending && !remove.isPending) confirmDiscard(dirty, done);
       }}
@@ -297,6 +298,7 @@ function TotalBudget({ month }: { month: string }) {
   const query = useRead(`budgets/total?month=${month}`, monthlyLimitStatusSchema);
   const [open, setOpen] = useState(false);
   const [amount, setAmount] = useState('');
+  const [draftPlan, setDraftPlan] = useState<z.infer<typeof monthlyLimitSchema> | null>(null);
   const [error, setError] = useState('');
   const save = useFinanceMutation('budgets/total', monthlyLimitSchema);
   const remove = useFinanceMutation('budgets/total', deletedSchema, 'DELETE');
@@ -308,7 +310,7 @@ function TotalBudget({ month }: { month: string }) {
       await save.mutateAsync({
         month,
         amountMinor: value,
-        ...(query.data?.plan ? { version: query.data.plan.version } : {}),
+        ...(draftPlan ? { version: draftPlan.version } : {}),
       });
       setOpen(false);
     } catch (e) {
@@ -344,9 +346,10 @@ function TotalBudget({ month }: { month: string }) {
       <AppButton
         title={data?.plan ? 'Edit monthly limit' : 'Set monthly limit'}
         variant="secondary"
-        disabled={query.isPending}
+        disabled={query.isPending || query.isError}
         onPress={() => {
           setAmount(data?.plan ? decimalAmount(data.plan.amountMinor, currency) : '');
+          setDraftPlan(data?.plan ?? null);
           setError('');
           setOpen(true);
         }}
@@ -358,10 +361,11 @@ function TotalBudget({ month }: { month: string }) {
       <FlowSheet
         title="Monthly spending limit"
         visible={open}
+        busy={save.isPending || remove.isPending}
         onClose={() => {
           if (!save.isPending && !remove.isPending)
             confirmDiscard(
-              amount !== (data?.plan ? decimalAmount(data.plan.amountMinor, currency) : ''),
+              amount !== (draftPlan ? decimalAmount(draftPlan.amountMinor, currency) : ''),
               () => setOpen(false),
             );
         }}
@@ -385,14 +389,14 @@ function TotalBudget({ month }: { month: string }) {
         <AppText tone="muted">
           The overall limit is independent of category limits and resets each month.
         </AppText>
-        {data?.plan && (
+        {draftPlan && (
           <AppButton
             title="Remove monthly limit"
             variant="danger"
             loading={remove.isPending}
             onPress={() => {
               void remove
-                .mutateAsync({ month, version: data.plan!.version, confirmation: 'DELETE' })
+                .mutateAsync({ month, version: draftPlan.version, confirmation: 'DELETE' })
                 .then(() => setOpen(false))
                 .catch(() => undefined);
             }}

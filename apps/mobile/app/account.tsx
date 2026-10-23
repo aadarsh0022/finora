@@ -40,7 +40,8 @@ export default function AccountScreen() {
     );
   return <AccountForm key={id ?? 'new'} account={query.data} />;
 }
-function AccountForm({ account }: { account?: AccountWithBalance }) {
+function AccountForm({ account: currentAccount }: { account?: AccountWithBalance }) {
+  const [account] = useState(currentAccount);
   const { user } = useApp();
   const currency = user?.preferences.baseCurrency ?? 'INR';
   const initial = {

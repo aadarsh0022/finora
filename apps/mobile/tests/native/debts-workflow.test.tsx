@@ -1,6 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
-import { router, useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams, usePreventRemove } from 'expo-router';
 import { debtSchema, debtEventSchema, userSchema } from '@finora/contracts';
 import DebtScreen from '../../app/debt';
 import { ApiClient, type HttpTransport } from '../../src/api/client';
@@ -172,4 +172,13 @@ test('uses receipt wording and prevents over-collection before a partial receipt
   await fireEvent.press(screen.getByRole('button', { name: 'Confirm receipt' }));
   await waitFor(() => expect(writes).toHaveLength(1));
   expect(writes[0]?.body).toMatchObject({ amountMinor: '1234', version: 1 });
+});
+
+test('changing account handling alone activates the unsaved draft guard', async () => {
+  jest.mocked(useLocalSearchParams).mockReturnValue({});
+  await mount();
+  expect(usePreventRemove).toHaveBeenLastCalledWith(false, expect.any(Function));
+  await fireEvent.press(screen.getByRole('radio', { name: 'Record money movement' }));
+  expect(usePreventRemove).toHaveBeenLastCalledWith(true, expect.any(Function));
+  expect(writes).toHaveLength(0);
 });

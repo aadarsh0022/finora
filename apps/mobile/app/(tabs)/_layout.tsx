@@ -44,14 +44,6 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen name="budgets" options={{ href: null }} />
-      <Tabs.Screen
-        name="settings"
-        options={{
-          href: null,
-          title: 'Settings',
-          tabBarIcon: ({ color }) => <NavigationIcon name="settings" color={color} />,
-        }}
-      />
     </Tabs>
   );
 }

@@ -11,7 +11,7 @@ import {
 } from '@finora/contracts';
 import { calendarDate, parseMoney } from '@finora/finance-core';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Alert, View } from 'react-native';
 import { z } from 'zod';
 import {
@@ -52,7 +52,7 @@ export default function DebtScreen() {
           }}
         />
       )}
-      {query.data && <DebtDetail debt={query.data} />}
+      {query.data && <DebtDetail key={id} debt={query.data} />}
     </Screen>
   );
 }
@@ -74,7 +74,8 @@ function NewDebt({ receivable }: { receivable: boolean }) {
   });
   const [error, setError] = useState('');
   const [reviewed, setReviewed] = useState<z.infer<typeof debtInputSchema>>();
-  const allowLeave = useUnsavedChanges(!!form.name || !!form.amount || !!form.note);
+  const initial = useRef(form).current;
+  const allowLeave = useUnsavedChanges(JSON.stringify(initial) !== JSON.stringify(form));
   const save = useFinanceMutation('debts', debtSchema);
   function set<K extends keyof typeof form>(key: K, value: (typeof form)[K]) {
     setForm((f) => ({ ...f, [key]: value }));
@@ -418,6 +419,7 @@ function DebtDetail({ debt }: { debt: z.infer<typeof debtDetailSchema> }) {
       <FlowSheet
         title={debt.direction === 'LENT' ? 'Reverse receipt' : 'Reverse repayment'}
         visible={!!reverseId}
+        busy={reverse.isPending}
         onClose={() => {
           if (!reverse.isPending) setReverseId('');
         }}
@@ -451,7 +453,8 @@ function DebtDetail({ debt }: { debt: z.infer<typeof debtDetailSchema> }) {
     </>
   );
 }
-function Repayment({ debt, close }: { debt: DebtStatus; close: () => void }) {
+function Repayment({ debt: currentDebt, close }: { debt: DebtStatus; close: () => void }) {
+  const [debt] = useState(currentDebt);
   const { user } = useApp();
   const money = useMoney();
   const accounts = useRead('accounts', accountsSchema);
@@ -465,7 +468,8 @@ function Repayment({ debt, close }: { debt: DebtStatus; close: () => void }) {
   const [error, setError] = useState('');
   const [reviewed, setReviewed] = useState<z.infer<typeof repaymentInputSchema>>();
   const save = useFinanceMutation(`debts/${debt.id}/repayments`, debtEventSchema);
-  const dirty = !!amount || !!note || !!accountId;
+  const initialDate = useRef(date).current;
+  const dirty = !!amount || !!note || !!accountId || movement !== 'NONE' || date !== initialDate;
   function submit() {
     setError('');
     try {
@@ -491,6 +495,7 @@ function Repayment({ debt, close }: { debt: DebtStatus; close: () => void }) {
     <FlowSheet
       title={debt.direction === 'LENT' ? 'Record money received' : 'Record repayment'}
       visible
+      busy={save.isPending}
       onClose={() => {
         if (!save.isPending) confirmDiscard(dirty, close);
       }}
@@ -591,7 +596,8 @@ function Repayment({ debt, close }: { debt: DebtStatus; close: () => void }) {
     </FlowSheet>
   );
 }
-function EditDebt({ debt, close }: { debt: DebtStatus; close: () => void }) {
+function EditDebt({ debt: currentDebt, close }: { debt: DebtStatus; close: () => void }) {
+  const [debt] = useState(currentDebt);
   const [name, setName] = useState(debt.name);
   const [dueDate, setDueDate] = useState(debt.dueDate ?? '');
   const [note, setNote] = useState(debt.note);
@@ -619,6 +625,7 @@ function EditDebt({ debt, close }: { debt: DebtStatus; close: () => void }) {
     <FlowSheet
       title="Edit debt"
       visible
+      busy={save.isPending}
       onClose={() => {
         if (!save.isPending) confirmDiscard(dirty, close);
       }}

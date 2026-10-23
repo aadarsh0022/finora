@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import {
   accountWithBalanceSchema,
   categorySchema,
@@ -165,7 +165,25 @@ async function mount(source?: Transaction, vault?: DeviceVault) {
     </QueryClientProvider>,
   );
   await screen.findByLabelText('Amount (INR)');
+  return query;
 }
+
+test('background refresh preserves an edited transaction and its original conflict version', async () => {
+  jest.mocked(useLocalSearchParams).mockReturnValue({ id: existing.id });
+  const query = await mount(existing);
+  await fireEvent.changeText(screen.getByLabelText('Amount (INR)'), '15.25');
+  await act(async () => {
+    query.setQueryData([owner, `transactions/${existing.id}`], {
+      ...existing,
+      amountMinor: '2000',
+      version: 3,
+    });
+  });
+  expect(screen.getByLabelText('Amount (INR)')).toHaveDisplayValue('15.25');
+  await fireEvent.press(screen.getByRole('button', { name: 'Save transaction' }));
+  await waitFor(() => expect(writes).toHaveLength(1));
+  expect(writes[0]?.body).toMatchObject({ amountMinor: '1525', version: 2 });
+});
 
 test('loading actions cannot submit a second write', async () => {
   const onPress = jest.fn();

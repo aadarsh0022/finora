@@ -361,6 +361,7 @@ function RuleForm({
     <FlowSheet
       title={rule ? 'Edit recurring item' : 'New recurring item'}
       visible
+      busy={save.isPending}
       onClose={() => {
         if (!save.isPending && !false) confirmDiscard(dirty, done);
       }}
@@ -513,6 +514,7 @@ function ConfirmOccurrence({
     <FlowSheet
       title={'Review recurring payment'}
       visible
+      busy={confirm.isPending}
       onClose={() => {
         if (!confirm.isPending && !false) confirmDiscard(dirty, done);
       }}

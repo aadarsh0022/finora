@@ -15,7 +15,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNetworkState } from 'expo-network';
 import { useTheme } from '../theme';
-import { useState, type ReactNode } from 'react';
+import { useContext, useState, type ReactNode } from 'react';
+import { HeaderHeightContext } from 'expo-router/react-navigation';
 import { router } from 'expo-router';
 import { useApp } from '../providers/app-provider';
 import { usePendingTransactions } from '../storage/hooks';
@@ -41,6 +42,7 @@ export function Screen({
   bottomAction,
   floatingAction,
   headerAction,
+  showPendingStatus = true,
   includeTopInset = true,
 }: {
   title?: string;
@@ -50,10 +52,12 @@ export function Screen({
   bottomAction?: ReactNode;
   floatingAction?: ReactNode;
   headerAction?: ReactNode;
+  showPendingStatus?: boolean;
   includeTopInset?: boolean;
 }) {
   const theme = useTheme();
   const network = useNetworkState();
+  const headerHeight = useContext(HeaderHeightContext) ?? 0;
   const [refreshing, setRefreshing] = useState(false);
   const { user, vault, storageError } = useApp();
   async function refresh() {
@@ -72,7 +76,8 @@ export function Screen({
     >
       <KeyboardAvoidingView
         style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={headerHeight}
       >
         <ScrollView
           testID="screen-content"
@@ -124,7 +129,7 @@ export function Screen({
               {storageError}
             </AppText>
           ) : null}
-          {user && vault && <PendingStatus />}
+          {showPendingStatus && user && vault && <PendingStatus />}
           {title && (
             <View style={{ gap: 6 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
@@ -353,10 +358,12 @@ export function Choice<T extends string>({
   options,
   onChange,
   presentation,
+  disabled = false,
 }: {
   label: string;
   value: T;
   presentation?: 'segmented' | 'list';
+  disabled?: boolean;
   options: readonly { value: T; label: string; description?: string }[];
   onChange: (value: T) => void;
 }) {
@@ -385,7 +392,10 @@ export function Choice<T extends string>({
           <Pressable
             key={option.value}
             accessibilityRole="radio"
-            accessibilityState={{ checked: option.value === value }}
+            accessibilityLabel={option.label}
+            accessibilityHint={option.description}
+            accessibilityState={{ checked: option.value === value, disabled }}
+            disabled={disabled}
             onPress={() => onChange(option.value)}
             style={{
               paddingVertical: 12,

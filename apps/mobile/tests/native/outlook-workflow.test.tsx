@@ -1,5 +1,6 @@
 import Plan from '../../app/(tabs)/plan';
 import { router } from 'expo-router';
+import { z } from 'zod';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import {
@@ -18,7 +19,7 @@ import { enqueue } from '../../src/storage/outbox';
 
 jest.mock('../../src/providers/app-provider', () => ({ useApp: jest.fn() }));
 jest.mock('expo-network', () => ({ useNetworkState: () => ({ isConnected: true }) }));
-jest.mock('expo-router', () => ({ router: { push: jest.fn() } }));
+jest.mock('expo-router', () => ({ router: { push: jest.fn(), replace: jest.fn() } }));
 jest.mock('expo-crypto', () => ({
   randomUUID: () => jest.requireActual<{ randomUUID: () => string }>('node:crypto').randomUUID(),
 }));
@@ -167,6 +168,10 @@ test('separates expected income and calculates a purchase preview without postin
   await fireEvent.changeText(screen.getByLabelText('Purchase amount (INR)'), '8000');
   await fireEvent.press(screen.getByRole('button', { name: 'Calculate preview' }));
   await screen.findByText(/Lowest projected amount:.*1,000.00/);
+  expect(screen.getByRole('button', { name: 'Done' })).toBeOnTheScreen();
+  await fireEvent.changeText(screen.getByLabelText('Purchase amount (INR)'), '5000');
+  expect(screen.queryByText(/Lowest projected amount:/)).toBeNull();
+  expect(screen.getByRole('button', { name: 'Calculate preview' })).toBeOnTheScreen();
   expect(methods.every((method) => method === 'GET')).toBe(true);
   expect((await vault.read('outlook:preferences', outlookPreferencesSchema))?.value).toEqual(
     preferences,
@@ -229,7 +234,7 @@ test('pauses an existing purchase estimate if a new pending save could overlap t
   await act(() => client.invalidateQueries({ queryKey: [id, 'local', 'pending:'] }));
   await waitFor(() => expect(screen.queryByLabelText('Estimated available money')).toBeNull());
   expect(screen.queryByText(/Lowest projected amount:/)).toBeNull();
-  expect(screen.getByRole('button', { name: 'Preview a purchase' })).toBeDisabled();
+  expect(screen.getByRole('button', { name: 'Calculate preview' })).toBeDisabled();
 });
 
 test('Plan exposes the financial tools and excludes expected income from its headline', async () => {
@@ -264,3 +269,35 @@ test.each([{ pending: true }, { unknown: true }])(
     ).toBeOnTheScreen();
   },
 );
+
+test('finishing a weekly check-in saves locally then returns to Plan', async () => {
+  const { methods, vault } = await mount({ weekly: true });
+  await fireEvent.press(screen.getByRole('button', { name: 'Review later' }));
+  await fireEvent.press(screen.getByRole('button', { name: 'Continue to outlook' }));
+  expect(router.replace).not.toHaveBeenCalled();
+  await fireEvent.press(screen.getByRole('button', { name: 'Finish check-in' }));
+  await waitFor(() => expect(router.replace).toHaveBeenCalledWith('/(tabs)/plan'));
+  const saved = await vault.read(
+    'outlook:weekly-review',
+    z.object({ completedAt: z.string(), entries: z.array(z.unknown()) }),
+  );
+  expect(saved?.value.completedAt).toBeTruthy();
+  expect(methods.every((method) => method === 'GET')).toBe(true);
+});
+
+test('a failed weekly save leaves the review open and permits a retry', async () => {
+  const { vault } = await mount({ weekly: true });
+  await fireEvent.press(screen.getByRole('button', { name: 'Review later' }));
+  await fireEvent.press(screen.getByRole('button', { name: 'Continue to outlook' }));
+  const original = vault.write.bind(vault);
+  const failure = jest.spyOn(vault, 'write').mockImplementation(async (key, value) => {
+    if (key === 'outlook:weekly-review') throw new Error('Device save failed. Try again.');
+    return original(key, value);
+  });
+  await fireEvent.press(screen.getByRole('button', { name: 'Finish check-in' }));
+  await screen.findByText('Device save failed. Try again.');
+  expect(router.replace).not.toHaveBeenCalled();
+  failure.mockRestore();
+  await fireEvent.press(screen.getByRole('button', { name: 'Finish check-in' }));
+  await waitFor(() => expect(router.replace).toHaveBeenCalledWith('/(tabs)/plan'));
+});

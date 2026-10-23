@@ -271,6 +271,7 @@ export function ReviewSheet({
     <FlowSheet
       title={title}
       visible={visible}
+      busy={busy}
       onClose={() => {
         if (!busy) onClose();
       }}

@@ -1,3 +1,4 @@
+import { Disclosure, ImpactNotice } from '../src/components/design';
 import {
   outlookPreferencesSchema,
   outlookSchema,
@@ -157,7 +158,7 @@ function AheadPlan({ data, saved }: { data: Outlook; saved?: OutlookPreferences 
         outlookValues(data, current, scenario === 'expected', entry);
         setPurchase(entry);
       }
-      setOpen('');
+      if (open !== 'purchase') setOpen('');
     } catch (failure) {
       setError(failureMessage(failure));
     } finally {
@@ -165,6 +166,11 @@ function AheadPlan({ data, saved }: { data: Outlook; saved?: OutlookPreferences 
     }
   }
   function close() {
+    if (open === 'purchase') {
+      setOpen('');
+      setError('');
+      return;
+    }
     const dirty =
       open === 'plan'
         ? JSON.stringify(draft) !==
@@ -277,6 +283,7 @@ function AheadPlan({ data, saved }: { data: Outlook; saved?: OutlookPreferences 
         disabled={blocked}
         onPress={() => {
           setPurchaseDraft({ day: data.today, amount: '' });
+          setPurchase(undefined);
           launch('purchase');
         }}
       />
@@ -299,11 +306,13 @@ function AheadPlan({ data, saved }: { data: Outlook; saved?: OutlookPreferences 
             value={money(result.expectedInflowMinor)}
           />
         )}
-        <AppText tone="muted" style={{ fontSize: 13 }}>
-          The headline is the lowest amount across the period, not just the closing balance. Goals
-          are not deducted again. Remaining borrowed principal is assumed due in full on its due
-          date.
-        </AppText>
+        <Disclosure title="How this is estimated">
+          <AppText tone="muted" style={{ fontSize: 13 }}>
+            The headline is the lowest amount across the period, not just the closing balance. Goals
+            are not deducted again. Remaining borrowed principal is assumed due in full on its due
+            date.
+          </AppText>
+        </Disclosure>
         <AppText tone="muted" style={{ fontSize: 13 }}>
           {checked
             ? `Balances last checked ${new Date(preferences.confirmedAt!).toLocaleString(user?.preferences.locale, { timeZone: data.timezone })}.`
@@ -325,22 +334,6 @@ function AheadPlan({ data, saved }: { data: Outlook; saved?: OutlookPreferences 
           }}
         />
       </Card>
-      {preview && !blocked && (
-        <Card>
-          <AppText style={{ fontFamily: 'DMSansBold' }}>
-            Purchase preview · {money(purchase!.amountMinor)} on {purchase!.day}
-          </AppText>
-          <AppText tone={BigInt(preview.lowestMinor) < 0n ? 'danger' : 'accent'}>
-            Lowest projected amount: {money(preview.lowestMinor)} on {preview.lowestDay}
-          </AppText>
-          <AppText tone="muted">Nothing has been saved to your transactions.</AppText>
-          <AppButton
-            title="Remove preview"
-            variant="secondary"
-            onPress={() => setPurchase(undefined)}
-          />
-        </Card>
-      )}
       <Card>
         <AppText style={{ fontFamily: 'DMSansBold', fontSize: 19 }}>Income that varies</AppText>
         <AppText tone="muted">
@@ -434,19 +427,26 @@ function AheadPlan({ data, saved }: { data: Outlook; saved?: OutlookPreferences 
               : 'Purchase preview'
         }
         visible={!!open}
+        busy={busy}
         onClose={close}
         footer={
           <AppButton
             title={
               open === 'purchase'
-                ? 'Calculate preview'
+                ? preview && !blocked
+                  ? 'Done'
+                  : 'Calculate preview'
                 : open === 'income'
                   ? 'Add to scenario'
                   : 'Update plan'
             }
             loading={busy}
+            disabled={open === 'purchase' && blocked}
             onPress={() => {
-              void apply();
+              if (open === 'purchase' && preview && !blocked) setOpen('');
+              else {
+                void apply();
+              }
             }}
           />
         }
@@ -529,15 +529,37 @@ function AheadPlan({ data, saved }: { data: Outlook; saved?: OutlookPreferences 
             <Field
               label={`Purchase amount (${data.currency})`}
               value={purchaseDraft.amount}
-              onChangeText={(amount) => setPurchaseDraft({ ...purchaseDraft, amount })}
+              onChangeText={(amount) => {
+                setPurchase(undefined);
+                setPurchaseDraft({ ...purchaseDraft, amount });
+              }}
               keyboardType="decimal-pad"
               maxLength={35}
             />
             <DateField
               label="Purchase on"
               value={purchaseDraft.day}
-              onChange={(day) => setPurchaseDraft({ ...purchaseDraft, day })}
+              onChange={(day) => {
+                setPurchase(undefined);
+                setPurchaseDraft({ ...purchaseDraft, day });
+              }}
             />
+            {preview && !blocked && (
+              <Card>
+                <AppText style={{ fontFamily: 'DMSansBold' }}>
+                  Purchase preview · {money(purchase!.amountMinor)} on {purchase!.day}
+                </AppText>
+                <AppText tone={BigInt(preview.lowestMinor) < 0n ? 'danger' : 'accent'}>
+                  Lowest projected amount: {money(preview.lowestMinor)} on {preview.lowestDay}
+                </AppText>
+                <AppText tone="muted">Nothing has been saved to your transactions.</AppText>
+              </Card>
+            )}
+            {blocked && (
+              <ImpactNotice title="Review your plan first">
+                Resolve pending saves, dates and unknown commitments before calculating a preview.
+              </ImpactNotice>
+            )}
             <AppText tone="muted">
               This is a temporary calculation. It does not record a purchase.
             </AppText>

@@ -3,7 +3,7 @@ import { act, fireEvent, render, renderHook, screen, waitFor } from '@testing-li
 import { settingsUpdateSchema, userSchema, type Preferences } from '@finora/contracts';
 import { Alert, useColorScheme } from 'react-native';
 import { router } from 'expo-router';
-import Settings from '../../app/(tabs)/settings';
+import Settings from '../../app/settings';
 import { ApiClient, type HttpTransport } from '../../src/api/client';
 import { useApp } from '../../src/providers/app-provider';
 import { useTheme } from '../../src/theme';

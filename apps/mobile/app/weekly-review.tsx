@@ -45,7 +45,7 @@ export default function WeeklyReview() {
       ),
   );
   async function save(finish: boolean) {
-    if (!vault || !data) return;
+    if (!vault || !data || saved.isPending || saved.error || busy) return;
     setBusy(true);
     setError(undefined);
     try {
@@ -72,6 +72,7 @@ export default function WeeklyReview() {
           : 'Visible entries marked reviewed. Financial records were not changed.',
       );
       if (!finish) advance(2);
+      else router.replace('/(tabs)/plan');
     } catch (failure) {
       setError(failure);
     } finally {
@@ -99,7 +100,7 @@ export default function WeeklyReview() {
             loading={busy}
             disabled={
               query.isPending ||
-              (!!vault && saved.isPending) ||
+              (!!vault && (saved.isPending || !!saved.error)) ||
               ((step === 1 || step === 3) && !vault)
             }
             onPress={() => {

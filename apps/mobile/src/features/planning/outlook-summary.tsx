@@ -13,7 +13,7 @@ import { outlookValues } from './outlook-values';
 export function OutlookSummary() {
   const theme = useTheme();
   const money = useMoney();
-  const { vault } = useApp();
+  const { vault, user } = useApp();
   const hidden = useUi((s) => s.balancesHidden);
   const query = useRead('planning/outlook', outlookSchema);
   const preferences = useLocalRecords('outlook:preferences', outlookPreferencesSchema);
@@ -59,7 +59,12 @@ export function OutlookSummary() {
         <AppText style={{ fontFamily: 'DMSansBold' }}>Money Ahead</AppText>
         {current && (
           <AppText tone="muted" style={{ fontSize: 12 }}>
-            Until {current.through}
+            Until{' '}
+            {new Intl.DateTimeFormat(user?.preferences.locale ?? 'en-IN', {
+              day: 'numeric',
+              month: 'short',
+              timeZone: 'UTC',
+            }).format(new Date(`${current.through}T12:00:00Z`))}
           </AppText>
         )}
       </View>

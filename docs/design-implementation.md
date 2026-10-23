@@ -8,7 +8,8 @@ session isolation, encrypted storage and idempotent outbox. No Play publication.
 ## Navigation and shared components
 
 - Home, Activity, Plan and Insights are the four primary destinations. Profile
-  opens Settings. Older budget/settings paths remain available for compatibility.
+  opens the single root Settings route. The old budget path remains compatible;
+  the duplicate hidden Settings tab was removed to avoid ambiguous routing.
 - Plan exposes budgets, goals, borrowed/lent money, expected receipts, recurring
   payments and weekly review. These no longer crowd Settings.
 - Home prioritizes recorded balance, this month's income/spending, a conservative
@@ -51,3 +52,32 @@ from the authenticated API or the owner's encrypted local records.
 The first navigation slice passed `pnpm check` (128 core/API and 62 native tests)
 and was visually checked on Pixel 8 Pro. Form workflow checks now cover the review
 gates, overpayment prevention, preserved drafts and exact opening-balance previews.
+
+## Bug and flow review
+
+- Confirmed Profile opens Settings on Pixel 8 Pro after removing the duplicate route.
+- Successful weekly completion returns to Plan only after the encrypted save. A
+  failed save stays open for retry; unreadable review history cannot be overwritten.
+- Purchase previews show their result inside the active sheet. Changing the draft
+  invalidates the result; newly pending entries hide estimates and disable calculation.
+- Android keyboard avoidance includes the native header height. Verified a draft's
+  Save action stays above the numeric keyboard on Pixel 8 Pro without posting it.
+- Debt draft guards include dates and account handling, not only name/amount/note.
+  Transaction type changes clear errors for fields that no longer apply.
+- Open account, transaction, debt and goal editors retain their original versions
+  across background refreshes. A concurrent edit produces a conflict rather than
+  letting stale fields overwrite the newer record. Monthly-limit drafts also retain
+  their starting version; successful goal contributions advance their own version.
+- Posting sheets block dismissal and touch edits during saves. Transaction inputs
+  and selectors are disabled while saving; submitted DTOs remain fixed.
+- Sync distinguishes pending from attention states. Offline/reachability failures
+  disable sync/retry, a read error cannot appear as an empty queue, and retry keeps
+  the original operation ID and body. Discard remains explicitly local and warns
+  that a timed-out save may already exist online.
+- No API contracts, finance arithmetic, permissions, billing or Play artifacts changed.
+
+Final repository checks: 128 core/API tests and 73 native tests passed, with strict
+typechecking, lint and formatting. The Android JavaScript export succeeded. Native
+QA covered profile navigation and the keyboard/footer layout on Pixel 8 Pro.
+iOS keyboard behavior and
+release-device background notifications still require separate device QA.

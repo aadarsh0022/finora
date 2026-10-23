@@ -67,7 +67,8 @@ export function Goals({ onEditing }: { onEditing: (editing: boolean) => void }) 
     </>
   );
 }
-function GoalForm({ goal, done }: { goal?: Goal; done: () => void }) {
+function GoalForm({ goal: currentGoal, done }: { goal?: Goal; done: () => void }) {
+  const [goal] = useState(currentGoal);
   const { user } = useApp();
   const currency = user?.preferences.baseCurrency ?? 'INR';
   const initial = {
@@ -106,14 +107,14 @@ function GoalForm({ goal, done }: { goal?: Goal; done: () => void }) {
     <FlowSheet
       title={goal ? 'Edit savings goal' : 'New savings goal'}
       visible
+      busy={save.isPending}
       onClose={() => {
-        if (!save.isPending && !false) confirmDiscard(dirty, done);
+        if (!save.isPending) confirmDiscard(dirty, done);
       }}
       footer={
         <AppButton
           title="Save goal"
           loading={save.isPending}
-          disabled={false}
           onPress={() => {
             void submit();
           }}
@@ -164,7 +165,7 @@ function GoalDetail({ id, done }: { id: string; done: () => void }) {
       </>
     );
   const goal = query.data;
-  if (editing) return <GoalForm key={goal.version} goal={goal} done={() => setEditing(false)} />;
+  if (editing) return <GoalForm key={goal.id} goal={goal} done={() => setEditing(false)} />;
   return (
     <>
       <Pressable
@@ -263,6 +264,7 @@ function ContributionForm({
   const [date, setDate] = useState(today);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
+  const [version, setVersion] = useState(goal.version);
   const dirty = !!amount || date !== today;
   useUnsavedChanges(dirty);
   useEffect(() => {
@@ -277,13 +279,14 @@ function ContributionForm({
     setError('');
     setNotice('');
     try {
-      await add.mutateAsync(
+      const result = await add.mutateAsync(
         contributionInputSchema.parse({
           amountMinor: parseMoney(amount, currency),
           date,
-          version: goal.version,
+          version,
         }),
       );
+      setVersion(result.goalVersion);
       setAmount('');
       setDate(today);
       setNotice('Contribution recorded. Account balances are unchanged.');
@@ -295,6 +298,7 @@ function ContributionForm({
     <FlowSheet
       title="Record saved money"
       visible
+      busy={add.isPending}
       onClose={() => {
         if (!add.isPending) confirmDiscard(dirty, close);
       }}

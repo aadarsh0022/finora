@@ -11,7 +11,7 @@ import {
 } from '@finora/contracts';
 import { calendarDate, parseMoney } from '@finora/finance-core';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Alert } from 'react-native';
 import { z } from 'zod';
 import * as Crypto from 'expo-crypto';
@@ -97,7 +97,7 @@ export default function TransactionScreen() {
   );
 }
 function TransactionForm({
-  source,
+  source: currentSource,
   duplicate,
   accounts,
   categories,
@@ -113,6 +113,7 @@ function TransactionForm({
   lastUsed: Partial<Record<TransactionInput['type'], z.infer<typeof lastUsedSchema>>>;
   hasFavourites: boolean;
 }) {
+  const [source] = useState(currentSource);
   const { user, vault } = useApp();
   const theme = useTheme();
   const client = useQueryClient();
@@ -125,7 +126,7 @@ function TransactionForm({
   const original = duplicate ? undefined : source;
   const seed = source ?? preset;
   const recent = lastUsed[seed?.type ?? 'EXPENSE'];
-  const initial = {
+  const initial = useRef({
     type: seed?.type ?? 'EXPENSE',
     amount: seed ? decimalAmount(seed.amountMinor, currency) : '',
     accountId:
@@ -147,12 +148,13 @@ function TransactionForm({
     merchant: seed?.merchant ?? '',
     note: seed?.note ?? '',
     tags: seed?.tags.join(', ') ?? '',
-  };
+  }).current;
   const [form, setForm] = useState(initial);
   const [detailsOpen] = useState(!!(initial.merchant || initial.note || initial.tags));
   const [error, setError] = useState('');
   const [fieldErrors, setFieldErrors] = useState<Record<string, string | undefined>>({});
   function set<K extends keyof typeof form>(key: K, value: (typeof form)[K]) {
+    if (save.isPending || remove.isPending) return;
     setForm((current) => ({ ...current, [key]: value }));
     setFieldErrors((current) => ({ ...current, [key]: undefined }));
   }
@@ -328,7 +330,10 @@ function TransactionForm({
       <Choice
         label="Transaction type"
         value={form.type}
+        disabled={save.isPending || remove.isPending}
         onChange={(type) => {
+          setFieldErrors({});
+          setError('');
           const defaults = lastUsed[type];
           setForm((current) => ({
             ...current,
@@ -352,6 +357,7 @@ function TransactionForm({
         ]}
       />
       <Field
+        editable={!save.isPending && !remove.isPending}
         label={`Amount (${currency})`}
         error={fieldErrors.amount}
         value={form.amount}
@@ -374,6 +380,7 @@ function TransactionForm({
         }}
       />
       <SelectField
+        disabled={save.isPending || remove.isPending}
         label={form.type === 'TRANSFER' ? 'From account' : 'Account'}
         error={fieldErrors.accountId}
         value={form.accountId}
@@ -385,6 +392,7 @@ function TransactionForm({
       />
       {form.type === 'TRANSFER' ? (
         <SelectField
+          disabled={save.isPending || remove.isPending}
           label="To account"
           error={fieldErrors.destinationAccountId}
           value={form.destinationAccountId}
@@ -396,6 +404,7 @@ function TransactionForm({
       ) : (
         <>
           <SelectField
+            disabled={save.isPending || remove.isPending}
             label="Category"
             error={fieldErrors.categoryId}
             value={form.categoryId}
@@ -415,6 +424,7 @@ function TransactionForm({
         </>
       )}
       <DateField
+        disabled={save.isPending || remove.isPending}
         label="Date"
         error={fieldErrors.date}
         value={form.date}
@@ -422,12 +432,14 @@ function TransactionForm({
       />
       <Disclosure title="More details" initiallyOpen={detailsOpen}>
         <Field
+          editable={!save.isPending && !remove.isPending}
           label="Merchant (optional)"
           value={form.merchant}
           onChangeText={(value) => set('merchant', value)}
           maxLength={120}
         />
         <Field
+          editable={!save.isPending && !remove.isPending}
           label="Note (optional)"
           value={form.note}
           onChangeText={(value) => set('note', value)}
@@ -435,6 +447,7 @@ function TransactionForm({
           multiline
         />
         <Field
+          editable={!save.isPending && !remove.isPending}
           label="Tags (comma separated, optional)"
           value={form.tags}
           onChangeText={(value) => set('tags', value)}
@@ -491,6 +504,7 @@ function TransactionForm({
           }
         >
           <Field
+            editable={!save.isPending && !remove.isPending}
             label="Favourite name"
             value={favouriteName}
             onChangeText={setFavouriteName}

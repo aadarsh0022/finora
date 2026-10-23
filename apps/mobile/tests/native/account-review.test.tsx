@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import { accountWithBalanceSchema, userSchema } from '@finora/contracts';
 import { formatMoney } from '@finora/finance-core';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -39,7 +39,7 @@ const account = accountWithBalanceSchema.parse({
   updatedAt: timestamp,
 });
 
-async function mount(existing = false) {
+async function mount(existing = false, conflict = false) {
   const writes: unknown[] = [];
   jest.mocked(useLocalSearchParams).mockReturnValue(existing ? { id: account.id } : {});
   const api = new ApiClient(
@@ -51,7 +51,20 @@ async function mount(existing = false) {
     },
     () => undefined,
     async (_url, options) => {
-      if (options?.method !== 'GET') writes.push(JSON.parse(String(options?.body)) as unknown);
+      if (options?.method !== 'GET') {
+        writes.push(JSON.parse(String(options?.body)) as unknown);
+        if (conflict)
+          return Response.json(
+            {
+              success: false,
+              error: {
+                code: 'CONFLICT',
+                message: 'Record changed. Reopen to review the latest version.',
+              },
+            },
+            { status: 409 },
+          );
+      }
       return Response.json({ success: true, data: account });
     },
   );
@@ -68,11 +81,11 @@ async function mount(existing = false) {
     </QueryClientProvider>,
   );
   await screen.findByLabelText('Account name');
-  return writes;
+  return { writes, client };
 }
 
 test('reviews a new opening balance before posting and closing review preserves the form', async () => {
-  const writes = await mount();
+  const { writes } = await mount();
   await fireEvent.changeText(screen.getByLabelText('Account name'), 'Wallet');
   await fireEvent.changeText(screen.getByLabelText('Opening balance (INR)'), '12.34');
   await fireEvent.press(screen.getByRole('button', { name: 'Review account' }));
@@ -88,7 +101,7 @@ test('reviews a new opening balance before posting and closing review preserves 
 });
 
 test('previews an opening-balance adjustment with exact arithmetic before the versioned update', async () => {
-  const writes = await mount(true);
+  const { writes } = await mount(true);
   await fireEvent.changeText(screen.getByLabelText('Opening balance (INR)'), '150');
   await fireEvent.press(screen.getByRole('button', { name: 'Review account' }));
   expect(writes).toHaveLength(0);
@@ -96,4 +109,25 @@ test('previews an opening-balance adjustment with exact arithmetic before the ve
   await fireEvent.press(screen.getByRole('button', { name: 'Save changes' }));
   await waitFor(() => expect(writes).toHaveLength(1));
   expect(writes[0]).toMatchObject({ openingBalanceMinor: '15000', version: 2 });
+});
+
+test('background refresh cannot lend a newer version to an older account draft', async () => {
+  const { writes, client } = await mount(true, true);
+  await fireEvent.changeText(screen.getByLabelText('Account name'), 'My draft');
+  await act(async () => {
+    client.setQueryData([user.id, `accounts/${account.id}`], {
+      ...account,
+      name: 'Changed elsewhere',
+      version: 3,
+    });
+  });
+  expect(screen.getByLabelText('Account name')).toHaveDisplayValue('My draft');
+  await fireEvent.press(screen.getByRole('button', { name: 'Review account' }));
+  await fireEvent.press(screen.getByRole('button', { name: 'Save changes' }));
+  await waitFor(() => expect(writes).toHaveLength(1));
+  expect(writes[0]).toMatchObject({ name: 'My draft', version: 2 });
+  await screen.findAllByText(/Record changed/);
+  expect(router.back).not.toHaveBeenCalled();
+  await fireEvent.press(screen.getByRole('button', { name: 'Close Review account' }));
+  expect(screen.getByLabelText('Account name')).toHaveDisplayValue('My draft');
 });
