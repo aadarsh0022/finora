@@ -197,3 +197,26 @@ test('review acknowledgements leave transactions unchanged and edited entries re
   await screen.findByRole('button', { name: 'View or edit Demo entry' });
   expect(methods.every((method) => method === 'GET')).toBe(true);
 });
+
+test('pauses an existing purchase estimate if a new pending save could overlap the snapshot', async () => {
+  const { vault, client } = await mount();
+  await waitFor(() => expect(screen.getByLabelText('Estimated available money')).toBeTruthy());
+  await fireEvent.press(screen.getByRole('button', { name: 'Preview a purchase' }));
+  await fireEvent.changeText(screen.getByLabelText('Purchase amount (INR)'), '1000');
+  await fireEvent.press(screen.getByRole('button', { name: 'Calculate preview' }));
+  await screen.findByText(/Lowest projected amount:/);
+  await enqueue(vault, transactionId, {
+    type: 'EXPENSE',
+    accountId,
+    categoryId,
+    amountMinor: '100',
+    date: timestamp,
+    merchant: '',
+    note: '',
+    tags: [],
+  });
+  await act(() => client.invalidateQueries({ queryKey: [id, 'local', 'pending:'] }));
+  await waitFor(() => expect(screen.queryByLabelText('Estimated available money')).toBeNull());
+  expect(screen.queryByText(/Lowest projected amount:/)).toBeNull();
+  expect(screen.getByRole('button', { name: 'Preview a purchase' })).toBeDisabled();
+});

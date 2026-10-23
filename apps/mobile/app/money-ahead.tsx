@@ -92,7 +92,9 @@ function AheadPlan({ data, saved }: { data: Outlook; saved?: OutlookPreferences 
     through:
       preferences.through < data.today
         ? nextOccurrence(data.today, 'DAILY', 30)
-        : preferences.through,
+        : preferences.through > data.through
+          ? data.through
+          : preferences.through,
   };
   const result = outlookValues(data, current, scenario === 'expected');
   const preview =
@@ -270,6 +272,14 @@ function AheadPlan({ data, saved }: { data: Outlook; saved?: OutlookPreferences 
           </AppText>
         )}
       </Card>
+      <AppButton
+        title="Preview a purchase"
+        disabled={blocked}
+        onPress={() => {
+          setPurchaseDraft({ day: data.today, amount: '' });
+          launch('purchase');
+        }}
+      />
       <Card>
         <AppText style={{ fontFamily: 'DMSansBold', fontSize: 19 }}>
           Every deduction, explained
@@ -315,15 +325,7 @@ function AheadPlan({ data, saved }: { data: Outlook; saved?: OutlookPreferences 
           }}
         />
       </Card>
-      <AppButton
-        title="Preview a purchase"
-        disabled={blocked}
-        onPress={() => {
-          setPurchaseDraft({ day: data.today, amount: '' });
-          launch('purchase');
-        }}
-      />
-      {preview && (
+      {preview && !blocked && (
         <Card>
           <AppText style={{ fontFamily: 'DMSansBold' }}>
             Purchase preview · {money(purchase!.amountMinor)} on {purchase!.day}

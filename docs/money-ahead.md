@@ -17,6 +17,8 @@ review acknowledgements are encrypted device preferences, isolated by user/origi
 They are removed on sign-out and are not server-backup data. Forecast calculations
 work with cached snapshots; their saved timestamp remains visible. Pending sync
 blocks the headline estimate to avoid double counting a save whose response was lost.
+An existing purchase preview is paused as well when pending entries appear. A cached
+snapshot from a prior calendar day cannot provide today's headline estimate.
 
 Unknown bill amounts and undated outstanding debts are disclosed; an incomplete
 forecast has no spendable-money headline. No confidence percentage, bank-balance

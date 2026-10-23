@@ -14,28 +14,56 @@ export const outlookFlowSchema = z.object({
   source: z.enum(['RECURRING', 'DEBT', 'RECORDED']),
   overdue: z.boolean(),
 });
-export const outlookSchema = z.object({
-  generatedAt: z.iso.datetime(),
-  today: calendarDaySchema,
-  through: calendarDaySchema,
-  currency: currencySchema,
-  timezone: z.string(),
-  accounts: z
-    .array(
-      z.object({
-        id: entityIdSchema,
-        name: z.string(),
-        balanceMinor: z.string().regex(/^(0|-?[1-9]\d{0,34})$/),
-      }),
+export const outlookSchema = z
+  .object({
+    generatedAt: z.iso.datetime(),
+    today: calendarDaySchema,
+    through: calendarDaySchema,
+    currency: currencySchema,
+    timezone: z
+      .string()
+      .max(100)
+      .refine((zone) => {
+        try {
+          new Intl.DateTimeFormat('en', { timeZone: zone });
+          return true;
+        } catch {
+          return false;
+        }
+      }, 'Choose a valid timezone'),
+    accounts: z
+      .array(
+        z.object({
+          id: entityIdSchema,
+          name: z.string(),
+          balanceMinor: z.string().regex(/^(0|-?[1-9]\d{0,34})$/),
+        }),
+      )
+      .max(200),
+    flows: z.array(outlookFlowSchema).max(30000),
+    undatedDebts: z.number().int().nonnegative(),
+    pendingRecurringCount: z.number().int().nonnegative(),
+    overdueDebtCount: z.number().int().nonnegative(),
+    recentTransactions: z.array(transactionSchema).max(50),
+    moreRecentCount: z.number().int().nonnegative(),
+  })
+  .superRefine((value, context) => {
+    const duration =
+      Date.parse(`${value.through}T00:00:00Z`) - Date.parse(`${value.today}T00:00:00Z`);
+    if (duration < 0 || duration > 90 * 86400000)
+      context.addIssue({ code: 'custom', path: ['through'], message: 'Invalid planning horizon' });
+    if (
+      new Set(value.accounts.map((a) => a.id)).size !== value.accounts.length ||
+      new Set(value.flows.map((f) => f.id)).size !== value.flows.length
     )
-    .max(200),
-  flows: z.array(outlookFlowSchema).max(30000),
-  undatedDebts: z.number().int().nonnegative(),
-  pendingRecurringCount: z.number().int().nonnegative(),
-  overdueDebtCount: z.number().int().nonnegative(),
-  recentTransactions: z.array(transactionSchema).max(50),
-  moreRecentCount: z.number().int().nonnegative(),
-});
+      context.addIssue({ code: 'custom', path: ['flows'], message: 'Duplicate planning records' });
+    if (value.flows.some((flow) => flow.day < value.today || flow.day > value.through))
+      context.addIssue({
+        code: 'custom',
+        path: ['flows'],
+        message: 'Planning item is outside the snapshot period',
+      });
+  });
 export const expectedPaymentSchema = z
   .object({
     id: entityIdSchema,
@@ -53,7 +81,14 @@ export const outlookPreferencesSchema = z
       .refine((ids) => new Set(ids).size === ids.length)
       .optional(),
     reserveMinor: minorSchema.refine((amount) => BigInt(amount) >= 0n).default('0'),
-    expectedPayments: z.array(expectedPaymentSchema).max(10).default([]),
+    expectedPayments: z
+      .array(expectedPaymentSchema)
+      .max(10)
+      .refine(
+        (payments) => new Set(payments.map((p) => p.id)).size === payments.length,
+        'Duplicate expected payment',
+      )
+      .default([]),
     confirmedAt: z.iso.datetime().optional(),
     confirmedSignature: z.string().max(16000).optional(),
   })

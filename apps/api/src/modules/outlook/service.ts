@@ -191,6 +191,8 @@ export async function getOutlook(context: AuthContext) {
             (t) => calendarDate(new Date(t.date), timezone) >= start.toISOString().slice(0, 10),
           )
           .sort((a, b) => b.date.localeCompare(a.date) || a.id.localeCompare(b.id));
+        if (flows.length > 30000)
+          throw new ApiError(422, 'OUTLOOK_LIMIT', 'This dataset exceeds the planning item limit.');
         return outlookSchema.parse({
           today,
           through,

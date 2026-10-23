@@ -19,13 +19,21 @@ deployment is part of this feature branch. The installed test release is unchang
 - Compact transaction form with account/category sheets, calendar, retained optional
   details and a persistent Save action. Saved Home/Activity reads show their timestamp.
   Debt navigation has a visible Back action; cancelled records are labelled correctly.
+- Money Ahead explains selected balances, reserves and dated commitments; temporary
+  purchase previews and separate irregular-income scenarios do not modify the ledger.
+  Unknown bills, undated borrowed debts and pending sync block its headline estimate.
+- Money coming back tracks typed refunds/deposits/reimbursements with partial receipts,
+  overdue states and version 4 backups. Expected receipts remain outside actual income.
+- Weekly check-ins review sync, recent entries and follow-ups with encrypted device
+  acknowledgements. Editing a previously reviewed entry makes it appear for review again.
 
 See debts.md, offline.md, quick-entry.md, reminders.md, budget-upgrades.md and
-insights.md for accounting decisions and precise feature boundaries.
+insights.md, money-ahead.md and receivables.md for accounting decisions and precise
+feature boundaries.
 
 ## Validation and preview
 
-Latest full `pnpm check`: 116 Vitest tests and 51 native component tests passed,
+Latest full `pnpm check`: 128 Vitest tests and 59 native component tests passed,
 including strict types, lint and formatting. Integration tests use disposable MongoDB.
 The pending-record purge assertion checks the original durable storage map.
 
@@ -43,6 +51,13 @@ exactly one server entry and the expected account balance. Android requested
 notification permission only after an explicit save, scheduled both daily and
 dated alarms, and removed those alarms when disabled. Signing out removed the
 native vault database and returned to signup; the demo can sign in again.
+
+Money Ahead rendered on Pixel 8 Pro. A synthetic purchase preview produced the
+expected dated reduction, while an authenticated readback confirmed the demo's
+transaction count and account balance were unchanged. Component tests additionally
+cover expected income, missing inputs, late pending entries and re-review after edits.
+The native receivables list displayed a synthetic partial refund with its correct
+received/outstanding amounts, and the weekly-review screen rendered recent entries.
 
 ## Still under refinement
 
