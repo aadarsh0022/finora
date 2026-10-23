@@ -13,6 +13,7 @@ import { AccountDistribution, ExpenseDonut, MonthlyChart } from '../../src/featu
 import { percentageFromBasisPoints, reportCsv } from '../../src/features/reports/values';
 import { useApp } from '../../src/providers/app-provider';
 import { useTheme } from '../../src/theme';
+import { SpendingInsights } from '../../src/features/reports/insights';
 
 const periods = [
   { value: 'current-month', label: 'This month' },
@@ -237,6 +238,9 @@ export default function Reports() {
             </AppText>
             <ExpenseDonut categories={data.categories} />
           </Card>
+          {(range === 'current-month' || range === 'previous-month') && (
+            <SpendingInsights month={data.period.from.slice(0, 7)} />
+          )}
           {data.trends.length > 1 && (
             <Card>
               <AppText

@@ -9,6 +9,7 @@ export const currencyExponents = {
 } as const;
 export { debtLedgerEntries, debtProgress } from './debt';
 export { budgetRollover, previousMonth } from './budget';
+export { spendingInsights } from './insights';
 export type Currency = keyof typeof currencyExponents;
 
 export function parseMoney(value: string, currency: Currency): string {
