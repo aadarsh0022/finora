@@ -79,6 +79,12 @@ export default function Settings() {
       )}
       <SettingsGroup title="Your money">
         <SettingsRow
+          title="Reminders"
+          subtitle="Private prompts, on this device"
+          icon="preferences"
+          onPress={() => router.push('/reminders')}
+        />
+        <SettingsRow
           title="Quick entry"
           subtitle="Favourite transaction drafts"
           icon="document"

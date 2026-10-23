@@ -9,6 +9,7 @@ import { useNetworkState } from 'expo-network';
 import { z } from 'zod';
 import { cachedOwner, openVault, rememberOwner, type DeviceVault } from '../storage/vault';
 import { canUseOffline, drainOutbox } from '../storage/outbox';
+import { cancelLocalReminders, refreshLocalReminders } from '../notifications/reminders';
 
 const tokenKey = 'finora.session.v1';
 const secureStore: TokenStore = {
@@ -73,6 +74,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         process.env.EXPO_PUBLIC_API_URL ?? '',
         secureStore,
         () => {
+          void cancelLocalReminders().catch(() => undefined);
           queryClient.clear();
           useUi.getState().reset();
           setUser(null);
@@ -118,6 +120,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
         );
         if (count && vaultRef.current === current)
           await queryClient.invalidateQueries({ queryKey: [current.ownerId] });
+        if (count && user && vaultRef.current === current)
+          void refreshLocalReminders(current, api, user).catch(() => undefined);
       } finally {
         if (vaultRef.current === current)
           await queryClient.invalidateQueries({ queryKey: [current.ownerId, 'local'] });
@@ -211,6 +215,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
     void restore();
   }, []);
   useEffect(() => {
+    if (user && vault && verifiedOnline)
+      void refreshLocalReminders(vault, api, user).catch(() => undefined);
+    else if (!user && phase === 'ready') void cancelLocalReminders().catch(() => undefined);
+  }, [user, vault, verifiedOnline, phase, api]);
+  useEffect(() => {
     if (network.isConnected && vault && !restoring.current)
       void syncPending().catch(() =>
         setStorageError('Pending entries could not be synchronized. Open Sync status to retry.'),
@@ -221,11 +230,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
       if (state === 'active') {
         if (verified.current) void syncPending().catch(() => undefined);
         else if (vaultRef.current) void restore();
+        if (verified.current && user && vaultRef.current)
+          void refreshLocalReminders(vaultRef.current, api, user).catch(() => undefined);
       }
     });
     return () => subscription.remove();
-  }, [api]);
+  }, [api, user]);
   async function acceptSession(tokens: SessionTokens) {
+    await cancelLocalReminders().catch(() => undefined);
     verified.current = false;
     setVerifiedOnline(false);
     await rememberOwner(origin, null);
@@ -267,6 +279,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
           restore,
           acceptSession,
           clearSession: async () => {
+            await cancelLocalReminders().catch(() => undefined);
             const previous = vaultRef.current;
             vaultRef.current = undefined;
             setVault(undefined);

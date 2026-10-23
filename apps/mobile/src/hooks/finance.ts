@@ -8,6 +8,7 @@ import { useApp } from '../providers/app-provider';
 import { transactionInputSchema } from '@finora/contracts';
 import { useNetworkState } from 'expo-network';
 import { canUseOffline, enqueue } from '../storage/outbox';
+import { refreshLocalReminders } from '../notifications/reminders';
 
 export function useFinanceMutation<T>(
   path: string,
@@ -61,6 +62,8 @@ export function useFinanceMutation<T>(
       operation.current = null;
       await queryClient.invalidateQueries({ queryKey: [user?.id] });
       if (network.isConnected && vault) void syncPending?.().catch(() => undefined);
+      if (network.isConnected && vault && user)
+        void refreshLocalReminders(vault, api, user).catch(() => undefined);
     },
   });
 }
