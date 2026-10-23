@@ -16,6 +16,7 @@ import { exportsRoute } from './modules/exports/router';
 import { reportsRoute } from './modules/reports/router';
 import { entitlementsRoute } from './modules/entitlements/router';
 import { debtsRoute } from './modules/debts/router';
+import { outlookRoute } from './modules/outlook/router';
 import { ApiError, handle, readBody, success } from './utils/http';
 
 export function dispatch(request: Request) {
@@ -23,6 +24,7 @@ export function dispatch(request: Request) {
     const path = new URL(request.url).pathname.replace(/\/$/, '');
     const key = `${request.method} ${path}`;
     const financial =
+      (await outlookRoute(request, requestId)) ??
       (await debtsRoute(request, requestId)) ??
       (await reportsRoute(request, requestId)) ??
       (await entitlementsRoute(request, requestId)) ??

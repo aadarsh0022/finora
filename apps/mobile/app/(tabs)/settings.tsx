@@ -79,6 +79,18 @@ export default function Settings() {
       )}
       <SettingsGroup title="Your money">
         <SettingsRow
+          title="Money Ahead"
+          subtitle="Commitments, scenarios and purchase previews"
+          icon="goal"
+          onPress={() => router.push('/money-ahead')}
+        />
+        <SettingsRow
+          title="Weekly check-in"
+          subtitle="Review entries and follow-ups"
+          icon="document"
+          onPress={() => router.push('/weekly-review')}
+        />
+        <SettingsRow
           title="Reminders"
           subtitle="Private prompts, on this device"
           icon="preferences"

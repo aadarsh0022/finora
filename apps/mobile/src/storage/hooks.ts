@@ -5,11 +5,12 @@ import { queuedTransactionSchema } from './outbox';
 
 export function useLocalRecords<T>(prefix: string, schema: ZodType<T>) {
   const { user, vault } = useApp();
+  const current = vault?.ownerId === user?.id ? vault : undefined;
   return useQuery({
     queryKey: [user?.id, 'local', prefix],
-    enabled: !!user && !!vault,
+    enabled: !!user && !!current,
     retry: false,
-    queryFn: async () => (vault ? vault.list(prefix, schema) : []),
+    queryFn: async () => (current ? current.list(prefix, schema) : []),
   });
 }
 export function usePendingTransactions() {

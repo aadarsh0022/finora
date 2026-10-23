@@ -203,6 +203,19 @@ export default function Home() {
               <AppButton title="Create account" onPress={() => router.push('/account')} />
             </Card>
           )}
+          <Card>
+            <AppText style={{ fontFamily: 'DMSansBold', fontSize: 19 }}>
+              Make room for what comes next
+            </AppText>
+            <AppText tone="muted">
+              Review commitments and explore a purchase before recording it.
+            </AppText>
+            <AppButton
+              title="Open Money Ahead"
+              variant="secondary"
+              onPress={() => router.push('/money-ahead')}
+            />
+          </Card>
           <DebtSummary />
           <View style={{ gap: 12 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
