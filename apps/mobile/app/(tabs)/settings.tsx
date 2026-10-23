@@ -78,6 +78,12 @@ export default function Settings() {
         </SettingsGroup>
       )}
       <SettingsGroup title="Your money">
+        <SettingsRow
+          title="Debts"
+          subtitle="Borrowed, lent and repayments"
+          icon="repeat"
+          onPress={() => router.push('/debts')}
+        />
         <SettingsRow title="Accounts" icon="wallet" onPress={() => router.push('/accounts')} />
         <SettingsRow title="Categories" icon="grid" onPress={() => router.push('/categories')} />
         <SettingsRow

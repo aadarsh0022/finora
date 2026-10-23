@@ -109,6 +109,7 @@ async function mount(data: Overview, hold?: Promise<void>) {
     const parsed = new URL(url);
     const path = parsed.pathname.replace('/api/v1/', '');
     paths.push(`${path}${parsed.search}`);
+    if (path === 'debts') return Response.json({ success: true, data: [] });
     if (path === 'reports/overview') {
       if (hold) await hold;
       if (holdOverview) await holdOverview;

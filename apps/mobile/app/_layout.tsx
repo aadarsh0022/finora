@@ -44,7 +44,7 @@ function Navigation() {
     );
   return (
     <>
-      <StatusBar style={theme.background === '#0E1512' ? 'light' : 'dark'} />
+      <StatusBar style={theme.onAccent === '#FFFFFF' ? 'dark' : 'light'} />
       <Stack
         screenOptions={{
           headerStyle: { backgroundColor: theme.background },
@@ -68,6 +68,8 @@ function Navigation() {
           <Stack.Screen name="categories" options={{ title: 'Categories' }} />
           <Stack.Screen name="security" options={{ title: 'Security' }} />
           <Stack.Screen name="planning" options={{ title: 'Plan ahead' }} />
+          <Stack.Screen name="debts" options={{ title: 'Debts', headerShown: false }} />
+          <Stack.Screen name="debt" options={{ title: 'Debt' }} />
           <Stack.Screen name="backup" options={{ title: 'Export & backup' }} />
         </Stack.Protected>
       </Stack>

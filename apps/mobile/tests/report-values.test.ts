@@ -55,6 +55,8 @@ describe('report display and export boundaries', () => {
           expensesMinor: '0',
           transferInMinor: '0',
           transferOutMinor: '0',
+          debtInMinor: '0',
+          debtOutMinor: '0',
           netMinor: '1',
         },
       ],

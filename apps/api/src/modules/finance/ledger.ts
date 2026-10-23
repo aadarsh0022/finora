@@ -11,13 +11,14 @@ import {
   accountSchema,
   categorySchema,
   transactionSchema,
+  debtEventSchema,
   type AccountWithBalance,
   type Transaction,
   type TransactionFilters,
   type TransactionInput,
   type transactionUpdateSchema,
 } from '@finora/contracts';
-import { accountBalance, calendarDate, cashflow } from '@finora/finance-core';
+import { accountBalance, calendarDate, cashflow, debtLedgerEntries } from '@finora/finance-core';
 import type { z } from 'zod';
 import { database } from '../../database/client';
 import { ApiError } from '../../utils/http';
@@ -252,6 +253,14 @@ export async function ledgerSnapshot(context: AuthContext) {
             'This dataset exceeds the current reporting limit. Contact support.',
           );
         const transactions = transactionRecords.map((record) => transactionSchema.parse(record));
+        const debtDocuments = await db
+          .collection('debt_events')
+          .find({ userId: context.user.id }, { session })
+          .limit(10001)
+          .toArray();
+        if (debtDocuments.length > 10000)
+          throw new ApiError(422, 'REPORT_LIMIT', 'Debt history exceeds the reporting limit.');
+        const debtEntries = debtLedgerEntries(debtDocuments.map((e) => debtEventSchema.parse(e)));
         const accounts = accountRecords.map((record): AccountWithBalance => {
           const account = accountSchema.parse(record);
           return {
@@ -260,7 +269,7 @@ export async function ledgerSnapshot(context: AuthContext) {
               account.openingBalanceMinor,
               account.id,
               account.currency,
-              transactions,
+              [...transactions, ...debtEntries],
             ),
           };
         });

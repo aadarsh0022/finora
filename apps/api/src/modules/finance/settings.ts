@@ -21,6 +21,7 @@ export async function updateSettings(
       for (const name of [
         'accounts',
         'transactions',
+        'debts',
         'budgets',
         'savings_goals',
         'recurring_rules',

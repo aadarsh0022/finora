@@ -72,6 +72,8 @@ export const reportAccountSchema = z.object({
   expensesMinor: nonnegativeInteger,
   transferInMinor: nonnegativeInteger,
   transferOutMinor: nonnegativeInteger,
+  debtInMinor: nonnegativeInteger.default('0'),
+  debtOutMinor: nonnegativeInteger.default('0'),
   netMinor: signedInteger,
 });
 export const reportTrendSchema = z.object({

@@ -7,6 +7,7 @@ export const currencyExponents = {
   JPY: 0,
   KWD: 3,
 } as const;
+export { debtLedgerEntries, debtProgress } from './debt';
 export type Currency = keyof typeof currencyExponents;
 
 export function parseMoney(value: string, currency: Currency): string {

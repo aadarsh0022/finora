@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { accountSchema, categorySchema, transactionSchema } from './finance';
 import { currencySchema } from './primitives';
+import { debtSchema, debtEventSchema } from './debts';
 import {
   budgetSchema,
   goalSchema,
@@ -63,7 +64,7 @@ export const backupOccurrenceSchema = recurringOccurrenceSchema
 export const backupSchema = z
   .object({
     format: z.literal('finora-backup'),
-    version: z.literal(1),
+    version: z.union([z.literal(1), z.literal(2)]),
     exportedAt: z.iso.datetime(),
     currency: currencySchema,
     accounts: z.array(backupAccountSchema).max(200),
@@ -74,6 +75,14 @@ export const backupSchema = z
     contributions: z.array(backupContributionSchema).max(10000),
     recurringRules: z.array(backupRuleSchema).max(200),
     recurringOccurrences: z.array(backupOccurrenceSchema).max(10000),
+    debts: z
+      .array(debtSchema.omit({ userId: true }).strict())
+      .max(200)
+      .default([]),
+    debtEvents: z
+      .array(debtEventSchema.omit({ userId: true }).strict())
+      .max(10000)
+      .default([]),
   })
   .strict()
   .superRefine((backup, context) => {
@@ -86,6 +95,8 @@ export const backupSchema = z
       'contributions',
       'recurringRules',
       'recurringOccurrences',
+      'debts',
+      'debtEvents',
     ] as const) {
       const ids = new Set<string>();
       backup[key].forEach((record, index) => {
@@ -114,6 +125,39 @@ export const backupSchema = z
     });
     const invalid = (path: string, message: string) =>
       context.addIssue({ code: 'custom', path: [path], message });
+    if (backup.version === 1 && (backup.debts.length || backup.debtEvents.length))
+      invalid('version', 'Debt history requires backup version 2');
+    const debtMap = new Map(backup.debts.map((debt) => [debt.id, debt]));
+    for (const debt of backup.debts) {
+      const history = backup.debtEvents.filter((e) => e.debtId === debt.id);
+      const principal = history.filter((e) => e.kind === 'PRINCIPAL');
+      const repaid = history
+        .filter((e) => e.kind === 'REPAYMENT' && !e.reversedAt)
+        .reduce((sum, e) => sum + BigInt(e.amountMinor), 0n);
+      if (
+        debt.currency !== backup.currency ||
+        principal.length !== 1 ||
+        principal[0]?.amountMinor !== debt.amountMinor ||
+        principal[0]?.date !== debt.date ||
+        (!debt.cancelledAt && principal[0]?.reversedAt) ||
+        (debt.cancelledAt && (!debt.archived || history.some((e) => !e.reversedAt))) ||
+        repaid > BigInt(debt.amountMinor) ||
+        history.length > 1001 ||
+        (debt.dueDate && debt.dueDate < debt.date)
+      )
+        invalid('debts', 'Inconsistent debt principal, dates or repayment history');
+    }
+    for (const event of backup.debtEvents) {
+      const debt = debtMap.get(event.debtId);
+      if (
+        !debt ||
+        event.currency !== backup.currency ||
+        event.direction !== debt.direction ||
+        event.date < debt.date ||
+        (event.accountId && !accounts.has(event.accountId))
+      )
+        invalid('debtEvents', 'Missing or incompatible debt/account reference');
+    }
     const budgetKeys = new Set<string>();
     for (const budget of backup.budgets) {
       const key = `${budget.month}:${budget.categoryId}`;

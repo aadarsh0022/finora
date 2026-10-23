@@ -17,6 +17,7 @@ import { useApp } from '../../src/providers/app-provider';
 import { useTheme } from '../../src/theme';
 import { useFinanceMutation } from '../../src/hooks/finance';
 import { useUi } from '../../src/stores/ui';
+import { DebtSummary } from '../../src/features/planning/debt-summary';
 
 export default function Home() {
   const { user } = useApp();
@@ -200,6 +201,7 @@ export default function Home() {
               <AppButton title="Create account" onPress={() => router.push('/account')} />
             </Card>
           )}
+          <DebtSummary />
           <View style={{ gap: 12 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
               <AppText

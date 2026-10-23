@@ -5,6 +5,7 @@ export * from './finance';
 export * from './primitives';
 export * from './advanced';
 export * from './backup';
+export * from './debts';
 
 export const emailSchema = z.string().trim().toLowerCase().pipe(z.email().max(254));
 export const passwordSchema = z.string().min(12, 'Use at least 12 characters').max(128);
@@ -36,7 +37,7 @@ export const preferencesSchema = z
     timezone: timezoneSchema.default('Asia/Kolkata'),
     preferredDateFormat: z.enum(['DD/MM/YYYY', 'MM/DD/YYYY', 'YYYY-MM-DD']).default('DD/MM/YYYY'),
     firstDayOfWeek: z.union([z.literal(0), z.literal(1)]).default(1),
-    preferredTheme: z.enum(['system', 'light', 'dark']).default('system'),
+    preferredTheme: z.enum(['system', 'light', 'dark']).default('light'),
   })
   .strict();
 export const registerSchema = z

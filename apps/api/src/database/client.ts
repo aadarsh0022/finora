@@ -66,6 +66,8 @@ async function ensureIndexes(db: Db) {
     'accounts',
     'categories',
     'transactions',
+    'debts',
+    'debt_events',
     'budgets',
     'savings_goals',
     'recurring_rules',
@@ -95,6 +97,7 @@ async function ensureIndexes(db: Db) {
       { unique: true, partialFilterExpression: { defaultKey: { $type: 'string' } } },
     );
   await db.collection('import_previews').createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 });
+  await db.collection('debt_events').createIndex({ userId: 1, debtId: 1, date: -1 });
 }
 
 export async function closeDatabase() {
