@@ -71,6 +71,9 @@ async function mount() {
     restore: async () => undefined,
     clearSession,
     refreshUser: async () => undefined,
+    storageError: '',
+    syncing: false,
+    syncPending: async () => undefined,
   }));
   await render(
     <AppLockProvider>

@@ -100,6 +100,12 @@ export default function Settings() {
       </SettingsGroup>
       <SettingsGroup title="Data and security">
         <SettingsRow
+          title="Sync status"
+          subtitle="Pending offline transactions"
+          icon="repeat"
+          onPress={() => router.push('/sync')}
+        />
+        <SettingsRow
           title="Backup and restore"
           subtitle="Export or import your data"
           icon="backup"
@@ -155,10 +161,14 @@ export default function Settings() {
         variant="danger"
         loading={logout.isPending}
         onPress={() =>
-          Alert.alert('Sign out?', 'You can sign in again with your email and password.', [
-            { text: 'Cancel', style: 'cancel' },
-            { text: 'Sign out', onPress: () => logout.mutate() },
-          ])
+          Alert.alert(
+            'Sign out?',
+            'Local cached data and any unsynced entries will be removed from this device. Sync pending entries first. You can sign in again with your email and password.',
+            [
+              { text: 'Cancel', style: 'cancel' },
+              { text: 'Sign out', onPress: () => logout.mutate() },
+            ],
+          )
         }
       />
     </Screen>

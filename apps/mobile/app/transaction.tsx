@@ -104,6 +104,7 @@ function TransactionForm({
     original ? `transactions/${original.id}` : 'transactions',
     transactionSchema,
     original ? 'PATCH' : 'POST',
+    !original,
   );
   const remove = useFinanceMutation(
     `transactions/${original?.id ?? ''}`,

@@ -1,4 +1,5 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useEffect, useRef } from 'react';
 import { accountWithBalanceSchema, categorySchema, type Transaction } from '@finora/contracts';
 import { calendarDate, formatMoney } from '@finora/finance-core';
 import { router } from 'expo-router';
@@ -8,17 +9,56 @@ import { Pressable, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import { useTheme } from '../../theme';
 import { useApp } from '../../providers/app-provider';
+import { canUseOffline } from '../../storage/outbox';
 
 export const accountsSchema = z.array(accountWithBalanceSchema);
 export const categoriesSchema = z.array(categorySchema);
 export const messageSchema = z.object({ message: z.string() });
 export { dateInstant, decimalAmount } from './values';
 export function useRead<T>(path: string, schema: ZodType<T>, enabled = true) {
-  const { api, user } = useApp();
+  const { api, user, vault: candidateVault } = useApp();
+  const vault = candidateVault?.ownerId === user?.id ? candidateVault : undefined;
+  const client = useQueryClient();
+  const attempted = useRef('');
+  const schemaRef = useRef(schema);
+  schemaRef.current = schema;
+  const scope = `${user?.id}:${path}`;
+  useEffect(() => {
+    if (!vault || !enabled || attempted.current === scope || path.startsWith('auth/')) return;
+    attempted.current = scope;
+    let current = true;
+    void vault
+      .read(`read:${path}`, schemaRef.current)
+      .then((cached) => {
+        if (
+          cached &&
+          current &&
+          (client.getQueryState([user?.id, path])?.dataUpdatedAt ?? 0) < cached.updated
+        )
+          client.setQueryData([user?.id, path], cached.value, { updatedAt: cached.updated });
+      })
+      .catch(() => undefined);
+    return () => {
+      current = false;
+    };
+  }, [vault, scope, enabled, path, client, user?.id]);
   return useQuery({
     queryKey: [user?.id, path],
     enabled: !!user && enabled,
-    queryFn: ({ signal }) => api.request(path, schema, { signal }),
+    queryFn: async ({ signal }) => {
+      try {
+        const value = await api.request(path, schema, { signal });
+        if (vault && !path.startsWith('auth/'))
+          await vault.write(`read:${path}`, value).catch(() => undefined);
+        return value;
+      } catch (error) {
+        if (vault && canUseOffline(error)) {
+          const cached = await vault.read(`read:${path}`, schema);
+          if (cached) return cached.value;
+        }
+        throw error;
+      }
+    },
   });
 }
 export function useMoney() {

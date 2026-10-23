@@ -71,6 +71,9 @@ async function mount() {
     restore: async () => undefined,
     clearSession: async () => undefined,
     refreshUser,
+    storageError: '',
+    syncing: false,
+    syncPending: async () => undefined,
   }));
   const query = new QueryClient({
     defaultOptions: {

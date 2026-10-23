@@ -62,6 +62,9 @@ async function mount(mode: 'login' | 'register') {
     restore: async () => undefined,
     clearSession: async () => undefined,
     refreshUser: async () => undefined,
+    storageError: '',
+    syncing: false,
+    syncPending: async () => undefined,
   });
   await render(<AuthForm mode={mode} />);
 }

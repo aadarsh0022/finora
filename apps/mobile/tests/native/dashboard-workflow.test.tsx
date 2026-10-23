@@ -159,6 +159,9 @@ async function mount(data: Overview, hold?: Promise<void>) {
     restore: async () => undefined,
     clearSession: async () => undefined,
     refreshUser: async () => undefined,
+    storageError: '',
+    syncing: false,
+    syncPending: async () => undefined,
   });
   const query = new QueryClient({
     defaultOptions: {

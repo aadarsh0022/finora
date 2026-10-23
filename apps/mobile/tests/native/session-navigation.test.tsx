@@ -73,6 +73,9 @@ async function mount(initialUser: User | null, initialUrl: string) {
       acceptSession: async (tokens) => selectSession(tokens.user),
       restore: async () => undefined,
       refreshUser: async () => undefined,
+      storageError: '',
+      syncing: false,
+      syncPending: async () => undefined,
     };
   });
   await renderRouter(

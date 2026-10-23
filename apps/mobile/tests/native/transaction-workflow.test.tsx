@@ -142,6 +142,9 @@ async function mount(source?: Transaction) {
     restore: async () => undefined,
     clearSession: async () => undefined,
     refreshUser: async () => undefined,
+    storageError: '',
+    syncing: false,
+    syncPending: async () => undefined,
   });
   const query = new QueryClient({
     defaultOptions: {
@@ -174,6 +177,9 @@ test('loading actions cannot submit a second write', async () => {
     restore: async () => undefined,
     clearSession: async () => undefined,
     refreshUser: async () => undefined,
+    storageError: '',
+    syncing: false,
+    syncPending: async () => undefined,
   });
   await render(<AppButton title="Save transaction" loading onPress={onPress} />);
   const button = screen.getByRole('button', { name: 'Save transaction' });

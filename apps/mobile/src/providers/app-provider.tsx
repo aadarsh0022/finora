@@ -1,9 +1,14 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import * as SecureStore from 'expo-secure-store';
 import { userSchema, type SessionTokens, type User } from '@finora/contracts';
 import { ApiClient, ClientError, storedTokensSchema, type TokenStore } from '../api/client';
 import { useUi } from '../stores/ui';
+import { AppState } from 'react-native';
+import { useNetworkState } from 'expo-network';
+import { z } from 'zod';
+import { cachedOwner, openVault, rememberOwner, type DeviceVault } from '../storage/vault';
+import { canUseOffline, drainOutbox } from '../storage/outbox';
 
 const tokenKey = 'finora.session.v1';
 const secureStore: TokenStore = {
@@ -33,6 +38,10 @@ interface AppContextValue {
   restore(): Promise<void>;
   clearSession(): Promise<void>;
   refreshUser(): Promise<void>;
+  vault?: DeviceVault;
+  storageError: string;
+  syncPending(): Promise<void>;
+  syncing: boolean;
 }
 const AppContext = createContext<AppContextValue | null>(null);
 export function AppProvider({ children }: { children: ReactNode }) {
@@ -48,6 +57,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [phase, setPhase] = useState<AppContextValue['phase']>('loading');
   const [error, setError] = useState('');
+  const [vault, setVault] = useState<DeviceVault>();
+  const vaultRef = useRef<DeviceVault | undefined>(undefined);
+  const verified = useRef(false);
+  const [verifiedOnline, setVerifiedOnline] = useState(false);
+  const [storageError, setStorageError] = useState('');
+  const [syncing, setSyncing] = useState(false);
+  const syncFlight = useRef<Promise<void> | null>(null);
+  const restoring = useRef(false);
+  const network = useNetworkState();
+  const origin = process.env.EXPO_PUBLIC_API_URL ?? '';
   const [api] = useState(
     () =>
       new ApiClient(
@@ -58,17 +77,121 @@ export function AppProvider({ children }: { children: ReactNode }) {
           useUi.getState().reset();
           setUser(null);
           setPhase('ready');
+          verified.current = false;
+          setVerifiedOnline(false);
+          const previous = vaultRef.current;
+          vaultRef.current = undefined;
+          setVault(undefined);
+          void previous?.close().catch(() => undefined);
         },
         fetch,
         __DEV__,
       ),
   );
+  async function activate(nextUser: User) {
+    let current = vaultRef.current;
+    if (current?.ownerId !== nextUser.id) {
+      vaultRef.current = undefined;
+      setVault(undefined);
+      await current?.close();
+      current = await openVault(origin, nextUser.id);
+      vaultRef.current = current;
+      setVault(current);
+    }
+    await current.write('profile', { schemaVersion: 1, user: nextUser });
+    await rememberOwner(origin, nextUser.id);
+    return current;
+  }
+  async function syncPending() {
+    if (syncFlight.current) return syncFlight.current;
+    const current = vaultRef.current;
+    if (!current) return;
+    setSyncing(true);
+    const flight = (async () => {
+      try {
+        if (!verified.current) await refreshUser();
+        if (vaultRef.current !== current) return;
+        const count = await drainOutbox(
+          current,
+          api,
+          () => vaultRef.current === current && verified.current,
+        );
+        if (count && vaultRef.current === current)
+          await queryClient.invalidateQueries({ queryKey: [current.ownerId] });
+      } finally {
+        if (vaultRef.current === current)
+          await queryClient.invalidateQueries({ queryKey: [current.ownerId, 'local'] });
+        setSyncing(false);
+      }
+    })();
+    syncFlight.current = flight;
+    try {
+      await flight;
+    } finally {
+      if (syncFlight.current === flight) syncFlight.current = null;
+    }
+  }
   async function restore() {
+    if (restoring.current) return;
+    restoring.current = true;
     setPhase('loading');
     setError('');
     try {
       const tokens = await secureStore.get();
-      if (tokens) setUser(await api.request('auth/me', userSchema));
+      if (tokens) {
+        let savedUser: User | undefined;
+        try {
+          const owner = await cachedOwner(origin);
+          if (owner) {
+            const current =
+              vaultRef.current?.ownerId === owner
+                ? vaultRef.current
+                : await openVault(origin, owner);
+            const profile = await current.read(
+              'profile',
+              z.object({ schemaVersion: z.literal(1), user: userSchema }),
+              7 * 86400000,
+            );
+            if (profile?.value.user.id === owner) {
+              savedUser = profile.value.user;
+              vaultRef.current = current;
+              setVault(current);
+              setUser(savedUser);
+              setPhase('ready');
+            } else {
+              if (vaultRef.current === current) {
+                vaultRef.current = undefined;
+                setVault(undefined);
+              }
+              await current.close();
+            }
+          }
+        } catch {
+          setStorageError(
+            'Encrypted local storage is unavailable in this build. Online features remain available.',
+          );
+        }
+        try {
+          const fresh = await api.request('auth/me', userSchema);
+          if (savedUser && fresh.id !== savedUser.id) {
+            queryClient.clear();
+            setUser(null);
+          }
+          setUser(fresh);
+          try {
+            await activate(fresh);
+            setStorageError('');
+          } catch {
+            setStorageError(
+              'Encrypted local storage is unavailable. Pending entries remain on this device.',
+            );
+          }
+          verified.current = true;
+          setVerifiedOnline(true);
+        } catch (failure) {
+          if (!savedUser || !canUseOffline(failure)) throw failure;
+        }
+      }
       setPhase('ready');
     } catch (failure) {
       if (failure instanceof ClientError && failure.status === 401) {
@@ -80,20 +203,58 @@ export function AppProvider({ children }: { children: ReactNode }) {
         );
         setPhase('error');
       }
+    } finally {
+      restoring.current = false;
     }
   }
   useEffect(() => {
     void restore();
   }, []);
+  useEffect(() => {
+    if (network.isConnected && vault && !restoring.current)
+      void syncPending().catch(() =>
+        setStorageError('Pending entries could not be synchronized. Open Sync status to retry.'),
+      );
+  }, [network.isConnected, verifiedOnline, vault]);
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state === 'active') {
+        if (verified.current) void syncPending().catch(() => undefined);
+        else if (vaultRef.current) void restore();
+      }
+    });
+    return () => subscription.remove();
+  }, [api]);
   async function acceptSession(tokens: SessionTokens) {
+    verified.current = false;
+    setVerifiedOnline(false);
+    await rememberOwner(origin, null);
     await api.setSession(tokens);
     queryClient.clear();
     useUi.getState().reset();
     setUser(tokens.user);
+    try {
+      await activate(tokens.user);
+      setStorageError('');
+    } catch {
+      setStorageError(
+        'Encrypted local storage is unavailable in this build. Online features remain available.',
+      );
+    }
+    verified.current = true;
+    setVerifiedOnline(true);
     setPhase('ready');
   }
   async function refreshUser() {
-    setUser(await api.request('auth/me', userSchema));
+    const fresh = await api.request('auth/me', userSchema);
+    setUser(fresh);
+    try {
+      await activate(fresh);
+    } catch {
+      setStorageError('Encrypted local storage is unavailable. Online features remain available.');
+    }
+    verified.current = true;
+    setVerifiedOnline(true);
   }
   return (
     <QueryClientProvider client={queryClient}>
@@ -105,8 +266,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
           error,
           restore,
           acceptSession,
-          clearSession: () => api.clearSession(),
+          clearSession: async () => {
+            const previous = vaultRef.current;
+            vaultRef.current = undefined;
+            setVault(undefined);
+            await api.clearSession();
+            await rememberOwner(origin, null);
+            await previous?.close(true);
+          },
           refreshUser,
+          vault,
+          storageError,
+          syncing,
+          syncPending,
         }}
       >
         {children}

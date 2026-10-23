@@ -28,6 +28,8 @@ const config: ExpoConfig = {
   plugins: [
     'expo-router',
     'expo-secure-store',
+    ['expo-sqlite', { useSQLCipher: true, enableFTS: false }],
+    ['expo-notifications', { defaultChannel: 'finora-reminders' }],
     'expo-status-bar',
     [
       'expo-splash-screen',

@@ -16,6 +16,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNetworkState } from 'expo-network';
 import { useTheme } from '../theme';
 import { useState, type ReactNode } from 'react';
+import { router } from 'expo-router';
+import { useApp } from '../providers/app-provider';
+import { usePendingTransactions } from '../storage/hooks';
 
 export function AppText({
   tone = 'text',
@@ -50,6 +53,7 @@ export function Screen({
   const theme = useTheme();
   const network = useNetworkState();
   const [refreshing, setRefreshing] = useState(false);
+  const { user, vault, storageError } = useApp();
   async function refresh() {
     if (!onRefresh || refreshing) return;
     setRefreshing(true);
@@ -96,10 +100,18 @@ export function Screen({
           {network.isConnected === false && (
             <Card>
               <AppText tone="danger">
-                You’re offline. Cached views may be out of date. Reconnect before saving.
+                {vault
+                  ? 'You’re offline. Previously loaded records are available. New transactions can be saved for sync; other changes need a connection.'
+                  : 'You’re offline. Cached views may be out of date. Reconnect before saving.'}
               </AppText>
             </Card>
           )}
+          {user && storageError ? (
+            <AppText tone="danger" style={{ fontSize: 13 }}>
+              {storageError}
+            </AppText>
+          ) : null}
+          {user && vault && <PendingStatus />}
           {title && (
             <View style={{ gap: 8 }}>
               <AppText
@@ -139,6 +151,30 @@ export function Screen({
         )}
       </KeyboardAvoidingView>
     </SafeAreaView>
+  );
+}
+function PendingStatus() {
+  const pending = usePendingTransactions();
+  const theme = useTheme();
+  if (pending.error)
+    return (
+      <AppText tone="danger">
+        Pending entries could not be read. Keep this device and contact support.
+      </AppText>
+    );
+  if (!pending.data?.length) return null;
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel="View pending sync"
+      onPress={() => router.push('/sync')}
+      style={{ padding: 12, backgroundColor: theme.accentSoft, borderRadius: 12 }}
+    >
+      <AppText style={{ fontSize: 13 }}>
+        {pending.data.length} {pending.data.length === 1 ? 'entry' : 'entries'} waiting for sync ·
+        View details
+      </AppText>
+    </Pressable>
   );
 }
 export function Card({ style, ...props }: ViewProps) {
