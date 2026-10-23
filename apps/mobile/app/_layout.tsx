@@ -70,6 +70,7 @@ function Navigation() {
           <Stack.Screen name="planning" options={{ title: 'Plan ahead' }} />
           <Stack.Screen name="debts" options={{ title: 'Debts', headerShown: false }} />
           <Stack.Screen name="sync" options={{ title: 'Sync status' }} />
+          <Stack.Screen name="favourites" options={{ title: 'Quick entry' }} />
           <Stack.Screen name="debt" options={{ title: 'Debt' }} />
           <Stack.Screen name="backup" options={{ title: 'Export & backup' }} />
         </Stack.Protected>

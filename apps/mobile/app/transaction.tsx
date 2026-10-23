@@ -5,12 +5,18 @@ import {
   type AccountWithBalance,
   type Category,
   type Transaction,
+  type TransactionInput,
 } from '@finora/contracts';
 import { calendarDate, parseMoney } from '@finora/finance-core';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { Alert } from 'react-native';
 import { z } from 'zod';
+import * as Crypto from 'expo-crypto';
+import { useQueryClient } from '@tanstack/react-query';
+import { FlowSheet } from '../src/components/flow';
+import { useLocalRecords, lastUsedSchema } from '../src/storage/hooks';
+import { favouriteSchema } from '../src/storage/favourites';
 import {
   AppButton,
   AppText,
@@ -32,7 +38,10 @@ import { useFinanceMutation, useUnsavedChanges } from '../src/hooks/finance';
 import { useApp } from '../src/providers/app-provider';
 
 export default function TransactionScreen() {
-  const params = useLocalSearchParams<{ id?: string; duplicate?: string }>();
+  const params = useLocalSearchParams<{ id?: string; duplicate?: string; favourite?: string }>();
+  const { vault } = useApp();
+  const favourites = useLocalRecords('favourite:', favouriteSchema);
+  const lastUsed = useLocalRecords('last-used:', lastUsedSchema);
   const id = typeof params.id === 'string' ? params.id : undefined;
   const source = useRead(`transactions/${id ?? ''}`, transactionSchema, !!id);
   const accounts = useRead('accounts?includeArchived=true', accountsSchema);
@@ -51,19 +60,34 @@ export default function TransactionScreen() {
         />
       </Screen>
     );
-  if (accounts.isPending || categories.isPending || (id && source.isPending))
+  if (
+    accounts.isPending ||
+    categories.isPending ||
+    (id && source.isPending) ||
+    (!!vault && (params.favourite ? favourites.isPending : !id && lastUsed.isPending))
+  )
     return (
       <Screen>
         <Loading />
       </Screen>
     );
+  const favourite = favourites.data?.find((row) => row.value.id === params.favourite)?.value;
+  if (params.favourite && !favourite)
+    return (
+      <Screen title="Favourite unavailable">
+        <AppText>This favourite is no longer available on this device.</AppText>
+        <AppButton title="View favourites" onPress={() => router.replace('/favourites')} />
+      </Screen>
+    );
   return (
     <TransactionForm
-      key={`${id ?? 'new'}-${params.duplicate ?? ''}`}
+      key={`${id ?? 'new'}-${params.duplicate ?? ''}-${params.favourite ?? ''}`}
       source={source.data}
       duplicate={params.duplicate === 'true'}
       accounts={accounts.data ?? []}
       categories={categories.data ?? []}
+      preset={favourite?.body}
+      lastUsed={lastUsed.data?.find((row) => row.key === 'last-used:EXPENSE')?.value}
     />
   );
 }
@@ -72,26 +96,45 @@ function TransactionForm({
   duplicate,
   accounts,
   categories,
+  preset,
+  lastUsed,
 }: {
   source?: Transaction;
   duplicate: boolean;
   accounts: AccountWithBalance[];
   categories: Category[];
+  preset?: TransactionInput;
+  lastUsed?: z.infer<typeof lastUsedSchema>;
 }) {
-  const { user } = useApp();
+  const { user, vault } = useApp();
+  const client = useQueryClient();
+  const [favouriteOpen, setFavouriteOpen] = useState(false);
+  const [favouriteName, setFavouriteName] = useState('');
+  const [favouriteSaving, setFavouriteSaving] = useState(false);
+  const [notice, setNotice] = useState('');
   const timezone = user?.preferences.timezone ?? 'Asia/Kolkata';
   const currency = user?.preferences.baseCurrency ?? 'INR';
   const original = duplicate ? undefined : source;
+  const seed = source ?? preset;
   const initial = {
-    type: source?.type ?? 'EXPENSE',
-    amount: source ? decimalAmount(source.amountMinor, currency) : '',
-    accountId: source?.accountId ?? accounts.find((item) => !item.archived)?.id ?? '',
-    destinationAccountId: source?.destinationAccountId ?? '',
-    categoryId: source?.categoryId ?? '',
+    type: seed?.type ?? 'EXPENSE',
+    amount: seed ? decimalAmount(seed.amountMinor, currency) : '',
+    accountId:
+      seed?.accountId ??
+      accounts.find((item) => item.id === lastUsed?.accountId && !item.archived)?.id ??
+      accounts.find((item) => !item.archived)?.id ??
+      '',
+    destinationAccountId: seed?.destinationAccountId ?? '',
+    categoryId:
+      seed?.categoryId ??
+      categories.find(
+        (item) => item.id === lastUsed?.categoryId && !item.archived && item.type === 'EXPENSE',
+      )?.id ??
+      '',
     date: calendarDate(source && !duplicate ? new Date(source.date) : new Date(), timezone),
-    merchant: source?.merchant ?? '',
-    note: source?.note ?? '',
-    tags: source?.tags.join(', ') ?? '',
+    merchant: seed?.merchant ?? '',
+    note: seed?.note ?? '',
+    tags: seed?.tags.join(', ') ?? '',
   };
   const [form, setForm] = useState(initial);
   const [error, setError] = useState('');
@@ -120,30 +163,67 @@ function TransactionForm({
   const eligibleCategories = categories.filter(
     (item) => item.type === form.type && (!item.archived || item.id === original?.categoryId),
   );
+  function inputBody() {
+    return {
+      type: form.type,
+      accountId: form.accountId,
+      ...(form.type === 'TRANSFER'
+        ? { destinationAccountId: form.destinationAccountId }
+        : { categoryId: form.categoryId }),
+      amountMinor: parseMoney(form.amount, currency),
+      date:
+        original && initial.date === form.date ? original.date : dateInstant(form.date, timezone),
+      merchant: form.merchant,
+      note: form.note,
+      tags: form.tags
+        .split(',')
+        .map((tag) => tag.trim())
+        .filter(Boolean),
+    };
+  }
+  async function saveFavourite() {
+    if (!vault) return;
+    setError('');
+    setFavouriteSaving(true);
+    try {
+      const rows = await vault.list('favourite:', favouriteSchema);
+      if (rows.length >= 50) throw new Error('You can keep up to 50 favourites on this device.');
+      const favourite = favouriteSchema.parse({
+        id: Crypto.randomUUID(),
+        name: favouriteName,
+        body: transactionInputSchema.parse(inputBody()),
+      });
+      await vault.write(`favourite:${favourite.id}`, favourite);
+      await client.invalidateQueries({ queryKey: [user?.id, 'local'] });
+      setFavouriteOpen(false);
+      setNotice('Favourite saved on this device.');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not save favourite.');
+    } finally {
+      setFavouriteSaving(false);
+    }
+  }
   async function submit() {
     setError('');
     try {
-      const body = {
-        type: form.type,
-        accountId: form.accountId,
-        ...(form.type === 'TRANSFER'
-          ? { destinationAccountId: form.destinationAccountId }
-          : { categoryId: form.categoryId }),
-        amountMinor: parseMoney(form.amount, currency),
-        date:
-          original && initial.date === form.date ? original.date : dateInstant(form.date, timezone),
-        merchant: form.merchant,
-        note: form.note,
-        tags: form.tags
-          .split(',')
-          .map((tag) => tag.trim())
-          .filter(Boolean),
-      };
+      const body = inputBody();
       await save.mutateAsync(
         original
           ? transactionUpdateSchema.parse({ ...body, version: original.version })
           : transactionInputSchema.parse(body),
       );
+      if (vault)
+        await vault
+          .write(
+            `last-used:${body.type}`,
+            lastUsedSchema.parse({
+              accountId: body.accountId,
+              categoryId: 'categoryId' in body ? body.categoryId : undefined,
+              destinationAccountId:
+                'destinationAccountId' in body ? body.destinationAccountId : undefined,
+            }),
+          )
+          .catch(() => undefined);
       allowLeave();
       router.back();
     } catch (failure) {
@@ -164,6 +244,13 @@ function TransactionForm({
       }
       subtitle={`Amounts in ${currency} · Dates in ${timezone}`}
     >
+      {!original && (
+        <AppButton
+          title="Choose a favourite"
+          variant="secondary"
+          onPress={() => router.push('/favourites')}
+        />
+      )}
       {!hasAccounts && !original && (
         <Card>
           <AppText>Add an active account before recording a transaction.</AppText>
@@ -265,6 +352,48 @@ function TransactionForm({
           void submit();
         }}
       />
+      {vault && (
+        <AppButton
+          title="Save as favourite"
+          variant="secondary"
+          disabled={save.isPending || remove.isPending}
+          onPress={() => {
+            setFavouriteName(
+              form.merchant || eligibleCategories.find((c) => c.id === form.categoryId)?.name || '',
+            );
+            setFavouriteOpen(true);
+          }}
+        />
+      )}
+      {notice ? <AppText tone="accent">{notice}</AppText> : null}
+      <FlowSheet
+        title="Save favourite"
+        visible={favouriteOpen}
+        onClose={() => {
+          if (!favouriteSaving) setFavouriteOpen(false);
+        }}
+        footer={
+          <AppButton
+            title="Save favourite"
+            loading={favouriteSaving}
+            onPress={() => {
+              void saveFavourite();
+            }}
+          />
+        }
+      >
+        <Field
+          label="Favourite name"
+          value={favouriteName}
+          onChangeText={setFavouriteName}
+          maxLength={60}
+        />
+        <AppText tone="muted">
+          Stores this draft securely on this device. Using it opens a new transaction dated today;
+          nothing is posted automatically.
+        </AppText>
+        {error && <Feedback error={new Error(error)} />}
+      </FlowSheet>
       {original && (
         <>
           <AppButton

@@ -48,6 +48,7 @@ const config: ExpoConfig = {
       { faceIDPermission: 'Use Face ID to unlock your Finora financial details.' },
     ],
     './plugins/with-release-signing.cjs',
+    './plugins/with-development-isolation.cjs',
   ],
 };
 export default config;

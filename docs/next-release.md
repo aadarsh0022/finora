@@ -1,7 +1,8 @@
 # Next release — development and refinement
 
 Requested 23 October 2026. Work stays on `codex/debt-and-offline-release`.
-Do not publish to Play or activate billing. The owner requested no publication
+Do not publish to Play or activate billing. The owner subsequently clarified:
+development only, with no release work. The earlier request specified no publication
 before 30 October 2026; that date is an earliest review point, not authorization
 for automatic publication. Keep the current test release usable.
 

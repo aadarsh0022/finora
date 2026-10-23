@@ -79,6 +79,12 @@ export default function Settings() {
       )}
       <SettingsGroup title="Your money">
         <SettingsRow
+          title="Quick entry"
+          subtitle="Favourite transaction drafts"
+          icon="document"
+          onPress={() => router.push('/favourites')}
+        />
+        <SettingsRow
           title="Debts"
           subtitle="Borrowed, lent and repayments"
           icon="repeat"

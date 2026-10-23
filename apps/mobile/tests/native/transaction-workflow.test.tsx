@@ -13,6 +13,9 @@ import TransactionScreen from '../../app/transaction';
 import { ApiClient, type HttpTransport } from '../../src/api/client';
 import { AppButton } from '../../src/components/ui';
 import { useApp } from '../../src/providers/app-provider';
+import { testVault } from '../vault-fixture';
+import type { DeviceVault } from '../../src/storage/vault-core';
+import { calendarDate } from '@finora/finance-core';
 
 jest.mock('../../src/providers/app-provider', () => ({ useApp: jest.fn() }));
 jest.mock('expo-network', () => ({ useNetworkState: jest.fn(() => ({ isConnected: true })) }));
@@ -85,7 +88,7 @@ beforeEach(() => {
   jest.mocked(useLocalSearchParams).mockReturnValue({});
 });
 
-async function mount(source?: Transaction) {
+async function mount(source?: Transaction, vault?: DeviceVault) {
   const transport: HttpTransport = async (url, options) => {
     const path = new URL(url).pathname.replace('/api/v1/', '');
     const method = options?.method ?? 'GET';
@@ -145,6 +148,7 @@ async function mount(source?: Transaction) {
     storageError: '',
     syncing: false,
     syncPending: async () => undefined,
+    vault,
   });
   const query = new QueryClient({
     defaultOptions: {
@@ -186,6 +190,35 @@ test('loading actions cannot submit a second write', async () => {
   expect(button).toBeDisabled();
   await fireEvent.press(button);
   expect(onPress).not.toHaveBeenCalled();
+});
+
+test('opens a favourite as a draft dated today without automatically posting it', async () => {
+  const { vault } = testVault(owner);
+  const favouriteId = '88888888-8888-4888-8888-888888888888';
+  await vault.write(`favourite:${favouriteId}`, {
+    id: favouriteId,
+    name: 'Lunch',
+    body: {
+      type: existing.type,
+      accountId: existing.accountId,
+      categoryId: existing.categoryId,
+      amountMinor: existing.amountMinor,
+      date: existing.date,
+      merchant: 'Lunch',
+      note: '',
+      tags: [],
+    },
+  });
+  jest.mocked(useLocalSearchParams).mockReturnValue({ favourite: favouriteId });
+  await mount(undefined, vault);
+  expect(screen.getByLabelText('Amount (INR)')).toHaveDisplayValue('12.50');
+  expect(screen.getByLabelText('Date (YYYY-MM-DD)')).toHaveDisplayValue(
+    calendarDate(new Date(), user.preferences.timezone),
+  );
+  expect(writes).toHaveLength(0);
+  await fireEvent.press(screen.getByRole('button', { name: 'Add transaction' }));
+  await waitFor(() => expect(writes).toHaveLength(1));
+  expect(writes[0]?.body).toMatchObject({ amountMinor: '1250', merchant: 'Lunch' });
 });
 
 test('validates the form before sending and preserves exact transfer amounts', async () => {
