@@ -3,6 +3,8 @@ import { Pressable, View } from 'react-native';
 import { router } from 'expo-router';
 import Svg, { Path } from 'react-native-svg';
 import { AppText } from './ui';
+import { AppButton } from './ui';
+import { FlowSheet } from './flow';
 import { useTheme } from '../theme';
 
 const paths = {
@@ -240,5 +242,65 @@ export function ImpactNotice({ title, children }: { title: string; children?: Re
         children
       )}
     </View>
+  );
+}
+
+export function ReviewSheet({
+  title,
+  visible,
+  rows,
+  impact,
+  onClose,
+  onConfirm,
+  busy = false,
+  error,
+  confirmLabel = 'Confirm',
+}: {
+  title: string;
+  visible: boolean;
+  rows: readonly { label: string; value: string }[];
+  impact: string;
+  onClose: () => void;
+  onConfirm: () => void;
+  busy?: boolean;
+  error?: string;
+  confirmLabel?: string;
+}) {
+  const theme = useTheme();
+  return (
+    <FlowSheet
+      title={title}
+      visible={visible}
+      onClose={() => {
+        if (!busy) onClose();
+      }}
+      footer={<AppButton title={confirmLabel} loading={busy} onPress={onConfirm} />}
+    >
+      {rows.map((row) => (
+        <View
+          key={row.label}
+          style={{
+            flexDirection: 'row',
+            gap: 16,
+            borderBottomWidth: 1,
+            borderBottomColor: theme.border,
+            paddingVertical: 12,
+          }}
+        >
+          <AppText tone="muted" style={{ fontSize: 14 }}>
+            {row.label}
+          </AppText>
+          <AppText style={{ flex: 1, textAlign: 'right', fontFamily: 'DMSansBold' }}>
+            {row.value}
+          </AppText>
+        </View>
+      ))}
+      <ImpactNotice title="What will change">{impact}</ImpactNotice>
+      {error && (
+        <AppText tone="danger" accessibilityRole="alert">
+          {error}
+        </AppText>
+      )}
+    </FlowSheet>
   );
 }

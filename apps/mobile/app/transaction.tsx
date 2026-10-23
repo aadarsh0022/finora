@@ -1,3 +1,5 @@
+import { Disclosure, ImpactNotice } from '../src/components/design';
+import { useTheme } from '../src/theme';
 import {
   transactionInputSchema,
   transactionSchema,
@@ -112,6 +114,7 @@ function TransactionForm({
   hasFavourites: boolean;
 }) {
   const { user, vault } = useApp();
+  const theme = useTheme();
   const client = useQueryClient();
   const [favouriteOpen, setFavouriteOpen] = useState(false);
   const [favouriteName, setFavouriteName] = useState('');
@@ -146,12 +149,12 @@ function TransactionForm({
     tags: seed?.tags.join(', ') ?? '',
   };
   const [form, setForm] = useState(initial);
-  const [detailsOpen, setDetailsOpen] = useState(
-    !!(initial.merchant || initial.note || initial.tags),
-  );
+  const [detailsOpen] = useState(!!(initial.merchant || initial.note || initial.tags));
   const [error, setError] = useState('');
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string | undefined>>({});
   function set<K extends keyof typeof form>(key: K, value: (typeof form)[K]) {
     setForm((current) => ({ ...current, [key]: value }));
+    setFieldErrors((current) => ({ ...current, [key]: undefined }));
   }
   const dirty = JSON.stringify(initial) !== JSON.stringify(form);
   const allowLeave = useUnsavedChanges(dirty);
@@ -176,13 +179,20 @@ function TransactionForm({
     (item) => item.type === form.type && (!item.archived || item.id === original?.categoryId),
   );
   function inputBody() {
+    let amountMinor: string;
+    try {
+      amountMinor = parseMoney(form.amount, currency);
+    } catch (failure) {
+      setFieldErrors({ amount: failure instanceof Error ? failure.message : 'Enter an amount.' });
+      throw failure;
+    }
     return {
       type: form.type,
       accountId: form.accountId,
       ...(form.type === 'TRANSFER'
         ? { destinationAccountId: form.destinationAccountId }
         : { categoryId: form.categoryId }),
-      amountMinor: parseMoney(form.amount, currency),
+      amountMinor,
       date:
         original && initial.date === form.date ? original.date : dateInstant(form.date, timezone),
       merchant: form.merchant,
@@ -217,6 +227,7 @@ function TransactionForm({
   }
   async function submit() {
     setError('');
+    setFieldErrors({});
     try {
       const body = inputBody();
       await save.mutateAsync(
@@ -239,6 +250,30 @@ function TransactionForm({
       allowLeave();
       router.back();
     } catch (failure) {
+      if (failure instanceof z.ZodError)
+        setFieldErrors(
+          Object.fromEntries(
+            failure.issues
+              .filter((issue) =>
+                ['amountMinor', 'accountId', 'destinationAccountId', 'categoryId', 'date'].includes(
+                  String(issue.path[0]),
+                ),
+              )
+              .map((issue) => {
+                const key = String(issue.path[0] ?? 'form');
+                return [
+                  key === 'amountMinor' ? 'amount' : key,
+                  key === 'accountId'
+                    ? 'Choose an account.'
+                    : key === 'categoryId'
+                      ? 'Choose a category.'
+                      : key === 'destinationAccountId'
+                        ? 'Choose a different destination account.'
+                        : issue.message,
+                ];
+              }),
+          ),
+        );
       setError(
         failure instanceof z.ZodError
           ? failure.issues.map((issue) => issue.message).join('\n')
@@ -249,16 +284,26 @@ function TransactionForm({
     }
   }
   const hasAccounts = accounts.some((item) => !item.archived);
+  const accountName =
+    eligibleAccounts.find((a) => a.id === form.accountId)?.name ?? 'the selected account';
   return (
     <Screen
       title={
         duplicate ? 'Duplicate transaction' : original ? 'Edit transaction' : 'Add transaction'
       }
-      subtitle={`Amounts in ${currency} · Dates in ${timezone}`}
+      subtitle={`Amounts in ${currency}`}
       includeTopInset={false}
       bottomAction={
         <AppButton
-          title={original ? 'Save transaction' : 'Add transaction'}
+          title={
+            original
+              ? 'Save transaction'
+              : form.type === 'EXPENSE'
+                ? 'Save expense'
+                : form.type === 'INCOME'
+                  ? 'Save income'
+                  : 'Save transfer'
+          }
           loading={save.isPending}
           disabled={remove.isPending || (!hasAccounts && !original)}
           onPress={() => {
@@ -308,15 +353,29 @@ function TransactionForm({
       />
       <Field
         label={`Amount (${currency})`}
+        error={fieldErrors.amount}
         value={form.amount}
         onChangeText={(value) => set('amount', value)}
         keyboardType="decimal-pad"
         maxLength={35}
         placeholder="0.00"
-        style={{ fontSize: 30, fontFamily: 'DMSansBold', minHeight: 76 }}
+        style={{
+          fontSize: 36,
+          lineHeight: 46,
+          fontFamily: 'DMSansBold',
+          minHeight: 88,
+          color:
+            form.type === 'EXPENSE'
+              ? theme.danger
+              : form.type === 'INCOME'
+                ? theme.accent
+                : theme.text,
+          fontVariant: ['tabular-nums'],
+        }}
       />
       <SelectField
         label={form.type === 'TRANSFER' ? 'From account' : 'Account'}
+        error={fieldErrors.accountId}
         value={form.accountId}
         onChange={(value) => set('accountId', value)}
         options={eligibleAccounts.map((item) => ({
@@ -327,6 +386,7 @@ function TransactionForm({
       {form.type === 'TRANSFER' ? (
         <SelectField
           label="To account"
+          error={fieldErrors.destinationAccountId}
           value={form.destinationAccountId}
           onChange={(value) => set('destinationAccountId', value)}
           options={eligibleAccounts
@@ -337,6 +397,7 @@ function TransactionForm({
         <>
           <SelectField
             label="Category"
+            error={fieldErrors.categoryId}
             value={form.categoryId}
             onChange={(value) => set('categoryId', value)}
             options={eligibleCategories.map((item) => ({
@@ -353,123 +414,138 @@ function TransactionForm({
           )}
         </>
       )}
-      <DateField label="Date" value={form.date} onChange={(value) => set('date', value)} />
-      <AppButton
-        title={detailsOpen ? 'Hide extra details' : 'Add merchant, note or tags'}
-        variant="secondary"
-        onPress={() => setDetailsOpen(!detailsOpen)}
+      <DateField
+        label="Date"
+        error={fieldErrors.date}
+        value={form.date}
+        onChange={(value) => set('date', value)}
       />
-      {detailsOpen && (
-        <>
-          <Field
-            label="Merchant (optional)"
-            value={form.merchant}
-            onChangeText={(value) => set('merchant', value)}
-            maxLength={120}
-          />
-          <Field
-            label="Note (optional)"
-            value={form.note}
-            onChangeText={(value) => set('note', value)}
-            maxLength={1000}
-            multiline
-          />
-          <Field
-            label="Tags (comma separated, optional)"
-            value={form.tags}
-            onChangeText={(value) => set('tags', value)}
-            maxLength={310}
-          />
-        </>
-      )}
-      {(error || save.error || remove.error) && (
-        <Feedback error={error ? new Error(error) : (save.error ?? remove.error)} />
-      )}
-      {vault && (
-        <AppButton
-          title="Save as favourite"
-          variant="secondary"
-          disabled={save.isPending || remove.isPending}
-          onPress={() => {
-            setFavouriteName(
-              form.merchant || eligibleCategories.find((c) => c.id === form.categoryId)?.name || '',
-            );
-            setFavouriteOpen(true);
-          }}
+      <Disclosure title="More details" initiallyOpen={detailsOpen}>
+        <Field
+          label="Merchant (optional)"
+          value={form.merchant}
+          onChangeText={(value) => set('merchant', value)}
+          maxLength={120}
         />
-      )}
-      {notice ? <AppText tone="accent">{notice}</AppText> : null}
-      <FlowSheet
-        title="Save favourite"
-        visible={favouriteOpen}
-        onClose={() => {
-          if (!favouriteSaving) setFavouriteOpen(false);
-        }}
-        footer={
-          <AppButton
-            title="Save favourite"
-            loading={favouriteSaving}
-            onPress={() => {
-              void saveFavourite();
-            }}
-          />
+        <Field
+          label="Note (optional)"
+          value={form.note}
+          onChangeText={(value) => set('note', value)}
+          maxLength={1000}
+          multiline
+        />
+        <Field
+          label="Tags (comma separated, optional)"
+          value={form.tags}
+          onChangeText={(value) => set('tags', value)}
+          maxLength={310}
+        />
+      </Disclosure>
+      <ImpactNotice
+        title={
+          original
+            ? 'Updates this posted transaction'
+            : form.type === 'TRANSFER'
+              ? 'Moves money between your accounts'
+              : `${form.type === 'EXPENSE' ? 'Subtracts from' : 'Adds to'} ${accountName}`
         }
       >
-        <Field
-          label="Favourite name"
-          value={favouriteName}
-          onChangeText={setFavouriteName}
-          maxLength={60}
-        />
-        <AppText tone="muted">
-          Stores this draft securely on this device. Using it opens a new transaction dated today;
-          nothing is posted automatically.
-        </AppText>
-        {error && <Feedback error={new Error(error)} />}
-      </FlowSheet>
-      {original && (
-        <>
-          <AppButton
-            title="Duplicate transaction"
-            variant="secondary"
-            disabled={dirty || save.isPending || remove.isPending}
-            onPress={() =>
-              router.push({
-                pathname: '/transaction',
-                params: { id: original.id, duplicate: 'true' },
-              })
-            }
-          />
-          <AppButton
-            title="Delete transaction"
-            variant="danger"
-            loading={remove.isPending}
-            disabled={dirty || save.isPending}
-            onPress={() =>
-              Alert.alert(
-                'Delete transaction?',
-                'This permanently removes the transaction and updates the affected balances.',
-                [
-                  { text: 'Cancel', style: 'cancel' },
-                  {
-                    text: 'Delete',
-                    style: 'destructive',
-                    onPress: () => {
-                      void remove
-                        .mutateAsync({ version: original.version, confirmation: 'DELETE' })
-                        .then(() => {
-                          allowLeave();
-                          router.back();
-                        })
-                        .catch(() => undefined);
-                    },
-                  },
-                ],
-              )
-            }
-          />
-        </>
+        {original
+          ? 'The previous entry is replaced. Review the amount, date and accounts before saving.'
+          : 'The posted balance updates after a successful sync. Queued entries appear separately.'}
+      </ImpactNotice>
+      {!Object.values(fieldErrors).some(Boolean) && (error || save.error || remove.error) && (
+        <Feedback error={error ? new Error(error) : (save.error ?? remove.error)} />
       )}
+      <Disclosure title="More actions">
+        {vault && (
+          <AppButton
+            title="Save as favourite"
+            variant="secondary"
+            disabled={save.isPending || remove.isPending}
+            onPress={() => {
+              setFavouriteName(
+                form.merchant ||
+                  eligibleCategories.find((c) => c.id === form.categoryId)?.name ||
+                  '',
+              );
+              setFavouriteOpen(true);
+            }}
+          />
+        )}
+        {notice ? <AppText tone="accent">{notice}</AppText> : null}
+        <FlowSheet
+          title="Save favourite"
+          visible={favouriteOpen}
+          onClose={() => {
+            if (!favouriteSaving) setFavouriteOpen(false);
+          }}
+          footer={
+            <AppButton
+              title="Save favourite"
+              loading={favouriteSaving}
+              onPress={() => {
+                void saveFavourite();
+              }}
+            />
+          }
+        >
+          <Field
+            label="Favourite name"
+            value={favouriteName}
+            onChangeText={setFavouriteName}
+            maxLength={60}
+          />
+          <AppText tone="muted">
+            Stores this draft securely on this device. Using it opens a new transaction dated today;
+            nothing is posted automatically.
+          </AppText>
+          {error && <Feedback error={new Error(error)} />}
+        </FlowSheet>
+        {original && (
+          <>
+            <AppButton
+              title="Duplicate transaction"
+              variant="secondary"
+              disabled={dirty || save.isPending || remove.isPending}
+              onPress={() =>
+                router.push({
+                  pathname: '/transaction',
+                  params: { id: original.id, duplicate: 'true' },
+                })
+              }
+            />
+            <AppButton
+              title="Delete transaction"
+              variant="danger"
+              loading={remove.isPending}
+              disabled={dirty || save.isPending}
+              onPress={() =>
+                Alert.alert(
+                  'Delete transaction?',
+                  'This permanently removes the transaction and updates the affected balances.',
+                  [
+                    { text: 'Cancel', style: 'cancel' },
+                    {
+                      text: 'Delete',
+                      style: 'destructive',
+                      onPress: () => {
+                        void remove
+                          .mutateAsync({ version: original.version, confirmation: 'DELETE' })
+                          .then(() => {
+                            allowLeave();
+                            router.back();
+                          })
+                          .catch(() => undefined);
+                      },
+                    },
+                  ],
+                )
+              }
+            />
+          </>
+        )}
+      </Disclosure>
     </Screen>
   );
 }

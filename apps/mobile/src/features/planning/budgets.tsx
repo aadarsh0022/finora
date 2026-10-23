@@ -1,3 +1,5 @@
+import { Disclosure } from '../../components/design';
+import { PlanningProgress } from './progress';
 import {
   budgetInputSchema,
   budgetSchema,
@@ -52,39 +54,41 @@ export function Budgets({ onEditing }: { onEditing: (editing: boolean) => void }
     <>
       <MonthPicker value={activeMonth} onChange={setActiveMonth} label="budget month" />
       <TotalBudget month={activeMonth} key={activeMonth} />
-      <AppButton
-        title="Copy previous month"
-        variant="secondary"
-        loading={copy.isPending}
-        onPress={() =>
-          Alert.alert(
-            'Copy previous month?',
-            `Copy limits from ${previousMonth(activeMonth)} to ${activeMonth}. Existing budgets will be kept. Rollover starts disabled on copied categories.`,
-            [
-              { text: 'Cancel', style: 'cancel' },
-              {
-                text: 'Copy budgets',
-                onPress: () => {
-                  void copy
-                    .mutateAsync({
-                      fromMonth: previousMonth(activeMonth),
-                      toMonth: activeMonth,
-                      copyRollover: false,
-                    })
-                    .then((r) =>
-                      setCopyNotice(
-                        `${r.created} category budgets copied to ${activeMonth}; ${r.skipped} skipped.${r.totalCopied ? ' Monthly limit copied.' : ''}`,
-                      ),
-                    )
-                    .catch(() => undefined);
+      <Disclosure title="More budget options">
+        <AppButton
+          title="Copy previous month"
+          variant="secondary"
+          loading={copy.isPending}
+          onPress={() =>
+            Alert.alert(
+              'Copy previous month?',
+              `Copy limits from ${previousMonth(activeMonth)} to ${activeMonth}. Existing budgets will be kept. Rollover starts disabled on copied categories.`,
+              [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                  text: 'Copy budgets',
+                  onPress: () => {
+                    void copy
+                      .mutateAsync({
+                        fromMonth: previousMonth(activeMonth),
+                        toMonth: activeMonth,
+                        copyRollover: false,
+                      })
+                      .then((r) =>
+                        setCopyNotice(
+                          `${r.created} category budgets copied to ${activeMonth}; ${r.skipped} skipped.${r.totalCopied ? ' Monthly limit copied.' : ''}`,
+                        ),
+                      )
+                      .catch(() => undefined);
+                  },
                 },
-              },
-            ],
-          )
-        }
-      />
-      {copyNotice ? <AppText tone="accent">{copyNotice}</AppText> : null}
-      {copy.error && <Feedback error={copy.error} />}
+              ],
+            )
+          }
+        />
+        {copyNotice ? <AppText tone="accent">{copyNotice}</AppText> : null}
+        {copy.error && <Feedback error={copy.error} />}
+      </Disclosure>
       <AppButton
         title="Add monthly budget"
         disabled={!categories.data}
@@ -122,6 +126,11 @@ export function Budgets({ onEditing }: { onEditing: (editing: boolean) => void }
             {money(budget.spentMinor)} spent of{' '}
             {money(budget.effectiveLimitMinor ?? budget.amountMinor)}
           </AppText>
+          <PlanningProgress
+            amount={budget.spentMinor}
+            target={budget.effectiveLimitMinor ?? budget.amountMinor}
+            label="Category budget used"
+          />
           <AppText
             tone={budget.overBudget ? 'danger' : budget.warningReached ? 'danger' : 'accent'}
           >
@@ -194,12 +203,24 @@ function BudgetForm({
       setError(failureMessage(failure));
     }
   }
-  const busy = save.isPending || remove.isPending;
   return (
-    <Card>
-      <AppText style={{ fontSize: 22, fontFamily: 'DMSansBold' }}>
-        {budget ? 'Edit budget' : 'New budget'}
-      </AppText>
+    <FlowSheet
+      title={budget ? 'Edit budget' : 'New budget'}
+      visible
+      onClose={() => {
+        if (!save.isPending && !remove.isPending) confirmDiscard(dirty, done);
+      }}
+      footer={
+        <AppButton
+          title="Save budget"
+          loading={save.isPending}
+          disabled={remove.isPending}
+          onPress={() => {
+            void submit();
+          }}
+        />
+      }
+    >
       <SelectField
         label="Expense category"
         value={form.categoryId}
@@ -248,14 +269,7 @@ function BudgetForm({
         not carried forward. It recalculates if historical spending changes.
       </AppText>
       {(error || remove.error) && <Feedback error={error ? new Error(error) : remove.error} />}
-      <AppButton
-        title="Save budget"
-        loading={save.isPending}
-        disabled={remove.isPending}
-        onPress={() => {
-          void submit();
-        }}
-      />
+
       {budget && (
         <AppButton
           title="Delete budget"
@@ -272,13 +286,7 @@ function BudgetForm({
           }
         />
       )}
-      <AppButton
-        title="Cancel"
-        variant="secondary"
-        disabled={busy}
-        onPress={() => confirmDiscard(dirty, done)}
-      />
-    </Card>
+    </FlowSheet>
   );
 }
 

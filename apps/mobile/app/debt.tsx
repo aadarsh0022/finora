@@ -1,3 +1,4 @@
+import { Disclosure, ImpactNotice, ReviewSheet } from '../src/components/design';
 import {
   debtSchema,
   debtDetailSchema,
@@ -72,6 +73,7 @@ function NewDebt({ receivable }: { receivable: boolean }) {
     movement: 'EXISTING',
   });
   const [error, setError] = useState('');
+  const [reviewed, setReviewed] = useState<z.infer<typeof debtInputSchema>>();
   const allowLeave = useUnsavedChanges(!!form.name || !!form.amount || !!form.note);
   const save = useFinanceMutation('debts', debtSchema);
   function set<K extends keyof typeof form>(key: K, value: (typeof form)[K]) {
@@ -90,29 +92,7 @@ function NewDebt({ receivable }: { receivable: boolean }) {
         note: form.note,
         ...(form.movement === 'ACCOUNT' ? { accountId: form.accountId } : {}),
       });
-      Alert.alert(
-        receivable ? 'Track this expected receipt?' : 'Record this debt?',
-        form.movement === 'ACCOUNT'
-          ? `${form.direction === 'BORROWED' ? 'Add' : 'Subtract'} ${form.amount} ${currency} ${form.direction === 'BORROWED' ? 'to' : 'from'} the selected account. Income and spending totals stay unchanged.`
-          : receivable
-            ? 'Track money expected back. No account balance or income changes until you explicitly record a receipt in an account.'
-            : 'Track this existing outstanding amount without changing any account balance.',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          {
-            text: receivable ? 'Track receivable' : 'Record debt',
-            onPress: () => {
-              void save
-                .mutateAsync(body)
-                .then(() => {
-                  allowLeave();
-                  router.back();
-                })
-                .catch(() => undefined);
-            },
-          },
-        ],
-      );
+      setReviewed(body);
     } catch (e) {
       setError(failureMessage(e));
     }
@@ -155,6 +135,26 @@ function NewDebt({ receivable }: { receivable: boolean }) {
           ]}
         />
       )}
+      {form.kind === 'PERSONAL_LOAN' && (
+        <Choice
+          label="What would you like to do?"
+          presentation="list"
+          value={form.movement}
+          onChange={(v) => set('movement', v)}
+          options={[
+            {
+              value: 'EXISTING',
+              label: 'Existing debt',
+              description: 'Track an outstanding amount without changing accounts.',
+            },
+            {
+              value: 'ACCOUNT',
+              label: 'Record money movement',
+              description: 'Use only when this movement has not been recorded.',
+            },
+          ]}
+        />
+      )}
       <Field
         label={receivable ? 'Who should pay you?' : 'Person or lender'}
         placeholder="Who is this with?"
@@ -169,24 +169,19 @@ function NewDebt({ receivable }: { receivable: boolean }) {
         keyboardType="decimal-pad"
         maxLength={35}
       />
-      {form.kind === 'PERSONAL_LOAN' && (
-        <Choice
-          label="Account handling"
-          value={form.movement}
-          onChange={(v) => set('movement', v)}
-          options={[
-            { value: 'EXISTING', label: 'Existing debt' },
-            { value: 'ACCOUNT', label: 'Record money movement' },
-          ]}
-        />
-      )}
-      <AppText tone="muted">
+      <ImpactNotice
+        title={
+          form.movement === 'ACCOUNT'
+            ? 'Review the account change before saving'
+            : 'Account balances will not change'
+        }
+      >
         {form.kind !== 'PERSONAL_LOAN'
-          ? 'This creates a claim only. The original purchase or deposit should already be recorded separately; it will not be deducted again. Recording a receipt does not automatically reduce the original expense in spending reports.'
+          ? 'Tracks an expectation. Income and original spending stay unchanged.'
           : form.movement === 'EXISTING'
-            ? 'Your accounts already reflect this money. Their balances will not change.'
-            : 'Use this only if the money movement has not been recorded in Finora.'}
-      </AppText>
+            ? 'This records an amount you already owe or are owed.'
+            : 'Income and spending stay unchanged.'}
+      </ImpactNotice>
       {form.movement === 'ACCOUNT' && (
         <SelectField
           label="Account"
@@ -214,14 +209,49 @@ function NewDebt({ receivable }: { receivable: boolean }) {
         onChange={(v) => set('dueDate', v)}
         allowClear
       />
-      <Field
-        label="Note (optional)"
-        value={form.note}
-        onChangeText={(v) => set('note', v)}
-        multiline
-        maxLength={1000}
-      />
+      <Disclosure title="Add a note">
+        <Field
+          label="Note (optional)"
+          value={form.note}
+          onChangeText={(v) => set('note', v)}
+          multiline
+          maxLength={1000}
+        />
+      </Disclosure>
       {(error || save.error) && <Feedback error={error ? new Error(error) : save.error} />}
+      <ReviewSheet
+        title={receivable ? 'Review expected receipt' : 'Review debt'}
+        visible={!!reviewed}
+        rows={
+          reviewed
+            ? [
+                { label: receivable ? 'From' : 'Who', value: reviewed.name },
+                { label: 'Amount', value: `${form.amount} ${currency}` },
+                { label: 'Started', value: reviewed.date },
+                ...(reviewed.dueDate ? [{ label: 'Due', value: reviewed.dueDate }] : []),
+              ]
+            : []
+        }
+        impact={
+          reviewed?.accountId
+            ? `${reviewed.direction === 'BORROWED' ? 'Adds to' : 'Subtracts from'} ${accounts.data?.find((a) => a.id === reviewed.accountId)?.name ?? 'the selected account'}. Income and spending stay unchanged.`
+            : 'Tracks the outstanding amount only. Account balances, income and spending stay unchanged.'
+        }
+        onClose={() => setReviewed(undefined)}
+        confirmLabel={receivable ? 'Track receivable' : 'Record debt'}
+        busy={save.isPending}
+        error={save.error?.message}
+        onConfirm={() => {
+          if (!reviewed) return;
+          void save
+            .mutateAsync(reviewed)
+            .then(() => {
+              allowLeave();
+              router.back();
+            })
+            .catch(() => undefined);
+        }}
+      />
     </Screen>
   );
 }
@@ -277,77 +307,81 @@ function DebtDetail({ debt }: { debt: z.infer<typeof debtDetailSchema> }) {
           onPress={() => setRepaying(true)}
         />
       )}
-      {debt.cancelledAt ? (
-        <AppText tone="muted">
-          Cancelled. Original records and reversals are preserved below.
-        </AppText>
-      ) : (
-        <View style={{ flexDirection: 'row', gap: 12 }}>
-          <View style={{ flex: 1 }}>
-            <AppButton
-              title="Edit details"
-              variant="secondary"
-              disabled={busy}
-              onPress={() => setEditing(true)}
-            />
+      <Disclosure title="Manage record">
+        {debt.cancelledAt ? (
+          <AppText tone="muted">
+            Cancelled. Original records and reversals are preserved below.
+          </AppText>
+        ) : (
+          <View style={{ flexDirection: 'row', gap: 12 }}>
+            <View style={{ flex: 1 }}>
+              <AppButton
+                title="Edit details"
+                variant="secondary"
+                disabled={busy}
+                onPress={() => setEditing(true)}
+              />
+            </View>
+            <View style={{ flex: 1 }}>
+              <AppButton
+                title={
+                  debt.kind !== 'PERSONAL_LOAN'
+                    ? debt.archived
+                      ? 'Restore receivable'
+                      : 'Archive receivable'
+                    : debt.archived
+                      ? 'Restore debt'
+                      : 'Archive debt'
+                }
+                variant="secondary"
+                loading={busy}
+                onPress={() => {
+                  void update
+                    .mutateAsync(
+                      debtUpdateSchema.parse({
+                        name: debt.name,
+                        note: debt.note,
+                        dueDate: debt.dueDate,
+                        archived: !debt.archived,
+                        version: debt.version,
+                      }),
+                    )
+                    .catch(() => undefined);
+                }}
+              />
+            </View>
           </View>
-          <View style={{ flex: 1 }}>
-            <AppButton
-              title={
-                debt.kind !== 'PERSONAL_LOAN'
-                  ? debt.archived
-                    ? 'Restore receivable'
-                    : 'Archive receivable'
-                  : debt.archived
-                    ? 'Restore debt'
-                    : 'Archive debt'
-              }
-              variant="secondary"
-              loading={busy}
-              onPress={() => {
-                void update
-                  .mutateAsync(
-                    debtUpdateSchema.parse({
-                      name: debt.name,
-                      note: debt.note,
-                      dueDate: debt.dueDate,
-                      archived: !debt.archived,
-                      version: debt.version,
-                    }),
-                  )
-                  .catch(() => undefined);
-              }}
-            />
-          </View>
-        </View>
-      )}
-      {!debt.cancelledAt && (
-        <AppButton
-          title={
-            debt.kind !== 'PERSONAL_LOAN' ? 'Cancel incorrect receivable' : 'Cancel incorrect debt'
-          }
-          variant="danger"
-          loading={cancel.isPending}
-          onPress={() =>
-            Alert.alert(
-              debt.kind !== 'PERSONAL_LOAN' ? 'Cancel this receivable?' : 'Cancel this debt?',
-              'This reverses every associated account movement and receipt or repayment. History is preserved. Use this only to correct an incorrectly recorded obligation.',
-              [
-                { text: 'Keep debt', style: 'cancel' },
-                {
-                  text: 'Cancel debt',
-                  style: 'destructive',
-                  onPress: () => {
-                    void cancel
-                      .mutateAsync({ version: debt.version, confirmation: 'CANCEL' })
-                      .catch(() => undefined);
+        )}
+        {!debt.cancelledAt && (
+          <AppButton
+            title={
+              debt.kind !== 'PERSONAL_LOAN'
+                ? 'Cancel incorrect receivable'
+                : 'Cancel incorrect debt'
+            }
+            variant="danger"
+            loading={cancel.isPending}
+            onPress={() =>
+              Alert.alert(
+                debt.kind !== 'PERSONAL_LOAN' ? 'Cancel this receivable?' : 'Cancel this debt?',
+                'This reverses every associated account movement and receipt or repayment. History is preserved. Use this only to correct an incorrectly recorded obligation.',
+                [
+                  { text: 'Keep debt', style: 'cancel' },
+                  {
+                    text: 'Cancel debt',
+                    style: 'destructive',
+                    onPress: () => {
+                      void cancel
+                        .mutateAsync({ version: debt.version, confirmation: 'CANCEL' })
+                        .catch(() => undefined);
+                    },
                   },
-                },
-              ],
-            )
-          }
-        />
-      )}
+                ],
+              )
+            }
+          />
+        )}
+      </Disclosure>
       {cancel.error && <Feedback error={cancel.error} />}
       {update.error && <Feedback error={update.error} />}
       <AppText accessibilityRole="header" style={{ fontSize: 21, fontFamily: 'DMSansBold' }}>
@@ -429,6 +463,7 @@ function Repayment({ debt, close }: { debt: DebtStatus; close: () => void }) {
   const [movement, setMovement] = useState('NONE');
   const [note, setNote] = useState('');
   const [error, setError] = useState('');
+  const [reviewed, setReviewed] = useState<z.infer<typeof repaymentInputSchema>>();
   const save = useFinanceMutation(`debts/${debt.id}/repayments`, debtEventSchema);
   const dirty = !!amount || !!note || !!accountId;
   function submit() {
@@ -447,10 +482,7 @@ function Repayment({ debt, close }: { debt: DebtStatus; close: () => void }) {
             ? 'Receipt exceeds the remaining amount.'
             : 'Repayment exceeds the remaining balance.',
         );
-      void save
-        .mutateAsync(body)
-        .then(close)
-        .catch(() => undefined);
+      setReviewed(body);
     } catch (e) {
       setError(failureMessage(e));
     }
@@ -464,48 +496,95 @@ function Repayment({ debt, close }: { debt: DebtStatus; close: () => void }) {
       }}
       footer={
         <AppButton
-          title={debt.direction === 'LENT' ? 'Confirm receipt' : 'Confirm repayment'}
+          title={
+            reviewed
+              ? debt.direction === 'LENT'
+                ? 'Confirm receipt'
+                : 'Confirm repayment'
+              : debt.direction === 'LENT'
+                ? 'Review receipt'
+                : 'Review repayment'
+          }
           loading={save.isPending}
-          onPress={submit}
+          onPress={() => {
+            if (reviewed)
+              void save
+                .mutateAsync(reviewed)
+                .then(close)
+                .catch(() => undefined);
+            else submit();
+          }}
         />
       }
     >
-      <AppText tone="muted">Remaining: {money(debt.remainingMinor)}</AppText>
-      <Field
-        label={`${debt.direction === 'LENT' ? 'Received amount' : 'Repayment'} (${debt.currency})`}
-        value={amount}
-        onChangeText={setAmount}
-        keyboardType="decimal-pad"
-        maxLength={35}
-      />
-      <DateField
-        label={debt.direction === 'LENT' ? 'Received on' : 'Repaid on'}
-        value={date}
-        onChange={setDate}
-      />
-      <Choice
-        label="Account handling"
-        value={movement}
-        onChange={setMovement}
-        options={[
-          { value: 'NONE', label: 'Already recorded elsewhere' },
-          { value: 'ACCOUNT', label: 'Record in an account' },
-        ]}
-      />
-      {movement === 'ACCOUNT' && (
-        <SelectField
-          label="Account"
-          value={accountId}
-          onChange={setAccountId}
-          options={(accounts.data ?? []).map((a) => ({ value: a.id, label: a.name }))}
-        />
+      {reviewed ? (
+        <>
+          <AppText style={{ fontSize: 32, lineHeight: 42, fontFamily: 'DMSansBold' }}>
+            {money(reviewed.amountMinor)}
+          </AppText>
+          <AppText>
+            {debt.name} · {reviewed.date}
+          </AppText>
+          <ImpactNotice title="What will change">
+            {reviewed.accountId
+              ? `${debt.direction === 'LENT' ? 'Adds to' : 'Subtracts from'} ${accounts.data?.find((a) => a.id === reviewed.accountId)?.name ?? 'the selected account'}. Income and original spending stay unchanged.`
+              : 'Only the outstanding amount changes. Account balances stay unchanged.'}
+          </ImpactNotice>
+          <AppButton
+            title="Edit details"
+            variant="secondary"
+            onPress={() => setReviewed(undefined)}
+          />
+        </>
+      ) : (
+        <>
+          <AppText tone="muted">Remaining: {money(debt.remainingMinor)}</AppText>
+          <Field
+            label={`${debt.direction === 'LENT' ? 'Received amount' : 'Repayment'} (${debt.currency})`}
+            value={amount}
+            onChangeText={setAmount}
+            keyboardType="decimal-pad"
+            maxLength={35}
+          />
+          <DateField
+            label={debt.direction === 'LENT' ? 'Received on' : 'Repaid on'}
+            value={date}
+            onChange={setDate}
+          />
+          <Choice
+            label="How should this be recorded?"
+            presentation="list"
+            value={movement}
+            onChange={setMovement}
+            options={[
+              {
+                value: 'NONE',
+                label: 'Already recorded elsewhere',
+                description: 'Only update the outstanding amount.',
+              },
+              {
+                value: 'ACCOUNT',
+                label: 'Record in an account',
+                description: 'Update a selected account without changing income or spending.',
+              },
+            ]}
+          />
+          {movement === 'ACCOUNT' && (
+            <SelectField
+              label="Account"
+              value={accountId}
+              onChange={setAccountId}
+              options={(accounts.data ?? []).map((a) => ({ value: a.id, label: a.name }))}
+            />
+          )}
+          <AppText tone="muted">
+            {movement === 'ACCOUNT'
+              ? `${debt.direction === 'BORROWED' ? 'Subtracts from' : 'Adds to'} the selected account. Income and spending stay unchanged.`
+              : 'Only the outstanding amount changes. Account balances stay unchanged.'}
+          </AppText>
+          <Field label="Note (optional)" value={note} onChangeText={setNote} maxLength={1000} />
+        </>
       )}
-      <AppText tone="muted">
-        {movement === 'ACCOUNT'
-          ? `${debt.direction === 'BORROWED' ? 'Subtracts from' : 'Adds to'} the selected account. Income and spending stay unchanged.`
-          : 'Only the outstanding amount changes. Account balances stay unchanged.'}
-      </AppText>
-      <Field label="Note (optional)" value={note} onChangeText={setNote} maxLength={1000} />
       {(error || save.error || (movement === 'ACCOUNT' && accounts.error)) && (
         <Feedback error={error ? new Error(error) : (save.error ?? accounts.error)} />
       )}

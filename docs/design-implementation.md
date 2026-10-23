@@ -31,3 +31,23 @@ posted totals and entries that require correction.
 Verification and device observations will be recorded here as implementation
 finishes. The mockups illustrate information hierarchy; live figures always come
 from the authenticated API or the owner's encrypted local records.
+
+## Forms and review flows
+
+- Transactions retain the durable queue and exact DTOs. Optional details and
+  destructive actions are disclosures, amounts use clear type colors, and invalid
+  amount/account/category/date inputs show errors at the relevant field.
+- Creating debts/expected receipts opens a review sheet before any write. Receiving
+  or repaying money is also a two-step flow. The confirmation identifies account
+  movement versus progress only; income and spending remain unchanged.
+- Account creation/editing reviews opening balances before saving. The resulting
+  balance preview uses integer arithmetic, including values beyond Number precision.
+- Budget, goal and recurring forms use sheets with fixed primary actions. Goal
+  contributions open only when requested. Existing confirmation/version guards
+  remain intact.
+- Weekly check-in displays one of four steps at a time. Reviewing changes local
+  acknowledgements only; deferred entries remain unreviewed.
+
+The first navigation slice passed `pnpm check` (128 core/API and 62 native tests)
+and was visually checked on Pixel 8 Pro. Form workflow checks now cover the review
+gates, overpayment prevention, preserved drafts and exact opening-balance previews.

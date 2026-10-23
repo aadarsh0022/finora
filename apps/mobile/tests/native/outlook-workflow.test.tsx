@@ -131,11 +131,13 @@ async function mount(
       {options.plan ? <Plan /> : options.weekly ? <WeeklyReview /> : <MoneyAhead />}
     </QueryClientProvider>,
   );
+  if (options.weekly)
+    await fireEvent.press(await screen.findByRole('button', { name: 'Continue to review' }));
   await screen.findByText(
     options.plan
       ? 'Your plans'
       : options.weekly
-        ? '2. Review recent entries'
+        ? 'Review recent entries'
         : 'Every deduction, explained',
   );
   return {
@@ -202,6 +204,7 @@ test('review acknowledgements leave transactions unchanged and edited entries re
     recentTransactions: payload.recentTransactions.map((entry) => ({ ...entry, version: 2 })),
   });
   await act(() => client.invalidateQueries({ queryKey: [id, 'planning/outlook'] }));
+  await fireEvent.press(screen.getByRole('button', { name: 'Step 2: Review' }));
   await screen.findByRole('button', { name: 'View or edit Demo entry' });
   expect(methods.every((method) => method === 'GET')).toBe(true);
 });

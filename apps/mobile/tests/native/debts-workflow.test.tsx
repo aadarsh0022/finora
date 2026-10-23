@@ -1,6 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
-import { Alert } from 'react-native';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { debtSchema, debtEventSchema, userSchema } from '@finora/contracts';
 import DebtScreen from '../../app/debt';
@@ -107,23 +106,17 @@ async function mount(overrides: Partial<typeof debt> = {}) {
   );
 }
 test('reviews an existing debt without silently moving account money', async () => {
-  const alert = jest.spyOn(Alert, 'alert');
   await mount();
   await fireEvent.changeText(screen.getByLabelText('Person or lender'), 'Test lender');
   await fireEvent.changeText(screen.getByLabelText('Outstanding amount (INR)'), '50.00');
   await fireEvent.press(screen.getByRole('button', { name: 'Review debt' }));
   expect(writes).toHaveLength(0);
-  expect(alert).toHaveBeenCalledWith(
-    'Record this debt?',
-    expect.stringContaining('without changing any account'),
-    expect.any(Array),
-  );
-  await act(async () => {
-    alert.mock.calls
-      .at(-1)?.[2]
-      ?.find((b) => b.text === 'Record debt')
-      ?.onPress?.();
-  });
+  expect(
+    screen.getByText(
+      'Tracks the outstanding amount only. Account balances, income and spending stay unchanged.',
+    ),
+  ).toBeOnTheScreen();
+  await fireEvent.press(screen.getByRole('button', { name: 'Record debt' }));
   await waitFor(() => expect(router.back).toHaveBeenCalled());
   expect(writes[0]).toMatchObject({
     path: 'debts',
@@ -136,10 +129,12 @@ test('prevents overpayment in the form and submits an exact partial repayment', 
   await mount();
   await fireEvent.press(await screen.findByRole('button', { name: 'Record repayment' }));
   await fireEvent.changeText(screen.getByLabelText('Repayment (INR)'), '50.01');
-  await fireEvent.press(screen.getByRole('button', { name: 'Confirm repayment' }));
+  await fireEvent.press(screen.getByRole('button', { name: 'Review repayment' }));
   expect(screen.getByRole('alert')).toHaveTextContent('Repayment exceeds the remaining balance.');
   expect(writes).toHaveLength(0);
   await fireEvent.changeText(screen.getByLabelText('Repayment (INR)'), '12.34');
+  await fireEvent.press(screen.getByRole('button', { name: 'Review repayment' }));
+  expect(writes).toHaveLength(0);
   await fireEvent.press(screen.getByRole('button', { name: 'Confirm repayment' }));
   await waitFor(() => expect(writes).toHaveLength(1));
   expect(writes[0]).toMatchObject({
@@ -151,19 +146,13 @@ test('prevents overpayment in the form and submits an exact partial repayment', 
 
 test('tracks an expected refund only after review, without an initial account movement', async () => {
   jest.mocked(useLocalSearchParams).mockReturnValue({ receivable: 'true' });
-  const alert = jest.spyOn(Alert, 'alert');
   await mount();
   expect(screen.queryByText('Account handling')).toBeNull();
   await fireEvent.changeText(screen.getByLabelText('Who should pay you?'), 'Demo shop');
   await fireEvent.changeText(screen.getByLabelText('Expected amount (INR)'), '50');
   await fireEvent.press(screen.getByRole('button', { name: 'Review receivable' }));
   expect(writes).toHaveLength(0);
-  await act(async () => {
-    alert.mock.calls
-      .at(-1)?.[2]
-      ?.find((b) => b.text === 'Track receivable')
-      ?.onPress?.();
-  });
+  await fireEvent.press(screen.getByRole('button', { name: 'Track receivable' }));
   await waitFor(() => expect(writes).toHaveLength(1));
   expect(writes[0]?.body).toMatchObject({ kind: 'REFUND', direction: 'LENT', amountMinor: '5000' });
   expect(writes[0]?.body).not.toHaveProperty('accountId');
@@ -174,10 +163,12 @@ test('uses receipt wording and prevents over-collection before a partial receipt
   await mount({ direction: 'LENT', kind: 'REIMBURSEMENT' });
   await fireEvent.press(await screen.findByRole('button', { name: 'Record money received' }));
   await fireEvent.changeText(screen.getByLabelText('Received amount (INR)'), '50.01');
-  await fireEvent.press(screen.getByRole('button', { name: 'Confirm receipt' }));
+  await fireEvent.press(screen.getByRole('button', { name: 'Review receipt' }));
   expect(screen.getByRole('alert')).toHaveTextContent('Receipt exceeds the remaining amount.');
   expect(writes).toHaveLength(0);
   await fireEvent.changeText(screen.getByLabelText('Received amount (INR)'), '12.34');
+  await fireEvent.press(screen.getByRole('button', { name: 'Review receipt' }));
+  expect(writes).toHaveLength(0);
   await fireEvent.press(screen.getByRole('button', { name: 'Confirm receipt' }));
   await waitFor(() => expect(writes).toHaveLength(1));
   expect(writes[0]?.body).toMatchObject({ amountMinor: '1234', version: 1 });

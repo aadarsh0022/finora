@@ -217,7 +217,7 @@ test('opens a favourite as a draft dated today without automatically posting it'
   expect(screen.getByLabelText('Amount (INR)')).toHaveDisplayValue('12.50');
   expect(screen.getByText(/^Today ·/)).toBeOnTheScreen();
   expect(writes).toHaveLength(0);
-  await fireEvent.press(screen.getByRole('button', { name: 'Add transaction' }));
+  await fireEvent.press(screen.getByRole('button', { name: /^Save (expense|income|transfer)$/ }));
   await waitFor(() => expect(writes).toHaveLength(1));
   expect(writes[0]?.body).toMatchObject({ amountMinor: '1250', merchant: 'Lunch' });
   expect(
@@ -230,14 +230,14 @@ test('opens a favourite as a draft dated today without automatically posting it'
 
 test('validates the form before sending and preserves exact transfer amounts', async () => {
   await mount();
-  await fireEvent.press(screen.getByRole('button', { name: 'Add transaction' }));
+  await fireEvent.press(screen.getByRole('button', { name: /^Save (expense|income|transfer)$/ }));
   expect(writes).toHaveLength(0);
   expect(await screen.findByRole('alert')).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole('radio', { name: 'Transfer' }));
   await fireEvent.changeText(screen.getByLabelText('Amount (INR)'), '9007199254740993.01');
   await fireEvent.press(screen.getByRole('button', { name: 'To account' }));
   await fireEvent.press(screen.getByRole('radio', { name: 'Savings' }));
-  await fireEvent.press(screen.getByRole('button', { name: 'Add transaction' }));
+  await fireEvent.press(screen.getByRole('button', { name: /^Save (expense|income|transfer)$/ }));
   await waitFor(() => expect(router.back).toHaveBeenCalledTimes(1));
   expect(writes).toHaveLength(1);
   expect(writes[0]).toMatchObject({
@@ -261,12 +261,12 @@ test('shows a network failure and retries the same operation key without abandon
   await fireEvent.press(screen.getByRole('button', { name: 'Category' }));
   await fireEvent.press(screen.getByRole('radio', { name: 'Food' }));
   failNextWrite = true;
-  await fireEvent.press(screen.getByRole('button', { name: 'Add transaction' }));
+  await fireEvent.press(screen.getByRole('button', { name: /^Save (expense|income|transfer)$/ }));
   expect(
     await screen.findByText('Cannot reach Finora. Check your connection and retry.'),
   ).toBeOnTheScreen();
   expect(router.back).not.toHaveBeenCalled();
-  await fireEvent.press(screen.getByRole('button', { name: 'Add transaction' }));
+  await fireEvent.press(screen.getByRole('button', { name: /^Save (expense|income|transfer)$/ }));
   await waitFor(() => expect(router.back).toHaveBeenCalledTimes(1));
   expect(writes).toHaveLength(2);
   expect(writes[0]?.key).toBe(writes[1]?.key);
@@ -279,11 +279,11 @@ test('keeps optional details when collapsed and saves them through the compact f
   await fireEvent.changeText(screen.getByLabelText('Amount (INR)'), '12.50');
   await fireEvent.press(screen.getByRole('button', { name: 'Category' }));
   await fireEvent.press(screen.getByRole('radio', { name: 'Food' }));
-  await fireEvent.press(screen.getByRole('button', { name: 'Add merchant, note or tags' }));
+  await fireEvent.press(screen.getByRole('button', { name: 'More details' }));
   await fireEvent.changeText(screen.getByLabelText('Note (optional)'), 'Synthetic form test');
-  await fireEvent.press(screen.getByRole('button', { name: 'Hide extra details' }));
+  await fireEvent.press(screen.getByRole('button', { name: 'More details' }));
   expect(screen.queryByLabelText('Note (optional)')).toBeNull();
-  await fireEvent.press(screen.getByRole('button', { name: 'Add transaction' }));
+  await fireEvent.press(screen.getByRole('button', { name: /^Save (expense|income|transfer)$/ }));
   await waitFor(() => expect(writes).toHaveLength(1));
   expect(transactionInputSchema.parse(writes[0]?.body).note).toBe('Synthetic form test');
 });
@@ -298,7 +298,7 @@ test('keeps an offline entry in the durable pending list without posting it as a
     await fireEvent.changeText(screen.getByLabelText('Amount (INR)'), '12.50');
     await fireEvent.press(screen.getByRole('button', { name: 'Category' }));
     await fireEvent.press(screen.getByRole('radio', { name: 'Food' }));
-    await fireEvent.press(screen.getByRole('button', { name: 'Add transaction' }));
+    await fireEvent.press(screen.getByRole('button', { name: /^Save (expense|income|transfer)$/ }));
     await waitFor(() => expect(router.back).toHaveBeenCalledTimes(1));
     expect(writes).toHaveLength(0);
     const pending = await vault.list('pending:', queuedTransactionSchema);
@@ -318,6 +318,8 @@ test('requires destructive confirmation before sending a versioned deletion', as
   jest.mocked(useLocalSearchParams).mockReturnValue({ id: existing.id });
   const alert = jest.spyOn(Alert, 'alert');
   await mount(existing);
+  expect(screen.queryByRole('button', { name: 'Delete transaction' })).toBeNull();
+  await fireEvent.press(screen.getByRole('button', { name: 'More actions' }));
   await fireEvent.press(screen.getByRole('button', { name: 'Delete transaction' }));
   expect(writes).toHaveLength(0);
   const buttons = alert.mock.calls[0]?.[2];

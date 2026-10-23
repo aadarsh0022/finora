@@ -358,10 +358,23 @@ function RuleForm({
     }
   }
   return (
-    <Card>
-      <AppText style={{ fontFamily: 'DMSansBold', fontSize: 22 }}>
-        {rule ? 'Edit recurring item' : 'New recurring item'}
-      </AppText>
+    <FlowSheet
+      title={rule ? 'Edit recurring item' : 'New recurring item'}
+      visible
+      onClose={() => {
+        if (!save.isPending && !false) confirmDiscard(dirty, done);
+      }}
+      footer={
+        <AppButton
+          title="Save recurring item"
+          loading={save.isPending}
+          disabled={false}
+          onPress={() => {
+            void submit();
+          }}
+        />
+      }
+    >
       <Field
         label="Name"
         value={form.name}
@@ -453,20 +466,7 @@ function RuleForm({
         Each item requires confirmation before it affects your balance.
       </AppText>
       {error ? <Feedback error={new Error(error)} /> : null}
-      <AppButton
-        title="Save recurring item"
-        loading={save.isPending}
-        onPress={() => {
-          void submit();
-        }}
-      />
-      <AppButton
-        title="Cancel"
-        variant="secondary"
-        disabled={save.isPending}
-        onPress={() => confirmDiscard(dirty, done)}
-      />
-    </Card>
+    </FlowSheet>
   );
 }
 function ConfirmOccurrence({
@@ -510,10 +510,26 @@ function ConfirmOccurrence({
     }
   }
   return (
-    <Card>
-      <AppText style={{ fontSize: 24, fontFamily: 'DMSansBold' }}>{name}</AppText>
+    <FlowSheet
+      title={'Review recurring payment'}
+      visible
+      onClose={() => {
+        if (!confirm.isPending && !false) confirmDiscard(dirty, done);
+      }}
+      footer={
+        <AppButton
+          title="Confirm and record transaction"
+          loading={confirm.isPending}
+          disabled={false}
+          onPress={() => {
+            void submit();
+          }}
+        />
+      }
+    >
+      <AppText style={{ fontSize: 22, fontFamily: 'DMSansBold' }}>{name}</AppText>
       <AppText>
-        Due {occurrence.dueDate} · {occurrence.type.toLowerCase()} · {occurrence.timezone}
+        Due {occurrence.dueDate} · {occurrence.type.toLowerCase()}
       </AppText>
       <AppText tone="muted">
         {accountName ?? 'Account'} · {categoryName ?? 'Category'}
@@ -531,20 +547,7 @@ function ConfirmOccurrence({
         appear in Transactions.
       </AppText>
       {error ? <Feedback error={new Error(error)} /> : null}
-      <AppButton
-        title="Confirm and record transaction"
-        loading={confirm.isPending}
-        onPress={() => {
-          void submit();
-        }}
-      />
-      <AppButton
-        title="Cancel"
-        variant="secondary"
-        disabled={confirm.isPending}
-        onPress={() => confirmDiscard(dirty, done)}
-      />
-    </Card>
+    </FlowSheet>
   );
 }
 

@@ -1,9 +1,12 @@
+import { View, Pressable } from 'react-native';
+import { ActionRow, ImpactNotice } from '../src/components/design';
+import { useTheme } from '../src/theme';
 import { outlookSchema } from '@finora/contracts';
 import { useState } from 'react';
 import { router } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
 import { z } from 'zod';
-import { AppButton, AppText, Card, Feedback, Loading, Screen } from '../src/components/ui';
+import { AppButton, AppText, Feedback, Loading, Screen } from '../src/components/ui';
 import { SavedDataNotice, TransactionCard, useRead } from '../src/features/finance/shared';
 import { useLocalRecords, usePendingTransactions } from '../src/storage/hooks';
 import { useApp } from '../src/providers/app-provider';
@@ -19,6 +22,13 @@ const reviewSchema = z.object({
 const key = 'outlook:weekly-review';
 export default function WeeklyReview() {
   const { user, vault } = useApp();
+  const theme = useTheme();
+  const [step, setStep] = useState(0);
+  const [furthest, setFurthest] = useState(0);
+  function advance(next: number) {
+    setStep(next);
+    setFurthest((previous) => Math.max(previous, next));
+  }
   const client = useQueryClient();
   const query = useRead('planning/outlook', outlookSchema);
   const saved = useLocalRecords(key, reviewSchema);
@@ -61,6 +71,7 @@ export default function WeeklyReview() {
           ? 'Check-in saved. Open follow-ups still need your attention.'
           : 'Visible entries marked reviewed. Financial records were not changed.',
       );
+      if (!finish) advance(2);
     } catch (failure) {
       setError(failure);
     } finally {
@@ -73,6 +84,36 @@ export default function WeeklyReview() {
       subtitle="A few useful checks. One clearer week ahead."
       includeTopInset={false}
       onRefresh={() => query.refetch()}
+      bottomAction={
+        data ? (
+          <AppButton
+            title={
+              step === 0
+                ? 'Continue to review'
+                : step === 1
+                  ? 'Mark visible entries reviewed'
+                  : step === 2
+                    ? 'Continue to outlook'
+                    : 'Finish check-in'
+            }
+            loading={busy}
+            disabled={
+              query.isPending ||
+              (!!vault && saved.isPending) ||
+              ((step === 1 || step === 3) && !vault)
+            }
+            onPress={() => {
+              if (step === 0) advance(1);
+              else if (step === 1) {
+                void save(false);
+              } else if (step === 2) advance(3);
+              else {
+                void save(true);
+              }
+            }}
+          />
+        ) : undefined
+      }
     >
       <SavedDataNotice at={query.cachedAt} />
       {(query.isPending || (!!vault && saved.isPending)) && <Loading />}
@@ -81,104 +122,173 @@ export default function WeeklyReview() {
       ) : null}
       {data && (
         <>
-          <Card>
-            <AppText style={{ fontFamily: 'DMSansBold', fontSize: 19 }}>
-              1. Bring your entries up to date
-            </AppText>
-            <AppText tone="muted">
-              {pending.data?.length
-                ? `${pending.data.length} entries are waiting for sync or need attention.`
-                : 'No pending device entries in this snapshot.'}
-            </AppText>
-            <AppButton
-              title="Check sync status"
-              variant="secondary"
-              onPress={() => router.push('/sync')}
-            />
-          </Card>
-          <AppText accessibilityRole="header" style={{ fontFamily: 'DMSansBold', fontSize: 20 }}>
-            2. Review recent entries
-          </AppText>
-          <AppText tone="muted">
-            Latest 50 entries from the last seven calendar days. Review the amounts and accounts;
-            tap an entry to correct it.
-          </AppText>
-          {unreviewed.map((entry) => (
-            <TransactionCard
-              key={entry.id}
-              item={entry}
-              accountName={data.accounts.find((a) => a.id === entry.accountId)?.name}
-            />
-          ))}
-          {!unreviewed.length && (
-            <AppText tone="muted">
-              The visible entries are reviewed, or no entries were recorded in this period.
-            </AppText>
-          )}
-          {data.moreRecentCount > 0 && (
+          <View
+            accessibilityLabel={`Step ${step + 1} of 4`}
+            style={{ flexDirection: 'row', gap: 8 }}
+          >
+            {['Sync', 'Review', 'Follow up', 'Look ahead'].map((label, index) => (
+              <Pressable
+                key={label}
+                accessibilityRole="button"
+                accessibilityLabel={`Step ${index + 1}: ${label}`}
+                accessibilityState={{ selected: step === index, disabled: index > furthest }}
+                disabled={index > furthest}
+                onPress={() => setStep(index)}
+                style={{ flex: 1, minHeight: 56, justifyContent: 'center', gap: 8 }}
+              >
+                <View
+                  style={{
+                    height: 4,
+                    borderRadius: 2,
+                    backgroundColor: index <= step ? theme.accent : theme.border,
+                  }}
+                />
+                <AppText
+                  tone={step === index ? 'accent' : 'muted'}
+                  style={{
+                    fontSize: 12,
+                    fontFamily: step === index ? 'DMSansBold' : 'DMSans',
+                    textAlign: 'center',
+                  }}
+                >
+                  {label}
+                </AppText>
+              </Pressable>
+            ))}
+          </View>
+          {step === 0 && (
             <>
-              <AppText tone="muted">
-                {data.moreRecentCount} additional entries are available in transaction history.
+              <AppText
+                accessibilityRole="header"
+                style={{ fontFamily: 'DMSansBold', fontSize: 23 }}
+              >
+                Bring your entries up to date
               </AppText>
-              <AppButton
-                title="Open transaction history"
-                variant="secondary"
-                onPress={() => router.push('/(tabs)/transactions')}
+              <ImpactNotice
+                title={
+                  pending.data?.length
+                    ? `${pending.data.length} entries need sync or review`
+                    : 'No pending device entries'
+                }
+              >
+                Queued entries are separate from posted totals. Resolve any sync issues before
+                relying on your balances.
+              </ImpactNotice>
+              <ActionRow
+                title="Check sync status"
+                subtitle="Review pending entries"
+                icon="repeat"
+                onPress={() => router.push('/sync')}
+                last
               />
             </>
           )}
-          <AppButton
-            title="Mark visible entries reviewed"
-            disabled={!vault || busy || !unreviewed.length || saved.isPending}
-            onPress={() => {
-              void save(false);
-            }}
-          />
-          <Card>
-            <AppText style={{ fontFamily: 'DMSansBold', fontSize: 19 }}>
-              3. Follow up on what is outstanding
-            </AppText>
-            <AppText>
-              {data.pendingRecurringCount} recurring confirmations · {data.overdueDebtCount} overdue
-              debts or receivables
-            </AppText>
-            <AppButton
-              title="Review recurring items"
-              variant="secondary"
-              onPress={() => router.push({ pathname: '/planning', params: { mode: 'recurring' } })}
-            />
-            <AppButton
-              title="Review borrowed and lent money"
-              variant="secondary"
-              onPress={() => router.push('/debts')}
-            />
-            <AppButton
-              title="Review money coming back"
-              variant="secondary"
-              onPress={() => router.push('/receivables')}
-            />
-          </Card>
-          <Card>
-            <AppText style={{ fontFamily: 'DMSansBold', fontSize: 19 }}>
-              4. Look at the week ahead
-            </AppText>
-            <AppText tone="muted">
-              Review upcoming commitments, expected payments and the balances you last checked.
-            </AppText>
-            <AppButton title="Open Money Ahead" onPress={() => router.push('/money-ahead')} />
-          </Card>
+          {step === 1 && (
+            <>
+              <AppText
+                accessibilityRole="header"
+                style={{ fontFamily: 'DMSansBold', fontSize: 23 }}
+              >
+                Review recent entries
+              </AppText>
+              <AppText tone="muted" style={{ fontSize: 14 }}>
+                Latest 50 entries from the last seven days. Tap an entry to correct it.
+              </AppText>
+              {unreviewed.map((entry) => (
+                <TransactionCard
+                  key={entry.id}
+                  item={entry}
+                  accountName={data.accounts.find((a) => a.id === entry.accountId)?.name}
+                />
+              ))}
+              {!unreviewed.length && (
+                <AppText tone="muted">
+                  The visible entries are reviewed, or no entries were recorded in this period.
+                </AppText>
+              )}
+              {data.moreRecentCount > 0 && (
+                <ActionRow
+                  title="Open transaction history"
+                  subtitle={`${data.moreRecentCount} additional entries`}
+                  icon="activity"
+                  onPress={() => router.push('/(tabs)/transactions')}
+                  last
+                />
+              )}
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Review later"
+                onPress={() => advance(2)}
+                style={{ minHeight: 48, justifyContent: 'center' }}
+              >
+                <AppText tone="accent">Review later</AppText>
+              </Pressable>
+            </>
+          )}
+          {step === 2 && (
+            <>
+              <AppText
+                accessibilityRole="header"
+                style={{ fontFamily: 'DMSansBold', fontSize: 23 }}
+              >
+                Follow up on what is outstanding
+              </AppText>
+              <AppText tone="muted" style={{ fontSize: 14 }}>
+                {data.pendingRecurringCount} recurring confirmations · {data.overdueDebtCount}{' '}
+                overdue debts or receivables
+              </AppText>
+              <View>
+                <ActionRow
+                  title="Review recurring items"
+                  icon="calendar"
+                  onPress={() =>
+                    router.push({ pathname: '/planning', params: { mode: 'recurring' } })
+                  }
+                />
+                <ActionRow
+                  title="Review borrowed and lent money"
+                  icon="plan"
+                  onPress={() => router.push('/debts')}
+                />
+                <ActionRow
+                  title="Review money coming back"
+                  icon="repeat"
+                  onPress={() => router.push('/receivables')}
+                  last
+                />
+              </View>
+            </>
+          )}
+          {step === 3 && (
+            <>
+              <AppText
+                accessibilityRole="header"
+                style={{ fontFamily: 'DMSansBold', fontSize: 23 }}
+              >
+                Look at the week ahead
+              </AppText>
+              <AppText tone="muted">
+                Review commitments and the balances you last checked. Expected money stays separate
+                from recorded cash.
+              </AppText>
+              <ActionRow
+                title="Open Money Ahead"
+                icon="goal"
+                onPress={() => router.push('/money-ahead')}
+                last
+              />
+              {unreviewed.length > 0 && (
+                <ImpactNotice title={`${unreviewed.length} entries still need review`}>
+                  Finishing saves this check-in, but leaves these entries unreviewed.
+                </ImpactNotice>
+              )}
+            </>
+          )}
           {!vault && (
             <AppText tone="muted">
               Encrypted device storage is needed to remember review acknowledgements.
             </AppText>
           )}
-          <AppButton
-            title="Finish check-in"
-            disabled={!vault || busy || saved.isPending}
-            onPress={() => {
-              void save(true);
-            }}
-          />
           {review.completedAt && (
             <AppText tone="muted" style={{ fontSize: 13 }}>
               Last check-in:{' '}
