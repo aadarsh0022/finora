@@ -121,6 +121,12 @@ export default function Settings() {
       </SettingsGroup>
       <SettingsGroup title="Help and legal">
         <SettingsRow
+          title="Getting started"
+          subtitle="Revisit your setup guide"
+          icon="help"
+          onPress={() => router.push('/onboarding')}
+        />
+        <SettingsRow
           title="Privacy policy"
           icon="shield"
           disabled={legal.isPending}

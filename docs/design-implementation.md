@@ -7,7 +7,8 @@ session isolation, encrypted storage and idempotent outbox. No Play publication.
 
 ## Navigation and shared components
 
-- Home, Activity, Plan and Insights are the four primary destinations. Profile
+- Home, Activity, Ask Finora, Plan and Insights are the five primary destinations
+  after the owner requested the assistant as the middle tab. Profile
   opens the single root Settings route. The old budget path remains compatible;
   the duplicate hidden Settings tab was removed to avoid ambiguous routing.
 - Plan exposes budgets, goals, borrowed/lent money, expected receipts, recurring

@@ -8,10 +8,11 @@ import {
   type Category,
   type Transaction,
   type TransactionInput,
+  type AssistantTransactionDraft,
 } from '@finora/contracts';
 import { calendarDate, parseMoney } from '@finora/finance-core';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Alert } from 'react-native';
 import { z } from 'zod';
 import * as Crypto from 'expo-crypto';
@@ -38,10 +39,37 @@ import {
 } from '../src/features/finance/shared';
 import { useFinanceMutation, useUnsavedChanges } from '../src/hooks/finance';
 import { useApp } from '../src/providers/app-provider';
+import { useTransactionDrafts } from '../src/stores/transaction-drafts';
 
 export default function TransactionScreen() {
-  const params = useLocalSearchParams<{ id?: string; duplicate?: string; favourite?: string }>();
-  const { vault } = useApp();
+  const params = useLocalSearchParams<{
+    id?: string;
+    duplicate?: string;
+    favourite?: string;
+    assistantDraft?: string;
+  }>();
+  const { vault, user } = useApp();
+  const handoff = useTransactionDrafts((s) => s.active);
+  const requestedDraft =
+    typeof params.assistantDraft === 'string' ? params.assistantDraft : undefined;
+  const submitted = useTransactionDrafts(
+    (s) => !!requestedDraft && s.submitted.includes(`${user?.id}:${requestedDraft}`),
+  );
+  const assistantDraft =
+    handoff &&
+    user &&
+    handoff.ownerId === user.id &&
+    handoff?.answerId === requestedDraft &&
+    handoff?.value.currency === user?.preferences.baseCurrency &&
+    handoff?.value.timezone === user?.preferences.timezone
+      ? handoff.value
+      : undefined;
+  useEffect(
+    () => () => {
+      if (user && requestedDraft) useTransactionDrafts.getState().close(user.id, requestedDraft);
+    },
+    [user?.id, requestedDraft],
+  );
   const favourites = useLocalRecords('favourite:', favouriteSchema);
   const lastUsed = useLocalRecords('last-used:', lastUsedSchema);
   const id = typeof params.id === 'string' ? params.id : undefined;
@@ -49,6 +77,19 @@ export default function TransactionScreen() {
   const accounts = useRead('accounts?includeArchived=true', accountsSchema);
   const categories = useRead('categories?includeArchived=true', categoriesSchema);
   const error = accounts.error ?? categories.error ?? (id ? source.error : null);
+  if (
+    requestedDraft &&
+    (!assistantDraft || submitted || id || params.favourite || params.duplicate)
+  )
+    return (
+      <Screen title="Draft unavailable" includeTopInset={false}>
+        <AppText>
+          This draft has expired, was already submitted or belongs to a different session. Ask
+          Finora to prepare a new one.
+        </AppText>
+        <AppButton title="Back to chat" onPress={() => router.replace('/(tabs)/ask')} />
+      </Screen>
+    );
   if (error)
     return (
       <Screen title="Transaction">
@@ -83,7 +124,7 @@ export default function TransactionScreen() {
     );
   return (
     <TransactionForm
-      key={`${id ?? 'new'}-${params.duplicate ?? ''}-${params.favourite ?? ''}`}
+      key={`${id ?? 'new'}-${params.duplicate ?? ''}-${params.favourite ?? ''}-${requestedDraft ?? ''}`}
       source={source.data}
       duplicate={params.duplicate === 'true'}
       accounts={accounts.data ?? []}
@@ -93,6 +134,8 @@ export default function TransactionScreen() {
         (lastUsed.data ?? []).map((row) => [row.key.slice('last-used:'.length), row.value]),
       )}
       hasFavourites={!!favourites.data?.length}
+      assistantDraft={assistantDraft}
+      answerId={requestedDraft}
     />
   );
 }
@@ -104,6 +147,8 @@ function TransactionForm({
   preset,
   lastUsed,
   hasFavourites,
+  assistantDraft,
+  answerId,
 }: {
   source?: Transaction;
   duplicate: boolean;
@@ -112,6 +157,8 @@ function TransactionForm({
   preset?: TransactionInput;
   lastUsed: Partial<Record<TransactionInput['type'], z.infer<typeof lastUsedSchema>>>;
   hasFavourites: boolean;
+  assistantDraft?: AssistantTransactionDraft;
+  answerId?: string;
 }) {
   const [source] = useState(currentSource);
   const { user, vault } = useApp();
@@ -127,26 +174,38 @@ function TransactionForm({
   const seed = source ?? preset;
   const recent = lastUsed[seed?.type ?? 'EXPENSE'];
   const initial = useRef({
-    type: seed?.type ?? 'EXPENSE',
-    amount: seed ? decimalAmount(seed.amountMinor, currency) : '',
-    accountId:
-      seed?.accountId ??
-      accounts.find((item) => item.id === recent?.accountId && !item.archived)?.id ??
-      accounts.find((item) => !item.archived)?.id ??
-      '',
-    destinationAccountId: seed?.destinationAccountId ?? '',
-    categoryId:
-      seed?.categoryId ??
-      categories.find(
-        (item) =>
-          item.id === recent?.categoryId &&
-          !item.archived &&
-          item.type === (seed?.type ?? 'EXPENSE'),
-      )?.id ??
-      '',
-    date: calendarDate(source && !duplicate ? new Date(source.date) : new Date(), timezone),
-    merchant: seed?.merchant ?? '',
-    note: seed?.note ?? '',
+    type: assistantDraft?.type ?? seed?.type ?? 'EXPENSE',
+    amount: assistantDraft
+      ? assistantDraft.amountMinor === null
+        ? ''
+        : decimalAmount(assistantDraft.amountMinor, currency)
+      : seed
+        ? decimalAmount(seed.amountMinor, currency)
+        : '',
+    accountId: assistantDraft
+      ? (assistantDraft.accountId ?? '')
+      : (seed?.accountId ??
+        accounts.find((item) => item.id === recent?.accountId && !item.archived)?.id ??
+        accounts.find((item) => !item.archived)?.id ??
+        ''),
+    destinationAccountId: assistantDraft
+      ? (assistantDraft.destinationAccountId ?? '')
+      : (seed?.destinationAccountId ?? ''),
+    categoryId: assistantDraft
+      ? (assistantDraft.categoryId ?? '')
+      : (seed?.categoryId ??
+        categories.find(
+          (item) =>
+            item.id === recent?.categoryId &&
+            !item.archived &&
+            item.type === (seed?.type ?? 'EXPENSE'),
+        )?.id ??
+        ''),
+    date:
+      assistantDraft?.date ??
+      calendarDate(source && !duplicate ? new Date(source.date) : new Date(), timezone),
+    merchant: assistantDraft?.merchant ?? seed?.merchant ?? '',
+    note: assistantDraft?.note ?? seed?.note ?? '',
     tags: seed?.tags.join(', ') ?? '',
   }).current;
   const [form, setForm] = useState(initial);
@@ -249,6 +308,7 @@ function TransactionForm({
             }),
           )
           .catch(() => undefined);
+      if (answerId && user) useTransactionDrafts.getState().complete(user.id, answerId);
       allowLeave();
       router.back();
     } catch (failure) {
@@ -314,6 +374,11 @@ function TransactionForm({
         />
       }
     >
+      {assistantDraft && (
+        <ImpactNotice title="Draft from Finora AI">
+          Review every field before saving. Nothing has been recorded yet.
+        </ImpactNotice>
+      )}
       {!original && hasFavourites && (
         <AppButton
           title="Choose a favourite"

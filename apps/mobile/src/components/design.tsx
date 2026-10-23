@@ -17,6 +17,8 @@ const paths = {
   shield: 'm12 3 8 3v6c0 5-8 9-8 9s-8-4-8-9V6l8-3Zm-4 9 3 3 5-6',
   info: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18ZM12 11v6m0-10h.01',
   plus: 'M12 5v14M5 12h14',
+  send: 'M12 19V5m-6 6 6-6 6 6',
+  newChat: 'M13 5H5v15h15v-8M11 13l1-4 7-7 3 3-7 7-4 1Z',
   chevron: 'm9 5 7 7-7 7',
   more: 'M5 12h.01M12 12h.01M19 12h.01',
 } as const;

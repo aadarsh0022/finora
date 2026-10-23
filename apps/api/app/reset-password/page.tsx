@@ -42,7 +42,7 @@ export default function ResetPassword() {
       <h1>Reset your password</h1>
       {!done && (
         <form onSubmit={submit}>
-          <label htmlFor="password">New password (12–128 characters)</label>
+          <label htmlFor="password">New password (12 to 128 characters)</label>
           <p>
             <input
               id="password"

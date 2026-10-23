@@ -1,6 +1,6 @@
 import { overviewSchema } from '@finora/contracts';
 import { calendarDate } from '@finora/finance-core';
-import { router } from 'expo-router';
+import { Redirect, router } from 'expo-router';
 import { useEffect } from 'react';
 import { Pressable, View } from 'react-native';
 import { AppButton, AppText, Card, Feedback, Loading, Screen } from '../../src/components/ui';
@@ -29,11 +29,14 @@ export default function Home() {
   const seed = useFinanceMutation('onboarding/categories', messageSchema);
   const hidden = useUi((s) => s.balancesHidden);
   const toggleBalances = useUi((s) => s.toggleBalances);
+  const onboardingDismissed = useUi((s) => s.onboardingDismissedOwner === user?.id);
   useEffect(() => {
     if (categories.data?.length === 0 && seed.status === 'idle') seed.mutate({});
   }, [categories.data, seed.status]);
   const data = overview.data;
   const amount = (value: string) => (hidden ? '••••••' : money(value));
+  if (data && !data.accounts.length && user && !user.onboardingCompletedAt && !onboardingDismissed)
+    return <Redirect href="/onboarding" />;
   return (
     <Screen
       title="Your money"

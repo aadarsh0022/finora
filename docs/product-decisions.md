@@ -5,7 +5,11 @@
 - Money is a canonical base-10 integer string on JSON/storage boundaries; arithmetic
   uses bigint, avoiding MongoDB double precision and JSON bigint serialization issues.
 - Accounts share one base currency in the MVP. Currency changes are prohibited once
-  financial records exist. No FX conversion, banking integrations or LLM calls.
+  financial records exist. No FX conversion or banking integrations. Optional LLM
+  intent routing was authorized on 23 October; it is read-only, disabled by default
+  and keeps financial tool results inside Finora. See assistant-plan.md. This scope
+  replaces the original no-LLM decision. Live access is an explicit per-environment
+  opt-in; local provider routing and the emulator read flow were later verified.
 - Transfers are one transaction document containing both account references.
 - Authentication uses random opaque access and refresh tokens, only SHA-256 token
   digests persist. This permits immediate logout/password-change revocation without
@@ -60,4 +64,14 @@ Consulted 20 October 2026; exact installed versions are recorded in the lockfile
   Financial caching remains in memory, isolated by user and cleared on sign-out.
   SQLite persistence, an offline mutation outbox and conflict-aware synchronization
   are not implemented; writes still require the hosted API. Version 0.1.2/code 3
-  is being prepared for the existing closed test, not public production.
+  was validated and uploaded for the existing closed test, not public production.
+  Google's automated checks passed. Submission initially did not persist, but on
+  23 October Publishing overview confirmed Changes in review for version 3.
+  Google approval remains pending; see release-status.md for the current gate.
+
+- Scope update, 23 October: optional AI can also prepare a transaction draft for
+  explicit review and saving through the existing transaction form. It cannot
+  execute financial writes itself. Optional onboarding records completion and
+  supports an explicitly confirmed first account. The owner later authorized
+  pushing this work and requested closed-testing preparation; testing publication
+  still requires passing checks and a compatible hosted API deployment.

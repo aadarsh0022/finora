@@ -9,6 +9,8 @@ import {
 import { calendarDate } from '@finora/finance-core';
 import { z } from 'zod';
 import type * as NotificationApi from 'expo-notifications';
+import { requireOptionalNativeModule } from 'expo';
+import { Platform } from 'react-native';
 import type { ApiClient } from '../api/client';
 import type { DeviceVault } from '../storage/vault-core';
 import {
@@ -24,7 +26,14 @@ import { reconcileReminders, type ReminderDriver } from './reconcile';
 export const reminderPreferencesKey = 'preferences:reminders';
 let generation = 0;
 let nativeTail: Promise<unknown> = Promise.resolve();
+function hasNativeNotifications() {
+  return Platform.OS !== 'android' || !!requireOptionalNativeModule('ExpoTopicSubscriptionModule');
+}
 function notificationModule(): typeof NotificationApi {
+  if (!hasNativeNotifications())
+    throw new Error(
+      'Reminders need an updated app build. Install the refreshed development app and try again.',
+    );
   // Native SDK initialization stays out of ordinary form/query imports. Metro
   // resolves this literal; synchronous loading also works with the native test VM.
   // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -75,6 +84,7 @@ export async function reminderPreferences(vault: DeviceVault) {
 export function cancelLocalReminders() {
   generation++;
   return serialized(async () => {
+    if (!hasNativeNotifications()) return;
     const driver = await nativeDriver();
     for (const id of await driver.list())
       if (id.startsWith(reminderPrefix)) await driver.cancel(id);
@@ -84,11 +94,10 @@ export function cancelLocalReminders() {
 export async function saveReminderPreferences(vault: DeviceVault, input: ReminderPreferences) {
   const preferences = reminderPreferencesSchema.parse(input);
   await cancelLocalReminders();
-  await vault.write(reminderPreferencesKey, preferences);
   if (preferences.daily || preferences.dueDates || preferences.budgets) {
     const notifications = notificationModule();
     await notifications.setNotificationChannelAsync('finora-reminders', {
-      name: 'Finora reminders',
+      name: 'Finora AI reminders',
       importance: notifications.AndroidImportance.DEFAULT,
       lockscreenVisibility: notifications.AndroidNotificationVisibility.PRIVATE,
       sound: null,
@@ -99,9 +108,10 @@ export async function saveReminderPreferences(vault: DeviceVault, input: Reminde
     if (!permission.granted) permission = await notifications.requestPermissionsAsync();
     if (!permission.granted)
       throw new Error(
-        'Notifications are blocked. Allow notifications for Finora in device settings, then refresh reminders.',
+        'Notifications are blocked. Allow notifications for Finora AI in device settings, then refresh reminders.',
       );
   }
+  await vault.write(reminderPreferencesKey, preferences);
 }
 
 export async function refreshLocalReminders(vault: DeviceVault, api: ApiClient, user: User) {

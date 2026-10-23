@@ -1,11 +1,15 @@
 # Known limitations and release gates
 
-Finora 0.1.1/code 2 is a testing release candidate. Its closed-test submission is
-in Google review; no public production release or full production readiness is
-claimed. Current artifacts and evidence: [release status](release-status.md).
+Finora 0.1.2/code 3 is a testing update candidate for the existing closed test.
+Version 0.1.1/code 2 became available to selected testers; the update requires
+Google review. Its automated checks passed and Publishing overview confirmed
+Changes in review for version 0.1.2/code 3 on 23 October. Approval remains pending.
+No public production release or full production readiness is claimed. Current
+artifacts and evidence: [release status](release-status.md).
 
 - Pixel 8 Pro emulator checks verified hosted demo login, finance-screen reads and
-  sign-out returning to login without restarting. The navigation-loop regression
+  sign-out returning to the signed-out screen without restarting. Version 3 also
+  verified signup-first cold launch and switching to sign-in. The navigation-loop regression
   is fixed. Physical-device, accessibility, biometric, offline/retry and complete
   export/restore workflows still require device QA.
 - Hosted health/authentication checks pass. Recovery delivery is verified to the
@@ -14,9 +18,9 @@ claimed. Current artifacts and evidence: [release status](release-status.md).
   monitoring, restricted Atlas roles, provider retention and restore procedures
   remain operational gates. Destructive tests use disposable MongoDB only.
 - All eleven Play app/listing tasks are saved. The closed test targets 178 regions
-  with an English listing and four supplied tester addresses. Google requires
+  with an English listing and a supplied tester email list. Google requires
   twelve opted-in testers continuously for fourteen days before production access.
-  List membership does not count as opt-in. Review approval is still pending.
+  List membership does not count as opt-in. Each update's review status is separate.
 - The owner's personal-identity privacy requirement remains unresolved for public
   release: app branding does not override Google's developer-profile disclosure.
 - Signed AAB/APK, restricted manifest permissions and comparison against known

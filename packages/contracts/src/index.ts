@@ -82,6 +82,7 @@ export const userSchema = z.object({
   preferences: preferencesSchema,
   createdAt: z.iso.datetime(),
   updatedAt: z.iso.datetime(),
+  onboardingCompletedAt: z.iso.datetime().optional(),
 });
 export const sessionTokensSchema = z.object({
   accessToken: tokenSchema,
@@ -105,3 +106,4 @@ export type ApiResponse<T> =
 export * from './reports';
 export * from './entitlements';
 export * from './outlook';
+export * from './assistant';

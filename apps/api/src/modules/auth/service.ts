@@ -292,6 +292,7 @@ export async function deleteAccount(context: AuthContext, password: string) {
     'audit_events',
     'idempotency_records',
     'import_previews',
+    'assistant_feedback',
   ];
   try {
     await transaction.withTransaction(async () => {

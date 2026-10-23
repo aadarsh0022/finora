@@ -10,9 +10,16 @@ import {
   reminderPreferencesKey,
 } from '../../src/notifications/reminders';
 import type { ApiClient } from '../../src/api/client';
+import { requireOptionalNativeModule } from 'expo';
+import { saveReminderPreferences } from '../../src/notifications/reminders';
+import { Platform } from 'react-native';
 
 jest.mock('../../src/providers/app-provider', () => ({ useApp: jest.fn() }));
 jest.mock('expo-network', () => ({ useNetworkState: () => ({ isConnected: true }) }));
+jest.mock('expo', () => ({ requireOptionalNativeModule: jest.fn(() => ({})) }));
+jest.mock('expo-crypto', () => ({
+  randomUUID: () => jest.requireActual<{ randomUUID: () => string }>('node:crypto').randomUUID(),
+}));
 jest.mock('expo-router', () => ({ usePreventRemove: jest.fn(() => jest.fn()) }));
 jest.mock('expo-notifications', () => ({
   getAllScheduledNotificationsAsync: jest.fn(async () => []),
@@ -36,6 +43,9 @@ const user = userSchema.parse({
 });
 beforeEach(() => {
   jest.clearAllMocks();
+  jest
+    .mocked(requireOptionalNativeModule)
+    .mockReturnValue({} as ReturnType<typeof requireOptionalNativeModule>);
   jest
     .mocked(Notifications.getPermissionsAsync)
     .mockResolvedValue({ granted: false } as Notifications.NotificationPermissionsStatus);
@@ -62,6 +72,23 @@ async function mount() {
   await screen.findByRole('switch', { name: 'Daily check-in' });
   return { ...local, api };
 }
+
+test('an older native build can start and sign out without importing unavailable notifications', async () => {
+  const platform = jest.replaceProperty(Platform, 'OS', 'android');
+  try {
+    jest.mocked(requireOptionalNativeModule).mockReturnValue(null);
+    await expect(cancelLocalReminders()).resolves.toBeUndefined();
+    expect(Notifications.getAllScheduledNotificationsAsync).not.toHaveBeenCalled();
+    const { vault, rows } = testVault(user.id);
+    await expect(
+      saveReminderPreferences(vault, { daily: true, dueDates: false, budgets: false, hour: 20 }),
+    ).rejects.toThrow('updated app build');
+    expect(Notifications.requestPermissionsAsync).not.toHaveBeenCalled();
+    expect(rows.has(reminderPreferencesKey)).toBe(false);
+  } finally {
+    platform.restore();
+  }
+});
 test('asks permission only after an explicit save and schedules generic daily content without API writes', async () => {
   const { api, rows } = await mount();
   expect(Notifications.requestPermissionsAsync).not.toHaveBeenCalled();
@@ -72,7 +99,11 @@ test('asks permission only after an explicit save and schedules generic daily co
   expect(Notifications.requestPermissionsAsync).toHaveBeenCalledTimes(1);
   expect(Notifications.scheduleNotificationAsync).toHaveBeenCalledWith(
     expect.objectContaining({
-      content: { title: 'Finora', body: 'Take a moment to record today’s activity.', sound: false },
+      content: {
+        title: 'Finora AI',
+        body: 'Take a moment to record today’s activity.',
+        sound: false,
+      },
       trigger: expect.objectContaining({ type: 'daily', hour: 20, minute: 0 }),
     }),
   );

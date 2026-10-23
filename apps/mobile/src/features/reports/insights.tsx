@@ -54,7 +54,7 @@ export function SpendingInsights({ month }: { month: string }) {
           </View>
           <AppText tone="muted" style={{ fontSize: 12, lineHeight: 18 }}>
             {data.partial
-              ? `Through ${data.through}; compared with ${data.previousFrom}–${data.previousThrough}.`
+              ? `Through ${data.through}; compared with ${data.previousFrom} to ${data.previousThrough}.`
               : `Compared with the previous full month (${data.previousDays} days).`}
           </AppText>
           {data.categoryChanges.length > 0 && (

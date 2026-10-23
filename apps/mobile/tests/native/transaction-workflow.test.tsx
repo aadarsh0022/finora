@@ -19,6 +19,8 @@ import type { DeviceVault } from '../../src/storage/vault-core';
 import { calendarDate } from '@finora/finance-core';
 import { useNetworkState } from 'expo-network';
 import { queuedTransactionSchema } from '../../src/storage/outbox';
+import { useTransactionDrafts } from '../../src/stores/transaction-drafts';
+import { assistantTransactionDraftSchema } from '@finora/contracts';
 
 jest.mock('../../src/providers/app-provider', () => ({ useApp: jest.fn() }));
 jest.mock('expo-network', () => ({ useNetworkState: jest.fn(() => ({ isConnected: true })) }));
@@ -86,12 +88,75 @@ let writes: Write[];
 let failNextWrite: boolean;
 
 beforeEach(() => {
+  useTransactionDrafts.getState().reset();
   writes = [];
   failNextWrite = false;
   jest.mocked(useLocalSearchParams).mockReturnValue({});
 });
 
-async function mount(source?: Transaction, vault?: DeviceVault) {
+const assistantAnswerId = '77777777-7777-4777-8777-777777777777';
+function openAssistantDraft(incomplete = false, ownerId = owner) {
+  const value = assistantTransactionDraftSchema.parse({
+    type: 'EXPENSE',
+    amountMinor: '1250',
+    currency: 'INR',
+    timezone: user.preferences.timezone,
+    date: '2026-01-01',
+    accountId: incomplete ? null : account.id,
+    categoryId: incomplete ? null : category.id,
+    destinationAccountId: null,
+    accountName: incomplete ? null : account.name,
+    categoryName: incomplete ? null : category.name,
+    destinationAccountName: null,
+    merchant: '',
+    note: '',
+    missingFields: incomplete ? ['account', 'category'] : [],
+    requiresConfirmation: true,
+  });
+  useTransactionDrafts.getState().open(ownerId, assistantAnswerId, value);
+  jest.mocked(useLocalSearchParams).mockReturnValue({ assistantDraft: assistantAnswerId });
+}
+
+test('an assistant draft remains unsaved until the reviewed form is explicitly submitted', async () => {
+  openAssistantDraft();
+  await mount();
+  expect(screen.getByLabelText('Amount (INR)')).toHaveDisplayValue('12.50');
+  expect(writes).toHaveLength(0);
+  await fireEvent.press(screen.getByRole('button', { name: 'Save expense' }));
+  await waitFor(() => expect(writes).toHaveLength(1));
+  expect(writes[0]?.body).toMatchObject({
+    accountId: account.id,
+    categoryId: category.id,
+    amountMinor: '1250',
+  });
+  await waitFor(() =>
+    expect(useTransactionDrafts.getState().submitted).toContain(`${owner}:${assistantAnswerId}`),
+  );
+  expect(
+    useTransactionDrafts
+      .getState()
+      .open(owner, assistantAnswerId, useTransactionDrafts.getState().active!.value),
+  ).toBe(false);
+});
+
+test('an incomplete assistant draft does not silently choose last-used account or category', async () => {
+  openAssistantDraft(true);
+  await mount();
+  await fireEvent.press(screen.getByRole('button', { name: 'Save expense' }));
+  expect(writes).toHaveLength(0);
+  expect(screen.getAllByText('Choose an account.').length).toBeGreaterThan(0);
+  expect(screen.getAllByText('Choose a category.').length).toBeGreaterThan(0);
+});
+
+test('a draft from another owner cannot open as a transaction', async () => {
+  openAssistantDraft(false, '88888888-8888-4888-8888-888888888888');
+  await mount(undefined, undefined, true);
+  expect(screen.getByText('Draft unavailable')).toBeOnTheScreen();
+  expect(screen.queryByLabelText('Amount (INR)')).toBeNull();
+  expect(writes).toHaveLength(0);
+});
+
+async function mount(source?: Transaction, vault?: DeviceVault, unavailable = false) {
   const transport: HttpTransport = async (url, options) => {
     const path = new URL(url).pathname.replace('/api/v1/', '');
     const method = options?.method ?? 'GET';
@@ -164,7 +229,8 @@ async function mount(source?: Transaction, vault?: DeviceVault) {
       <TransactionScreen />
     </QueryClientProvider>,
   );
-  await screen.findByLabelText('Amount (INR)');
+  if (unavailable) await screen.findByText('Draft unavailable');
+  else await screen.findByLabelText('Amount (INR)');
   return query;
 }
 

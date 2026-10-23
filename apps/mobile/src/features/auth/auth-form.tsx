@@ -65,7 +65,7 @@ export function AuthForm({ mode }: { mode: 'login' | 'register' }) {
   return (
     <Screen>
       <AppText style={{ fontFamily: 'DMSansBold', fontSize: 32, letterSpacing: -1 }}>
-        finora
+        Finora AI
       </AppText>
       <AppText
         accessibilityRole="header"
@@ -74,7 +74,9 @@ export function AuthForm({ mode }: { mode: 'login' | 'register' }) {
         {registration ? 'Create your account' : 'Welcome back'}
       </AppText>
       <AppText tone="muted">
-        {registration ? 'A clearer view of your money.' : 'Sign in to pick up where you left off.'}
+        {registration
+          ? 'Money Manager. A clearer view of your money.'
+          : 'Sign in to pick up where you left off.'}
       </AppText>
       <View style={{ gap: 20 }}>
         {registration && (

@@ -11,6 +11,7 @@ export const userRecordSchema = z.object({
   settingsVersion: z.number().int().positive().default(1),
   createdAt: z.date(),
   updatedAt: z.date(),
+  onboardingCompletedAt: z.date().optional(),
   resetHash: z.string().optional(),
   resetExpiresAt: z.date().optional(),
 });
@@ -45,5 +46,8 @@ export function publicUser(record: UserRecord) {
     preferences: record.preferences,
     createdAt: record.createdAt.toISOString(),
     updatedAt: record.updatedAt.toISOString(),
+    ...(record.onboardingCompletedAt
+      ? { onboardingCompletedAt: record.onboardingCompletedAt.toISOString() }
+      : {}),
   });
 }

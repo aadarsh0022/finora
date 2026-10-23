@@ -156,7 +156,7 @@ export default function Reports() {
               data.period.from,
               data.period.from.slice(0, 4) !== data.period.to.slice(0, 4),
             )}{' '}
-            – {dateLabel(data.period.to)} · {data.period.currency}
+            to {dateLabel(data.period.to)} · {data.period.currency}
           </AppText>
           <Card>
             <AppText tone="muted" style={{ fontSize: 14 }}>

@@ -10,6 +10,9 @@ const environmentSchema = z.object({
   EMAIL_FROM: z.string().optional(),
   TRUST_PROXY: z.enum(['true', 'false']).default('false'),
   RATE_LIMIT_SECRET: z.string().min(32),
+  ASSISTANT_ENABLED: z.enum(['true', 'false']).default('false'),
+  OPENAI_API_KEY: z.string().optional(),
+  OPENAI_MODEL: z.literal('gpt-6-luna').default('gpt-6-luna'),
 });
 
 export function getEnv() {

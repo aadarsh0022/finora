@@ -63,6 +63,8 @@ function Navigation() {
           <Stack.Screen name="account" options={{ title: 'Account' }} />
           <Stack.Screen name="accounts" options={{ title: 'Accounts' }} />
           <Stack.Screen name="settings" options={{ title: 'Settings' }} />
+          <Stack.Screen name="assistant" options={{ headerShown: false }} />
+          <Stack.Screen name="onboarding" options={{ headerShown: false }} />
           <Stack.Screen
             name="transaction"
             options={{ title: 'Transaction', presentation: 'modal' }}

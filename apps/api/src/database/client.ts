@@ -62,6 +62,10 @@ async function ensureIndexes(db: Db) {
     { key: { key: 1 }, unique: true },
     { key: { expiresAt: 1 }, expireAfterSeconds: 0 },
   ]);
+  await db.collection('assistant_feedback').createIndexes([
+    { key: { userId: 1, answerId: 1 }, unique: true },
+    { key: { expiresAt: 1 }, expireAfterSeconds: 0 },
+  ]);
   const ownedCollections = [
     'accounts',
     'categories',

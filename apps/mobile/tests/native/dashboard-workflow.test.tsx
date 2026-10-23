@@ -27,6 +27,7 @@ const user = userSchema.parse({
   id: owner,
   email: 'native@example.com',
   name: 'Casey Tester',
+  onboardingCompletedAt: now,
   preferences: { locale: 'en-US' },
   createdAt: now,
   updatedAt: now,

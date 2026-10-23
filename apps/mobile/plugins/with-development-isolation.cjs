@@ -8,7 +8,7 @@ module.exports = function withDevelopmentIsolation(config) {
     if (value.modResults.language !== 'groovy')
       throw new Error('Review the Android build template before generating Finora.');
     if (!value.modResults.contents.includes(marker))
-      value.modResults.contents += `\n${marker}\nandroid.buildTypes.debug.applicationIdSuffix = ".dev"\nandroid.buildTypes.debug.resValue "string", "app_name", "Finora Dev"\n`;
+      value.modResults.contents += `\n${marker}\nandroid.buildTypes.debug.applicationIdSuffix = ".dev"\nandroid.buildTypes.debug.resValue "string", "app_name", "Finora AI Dev"\n`;
     return value;
   });
   return withAndroidManifest(config, (value) => {
