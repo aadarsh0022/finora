@@ -14,7 +14,7 @@ import { Alert } from 'react-native';
 import { z } from 'zod';
 import * as Crypto from 'expo-crypto';
 import { useQueryClient } from '@tanstack/react-query';
-import { FlowSheet } from '../src/components/flow';
+import { DateField, FlowSheet, SelectField } from '../src/components/flow';
 import { useLocalRecords, lastUsedSchema } from '../src/storage/hooks';
 import { favouriteSchema } from '../src/storage/favourites';
 import {
@@ -87,7 +87,10 @@ export default function TransactionScreen() {
       accounts={accounts.data ?? []}
       categories={categories.data ?? []}
       preset={favourite?.body}
-      lastUsed={lastUsed.data?.find((row) => row.key === 'last-used:EXPENSE')?.value}
+      lastUsed={Object.fromEntries(
+        (lastUsed.data ?? []).map((row) => [row.key.slice('last-used:'.length), row.value]),
+      )}
+      hasFavourites={!!favourites.data?.length}
     />
   );
 }
@@ -98,13 +101,15 @@ function TransactionForm({
   categories,
   preset,
   lastUsed,
+  hasFavourites,
 }: {
   source?: Transaction;
   duplicate: boolean;
   accounts: AccountWithBalance[];
   categories: Category[];
   preset?: TransactionInput;
-  lastUsed?: z.infer<typeof lastUsedSchema>;
+  lastUsed: Partial<Record<TransactionInput['type'], z.infer<typeof lastUsedSchema>>>;
+  hasFavourites: boolean;
 }) {
   const { user, vault } = useApp();
   const client = useQueryClient();
@@ -116,19 +121,23 @@ function TransactionForm({
   const currency = user?.preferences.baseCurrency ?? 'INR';
   const original = duplicate ? undefined : source;
   const seed = source ?? preset;
+  const recent = lastUsed[seed?.type ?? 'EXPENSE'];
   const initial = {
     type: seed?.type ?? 'EXPENSE',
     amount: seed ? decimalAmount(seed.amountMinor, currency) : '',
     accountId:
       seed?.accountId ??
-      accounts.find((item) => item.id === lastUsed?.accountId && !item.archived)?.id ??
+      accounts.find((item) => item.id === recent?.accountId && !item.archived)?.id ??
       accounts.find((item) => !item.archived)?.id ??
       '',
     destinationAccountId: seed?.destinationAccountId ?? '',
     categoryId:
       seed?.categoryId ??
       categories.find(
-        (item) => item.id === lastUsed?.categoryId && !item.archived && item.type === 'EXPENSE',
+        (item) =>
+          item.id === recent?.categoryId &&
+          !item.archived &&
+          item.type === (seed?.type ?? 'EXPENSE'),
       )?.id ??
       '',
     date: calendarDate(source && !duplicate ? new Date(source.date) : new Date(), timezone),
@@ -137,6 +146,9 @@ function TransactionForm({
     tags: seed?.tags.join(', ') ?? '',
   };
   const [form, setForm] = useState(initial);
+  const [detailsOpen, setDetailsOpen] = useState(
+    !!(initial.merchant || initial.note || initial.tags),
+  );
   const [error, setError] = useState('');
   function set<K extends keyof typeof form>(key: K, value: (typeof form)[K]) {
     setForm((current) => ({ ...current, [key]: value }));
@@ -243,8 +255,19 @@ function TransactionForm({
         duplicate ? 'Duplicate transaction' : original ? 'Edit transaction' : 'Add transaction'
       }
       subtitle={`Amounts in ${currency} · Dates in ${timezone}`}
+      includeTopInset={false}
+      bottomAction={
+        <AppButton
+          title={original ? 'Save transaction' : 'Add transaction'}
+          loading={save.isPending}
+          disabled={remove.isPending || (!hasAccounts && !original)}
+          onPress={() => {
+            void submit();
+          }}
+        />
+      }
     >
-      {!original && (
+      {!original && hasFavourites && (
         <AppButton
           title="Choose a favourite"
           variant="secondary"
@@ -261,7 +284,21 @@ function TransactionForm({
         label="Transaction type"
         value={form.type}
         onChange={(type) => {
-          setForm((current) => ({ ...current, type, categoryId: '', destinationAccountId: '' }));
+          const defaults = lastUsed[type];
+          setForm((current) => ({
+            ...current,
+            type,
+            accountId:
+              accounts.find((a) => a.id === defaults?.accountId && !a.archived)?.id ??
+              current.accountId,
+            categoryId:
+              categories.find(
+                (c) => c.id === defaults?.categoryId && c.type === type && !c.archived,
+              )?.id ?? '',
+            destinationAccountId:
+              accounts.find((a) => a.id === defaults?.destinationAccountId && !a.archived)?.id ??
+              '',
+          }));
         }}
         options={[
           { value: 'EXPENSE', label: 'Expense' },
@@ -275,8 +312,10 @@ function TransactionForm({
         onChangeText={(value) => set('amount', value)}
         keyboardType="decimal-pad"
         maxLength={35}
+        placeholder="0.00"
+        style={{ fontSize: 30, fontFamily: 'DMSansBold', minHeight: 76 }}
       />
-      <Choice
+      <SelectField
         label={form.type === 'TRANSFER' ? 'From account' : 'Account'}
         value={form.accountId}
         onChange={(value) => set('accountId', value)}
@@ -286,7 +325,7 @@ function TransactionForm({
         }))}
       />
       {form.type === 'TRANSFER' ? (
-        <Choice
+        <SelectField
           label="To account"
           value={form.destinationAccountId}
           onChange={(value) => set('destinationAccountId', value)}
@@ -296,7 +335,7 @@ function TransactionForm({
         />
       ) : (
         <>
-          <Choice
+          <SelectField
             label="Category"
             value={form.categoryId}
             onChange={(value) => set('categoryId', value)}
@@ -314,44 +353,38 @@ function TransactionForm({
           )}
         </>
       )}
-      <Field
-        label="Date (YYYY-MM-DD)"
-        value={form.date}
-        onChangeText={(value) => set('date', value)}
-        placeholder="2026-10-20"
-        maxLength={10}
-        autoCapitalize="none"
+      <DateField label="Date" value={form.date} onChange={(value) => set('date', value)} />
+      <AppButton
+        title={detailsOpen ? 'Hide extra details' : 'Add merchant, note or tags'}
+        variant="secondary"
+        onPress={() => setDetailsOpen(!detailsOpen)}
       />
-      <Field
-        label="Merchant (optional)"
-        value={form.merchant}
-        onChangeText={(value) => set('merchant', value)}
-        maxLength={120}
-      />
-      <Field
-        label="Note (optional)"
-        value={form.note}
-        onChangeText={(value) => set('note', value)}
-        maxLength={1000}
-        multiline
-      />
-      <Field
-        label="Tags (comma separated, optional)"
-        value={form.tags}
-        onChangeText={(value) => set('tags', value)}
-        maxLength={310}
-      />
+      {detailsOpen && (
+        <>
+          <Field
+            label="Merchant (optional)"
+            value={form.merchant}
+            onChangeText={(value) => set('merchant', value)}
+            maxLength={120}
+          />
+          <Field
+            label="Note (optional)"
+            value={form.note}
+            onChangeText={(value) => set('note', value)}
+            maxLength={1000}
+            multiline
+          />
+          <Field
+            label="Tags (comma separated, optional)"
+            value={form.tags}
+            onChangeText={(value) => set('tags', value)}
+            maxLength={310}
+          />
+        </>
+      )}
       {(error || save.error || remove.error) && (
         <Feedback error={error ? new Error(error) : (save.error ?? remove.error)} />
       )}
-      <AppButton
-        title={original ? 'Save transaction' : 'Add transaction'}
-        loading={save.isPending}
-        disabled={remove.isPending || (!hasAccounts && !original)}
-        onPress={() => {
-          void submit();
-        }}
-      />
       {vault && (
         <AppButton
           title="Save as favourite"

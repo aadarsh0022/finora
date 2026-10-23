@@ -217,11 +217,13 @@ function DebtDetail({ debt }: { debt: z.infer<typeof debtDetailSchema> }) {
           {money(debt.repaidMinor)} repaid of {money(debt.amountMinor)}
         </AppText>
         <AppText tone={debt.status === 'OVERDUE' ? 'danger' : 'muted'}>
-          {debt.status === 'SETTLED'
-            ? 'Fully settled'
-            : debt.dueDate
-              ? `Due ${debt.dueDate}`
-              : 'No due date'}
+          {debt.cancelledAt
+            ? 'Cancelled record'
+            : debt.status === 'SETTLED'
+              ? 'Fully settled'
+              : debt.dueDate
+                ? `Due ${debt.dueDate}`
+                : 'No due date'}
           {debt.archived ? ' · Archived' : ''}
         </AppText>
         {debt.note ? <AppText>{debt.note}</AppText> : null}

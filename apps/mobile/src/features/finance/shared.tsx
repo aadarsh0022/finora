@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { accountWithBalanceSchema, categorySchema, type Transaction } from '@finora/contracts';
 import { calendarDate, formatMoney } from '@finora/finance-core';
 import { router } from 'expo-router';
@@ -23,6 +23,7 @@ export function useRead<T>(path: string, schema: ZodType<T>, enabled = true) {
   const schemaRef = useRef(schema);
   schemaRef.current = schema;
   const scope = `${user?.id}:${path}`;
+  const [snapshot, setSnapshot] = useState<{ scope: string; savedAt: number; cached: boolean }>();
   useEffect(() => {
     if (!vault || !enabled || attempted.current === scope || path.startsWith('auth/')) return;
     attempted.current = scope;
@@ -34,15 +35,17 @@ export function useRead<T>(path: string, schema: ZodType<T>, enabled = true) {
           cached &&
           current &&
           (client.getQueryState([user?.id, path])?.dataUpdatedAt ?? 0) < cached.updated
-        )
+        ) {
           client.setQueryData([user?.id, path], cached.value, { updatedAt: cached.updated });
+          setSnapshot({ scope, savedAt: cached.updated, cached: true });
+        }
       })
       .catch(() => undefined);
     return () => {
       current = false;
     };
   }, [vault, scope, enabled, path, client, user?.id]);
-  return useQuery({
+  const query = useQuery({
     queryKey: [user?.id, path],
     enabled: !!user && enabled,
     queryFn: async ({ signal }) => {
@@ -50,16 +53,40 @@ export function useRead<T>(path: string, schema: ZodType<T>, enabled = true) {
         const value = await api.request(path, schema, { signal });
         if (vault && !path.startsWith('auth/'))
           await vault.write(`read:${path}`, value).catch(() => undefined);
+        if (!signal.aborted) setSnapshot({ scope, savedAt: Date.now(), cached: false });
         return value;
       } catch (error) {
         if (vault && canUseOffline(error)) {
           const cached = await vault.read(`read:${path}`, schema);
-          if (cached) return cached.value;
+          if (cached) {
+            if (!signal.aborted) setSnapshot({ scope, savedAt: cached.updated, cached: true });
+            return cached.value;
+          }
         }
         throw error;
       }
     },
   });
+  return {
+    ...query,
+    cachedAt: snapshot?.scope === scope && snapshot.cached ? snapshot.savedAt : undefined,
+  };
+}
+export function SavedDataNotice({ at }: { at?: number }) {
+  const { user } = useApp();
+  if (!at) return null;
+  const time = new Intl.DateTimeFormat(user?.preferences.locale ?? 'en-IN', {
+    day: 'numeric',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZone: user?.preferences.timezone ?? 'Asia/Kolkata',
+  }).format(new Date(at));
+  return (
+    <AppText tone="muted" style={{ fontSize: 12 }}>
+      Saved on this device · {time}. Refresh when connected for the latest records.
+    </AppText>
+  );
 }
 export function useMoney() {
   const { user } = useApp();

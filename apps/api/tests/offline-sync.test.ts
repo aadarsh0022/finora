@@ -64,7 +64,7 @@ it('reconciles a save whose response was lost without recording it twice', async
 });
 it('retains rejected or disconnected entries and stops when the user changes', async () => {
   const owner = randomUUID();
-  const { vault } = testVault(owner);
+  const { vault, rows } = testVault(owner);
   const key = randomUUID();
   const body = transactionInputSchema.parse({
     type: 'EXPENSE',
@@ -119,5 +119,5 @@ it('retains rejected or disconnected entries and stops when the user changes', a
   await drainOutbox(vault, disconnected, () => true);
   expect((await vault.list('pending:', queuedTransactionSchema))[0]?.value.state).toBe('PENDING');
   await vault.close(true);
-  expect(await testVault(owner).vault.list('pending:', queuedTransactionSchema)).toHaveLength(0);
+  expect(rows.size).toBe(0);
 });

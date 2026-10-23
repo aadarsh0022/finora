@@ -15,7 +15,13 @@ import {
   Screen,
 } from '../../components/ui';
 import { DateField, FlowSheet, SelectField } from '../../components/flow';
-import { accountsSchema, categoriesSchema, TransactionCard, useRead } from './shared';
+import {
+  accountsSchema,
+  categoriesSchema,
+  SavedDataNotice,
+  TransactionCard,
+  useRead,
+} from './shared';
 import { activityQuery, emptyActivityFilters, type ActivityFilters } from './filters';
 import { useApp } from '../../providers/app-provider';
 import { useTheme } from '../../theme';
@@ -213,6 +219,7 @@ export default function Transactions() {
         </View>
       )}
       {!open && error ? <Feedback error={new Error(error)} /> : null}
+      <SavedDataNotice at={query.cachedAt} />
       {query.isPending && <Loading />}
       {query.isError && (
         <Feedback

@@ -4,6 +4,7 @@ import {
   accountWithBalanceSchema,
   categorySchema,
   transactionSchema,
+  transactionInputSchema,
   userSchema,
   type Transaction,
 } from '@finora/contracts';
@@ -16,6 +17,8 @@ import { useApp } from '../../src/providers/app-provider';
 import { testVault } from '../vault-fixture';
 import type { DeviceVault } from '../../src/storage/vault-core';
 import { calendarDate } from '@finora/finance-core';
+import { useNetworkState } from 'expo-network';
+import { queuedTransactionSchema } from '../../src/storage/outbox';
 
 jest.mock('../../src/providers/app-provider', () => ({ useApp: jest.fn() }));
 jest.mock('expo-network', () => ({ useNetworkState: jest.fn(() => ({ isConnected: true })) }));
@@ -212,13 +215,17 @@ test('opens a favourite as a draft dated today without automatically posting it'
   jest.mocked(useLocalSearchParams).mockReturnValue({ favourite: favouriteId });
   await mount(undefined, vault);
   expect(screen.getByLabelText('Amount (INR)')).toHaveDisplayValue('12.50');
-  expect(screen.getByLabelText('Date (YYYY-MM-DD)')).toHaveDisplayValue(
-    calendarDate(new Date(), user.preferences.timezone),
-  );
+  expect(screen.getByText(/^Today ·/)).toBeOnTheScreen();
   expect(writes).toHaveLength(0);
   await fireEvent.press(screen.getByRole('button', { name: 'Add transaction' }));
   await waitFor(() => expect(writes).toHaveLength(1));
   expect(writes[0]?.body).toMatchObject({ amountMinor: '1250', merchant: 'Lunch' });
+  expect(
+    calendarDate(
+      new Date(transactionInputSchema.parse(writes[0]?.body).date),
+      user.preferences.timezone,
+    ),
+  ).toBe(calendarDate(new Date(), user.preferences.timezone));
 });
 
 test('validates the form before sending and preserves exact transfer amounts', async () => {
@@ -228,8 +235,8 @@ test('validates the form before sending and preserves exact transfer amounts', a
   expect(await screen.findByRole('alert')).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole('radio', { name: 'Transfer' }));
   await fireEvent.changeText(screen.getByLabelText('Amount (INR)'), '9007199254740993.01');
-  await fireEvent.press(screen.getAllByRole('radio', { name: 'Savings' }).at(-1)!);
-  await fireEvent.changeText(screen.getByLabelText('Date (YYYY-MM-DD)'), '2026-01-01');
+  await fireEvent.press(screen.getByRole('button', { name: 'To account' }));
+  await fireEvent.press(screen.getByRole('radio', { name: 'Savings' }));
   await fireEvent.press(screen.getByRole('button', { name: 'Add transaction' }));
   await waitFor(() => expect(router.back).toHaveBeenCalledTimes(1));
   expect(writes).toHaveLength(1);
@@ -251,8 +258,8 @@ test('validates the form before sending and preserves exact transfer amounts', a
 test('shows a network failure and retries the same operation key without abandoning the form', async () => {
   await mount();
   await fireEvent.changeText(screen.getByLabelText('Amount (INR)'), '12.50');
+  await fireEvent.press(screen.getByRole('button', { name: 'Category' }));
   await fireEvent.press(screen.getByRole('radio', { name: 'Food' }));
-  await fireEvent.changeText(screen.getByLabelText('Date (YYYY-MM-DD)'), '2026-01-01');
   failNextWrite = true;
   await fireEvent.press(screen.getByRole('button', { name: 'Add transaction' }));
   expect(
@@ -264,6 +271,47 @@ test('shows a network failure and retries the same operation key without abandon
   expect(writes).toHaveLength(2);
   expect(writes[0]?.key).toBe(writes[1]?.key);
   expect(writes[0]?.body).toEqual(writes[1]?.body);
+});
+
+test('keeps optional details when collapsed and saves them through the compact form', async () => {
+  await mount();
+  expect(screen.queryByLabelText('Note (optional)')).toBeNull();
+  await fireEvent.changeText(screen.getByLabelText('Amount (INR)'), '12.50');
+  await fireEvent.press(screen.getByRole('button', { name: 'Category' }));
+  await fireEvent.press(screen.getByRole('radio', { name: 'Food' }));
+  await fireEvent.press(screen.getByRole('button', { name: 'Add merchant, note or tags' }));
+  await fireEvent.changeText(screen.getByLabelText('Note (optional)'), 'Synthetic form test');
+  await fireEvent.press(screen.getByRole('button', { name: 'Hide extra details' }));
+  expect(screen.queryByLabelText('Note (optional)')).toBeNull();
+  await fireEvent.press(screen.getByRole('button', { name: 'Add transaction' }));
+  await waitFor(() => expect(writes).toHaveLength(1));
+  expect(transactionInputSchema.parse(writes[0]?.body).note).toBe('Synthetic form test');
+});
+
+test('keeps an offline entry in the durable pending list without posting it as a server transaction', async () => {
+  const { vault } = testVault(owner);
+  jest
+    .mocked(useNetworkState)
+    .mockReturnValue({ isConnected: false } as ReturnType<typeof useNetworkState>);
+  try {
+    await mount(undefined, vault);
+    await fireEvent.changeText(screen.getByLabelText('Amount (INR)'), '12.50');
+    await fireEvent.press(screen.getByRole('button', { name: 'Category' }));
+    await fireEvent.press(screen.getByRole('radio', { name: 'Food' }));
+    await fireEvent.press(screen.getByRole('button', { name: 'Add transaction' }));
+    await waitFor(() => expect(router.back).toHaveBeenCalledTimes(1));
+    expect(writes).toHaveLength(0);
+    const pending = await vault.list('pending:', queuedTransactionSchema);
+    expect(pending).toHaveLength(1);
+    expect(pending[0]?.value).toMatchObject({
+      state: 'PENDING',
+      body: { amountMinor: '1250', accountId: account.id },
+    });
+  } finally {
+    jest
+      .mocked(useNetworkState)
+      .mockReturnValue({ isConnected: true } as ReturnType<typeof useNetworkState>);
+  }
 });
 
 test('requires destructive confirmation before sending a versioned deletion', async () => {

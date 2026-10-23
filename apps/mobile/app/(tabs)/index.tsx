@@ -12,6 +12,7 @@ import {
   TransactionCard,
   categoriesSchema,
   messageSchema,
+  SavedDataNotice,
 } from '../../src/features/finance/shared';
 import { useApp } from '../../src/providers/app-provider';
 import { useTheme } from '../../src/theme';
@@ -47,6 +48,7 @@ export default function Home() {
       subtitle="Make room for what matters."
       onRefresh={() => Promise.all([overview.refetch(), categories.refetch()])}
     >
+      <SavedDataNotice at={overview.cachedAt} />
       {seed.isPending && <AppText tone="muted">Preparing your suggested categories…</AppText>}
       {seed.error && <Feedback error={seed.error} retry={() => seed.mutate({})} />}
       {categories.isError && (

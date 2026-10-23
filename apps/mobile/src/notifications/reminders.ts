@@ -8,7 +8,7 @@ import {
 } from '@finora/contracts';
 import { calendarDate } from '@finora/finance-core';
 import { z } from 'zod';
-import * as notifications from 'expo-notifications';
+import type * as NotificationApi from 'expo-notifications';
 import type { ApiClient } from '../api/client';
 import type { DeviceVault } from '../storage/vault-core';
 import {
@@ -24,12 +24,19 @@ import { reconcileReminders, type ReminderDriver } from './reconcile';
 export const reminderPreferencesKey = 'preferences:reminders';
 let generation = 0;
 let nativeTail: Promise<unknown> = Promise.resolve();
+function notificationModule(): typeof NotificationApi {
+  // Native SDK initialization stays out of ordinary form/query imports. Metro
+  // resolves this literal; synchronous loading also works with the native test VM.
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  return require('expo-notifications') as typeof NotificationApi;
+}
 function serialized<T>(action: () => Promise<T>) {
   const next = nativeTail.catch(() => undefined).then(action);
   nativeTail = next;
   return next;
 }
 async function nativeDriver(): Promise<ReminderDriver> {
+  const notifications = notificationModule();
   return {
     list: async () =>
       (await notifications.getAllScheduledNotificationsAsync()).map((r) => r.identifier),
@@ -79,6 +86,7 @@ export async function saveReminderPreferences(vault: DeviceVault, input: Reminde
   await cancelLocalReminders();
   await vault.write(reminderPreferencesKey, preferences);
   if (preferences.daily || preferences.dueDates || preferences.budgets) {
+    const notifications = notificationModule();
     await notifications.setNotificationChannelAsync('finora-reminders', {
       name: 'Finora reminders',
       importance: notifications.AndroidImportance.DEFAULT,
@@ -101,6 +109,7 @@ export async function refreshLocalReminders(vault: DeviceVault, api: ApiClient, 
   const ticket = ++generation;
   const preferences = await reminderPreferences(vault);
   if (!preferences.daily && !preferences.dueDates && !preferences.budgets) return;
+  const notifications = notificationModule();
   if (!(await notifications.getPermissionsAsync()).granted) return;
   const now = new Date();
   const month = calendarDate(now, user.preferences.timezone).slice(0, 7);

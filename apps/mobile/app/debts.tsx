@@ -41,7 +41,8 @@ export default function Debts() {
   );
   return (
     <Screen
-      title="Debts"
+      title="Borrowed & lent"
+      includeTopInset={false}
       subtitle="Know what you owe, and what comes back."
       onRefresh={() => query.refetch()}
       floatingAction={<AppButton title="+ Add debt" onPress={() => router.push('/debt')} />}
@@ -123,11 +124,13 @@ export default function Debts() {
                 {debt.name}
               </AppText>
               <AppText tone={debt.status === 'OVERDUE' ? 'danger' : 'muted'}>
-                {debt.status === 'SETTLED'
-                  ? 'Settled'
-                  : debt.status === 'OVERDUE'
-                    ? 'Overdue'
-                    : 'Active'}
+                {debt.cancelledAt
+                  ? 'Cancelled'
+                  : debt.status === 'SETTLED'
+                    ? 'Settled'
+                    : debt.status === 'OVERDUE'
+                      ? 'Overdue'
+                      : 'Active'}
               </AppText>
             </View>
             <AppText style={{ fontSize: 25, lineHeight: 32, fontFamily: 'DMSansBold' }}>

@@ -38,8 +38,10 @@ counterparties. Same base currency, server ownership, versions and idempotency a
 
 Each feature needs meaningful automated tests and device workflow checks. Run
 `pnpm check` before commits; push coherent slices. Validate migrations, old backups,
-multiple users, retries, sign-out, offline/reconnect and accessibility. Build the
-signed candidate only after integration. Final Play submission remains withheld.
+multiple users, retries, sign-out, offline/reconnect and accessibility. Native debug
+builds support device previews. Release preparation remains deferred by the owner's
+development-only instruction. See development-progress.md for implemented slices
+and actual device evidence.
 
 Reference pages consulted:
 

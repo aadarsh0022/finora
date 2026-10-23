@@ -11,6 +11,7 @@ export function DebtSummary() {
   const hidden = useUi((s) => s.balancesHidden);
   const totals = { BORROWED: 0n, LENT: 0n };
   for (const debt of query.data ?? []) totals[debt.direction] += BigInt(debt.remainingMinor);
+  if (query.data && !query.error && totals.BORROWED === 0n && totals.LENT === 0n) return null;
   return (
     <Card>
       <AppText style={{ fontFamily: 'DMSansBold', fontSize: 19 }}>Borrowed & lent</AppText>
