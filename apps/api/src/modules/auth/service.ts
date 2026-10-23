@@ -282,6 +282,7 @@ export async function deleteAccount(context: AuthContext, password: string) {
     'debts',
     'debt_events',
     'budgets',
+    'monthly_budget_limits',
     'savings_goals',
     'savings_contributions',
     'recurring_rules',

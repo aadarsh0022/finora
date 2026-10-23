@@ -89,7 +89,17 @@ test('chooses a budget month and year without typing and uses it in the exact cr
     }
     return Response.json({
       success: true,
-      data: parsed.pathname.endsWith('categories') ? [category] : [],
+      data: parsed.pathname.endsWith('categories')
+        ? [category]
+        : parsed.pathname.endsWith('/budgets/total')
+          ? {
+              month: parsed.searchParams.get('month'),
+              plan: null,
+              spentMinor: '0',
+              remainingMinor: null,
+              warningReached: false,
+            }
+          : [],
     });
   });
   await waitFor(() =>

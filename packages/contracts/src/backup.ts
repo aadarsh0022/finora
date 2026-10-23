@@ -8,6 +8,7 @@ import {
   contributionSchema,
   recurringRuleSchema,
   recurringOccurrenceSchema,
+  monthlyLimitSchema,
 } from './advanced';
 
 // Portable backups deliberately contain no user identity or authentication data.
@@ -64,13 +65,17 @@ export const backupOccurrenceSchema = recurringOccurrenceSchema
 export const backupSchema = z
   .object({
     format: z.literal('finora-backup'),
-    version: z.union([z.literal(1), z.literal(2)]),
+    version: z.union([z.literal(1), z.literal(2), z.literal(3)]),
     exportedAt: z.iso.datetime(),
     currency: currencySchema,
     accounts: z.array(backupAccountSchema).max(200),
     categories: z.array(backupCategorySchema).max(300),
     transactions: z.array(backupTransactionSchema).max(10000),
     budgets: z.array(backupBudgetSchema).max(1200),
+    monthlyLimits: z
+      .array(monthlyLimitSchema.omit({ userId: true }).strict())
+      .max(1200)
+      .default([]),
     goals: z.array(backupGoalSchema).max(200),
     contributions: z.array(backupContributionSchema).max(10000),
     recurringRules: z.array(backupRuleSchema).max(200),
@@ -97,6 +102,7 @@ export const backupSchema = z
       'recurringOccurrences',
       'debts',
       'debtEvents',
+      'monthlyLimits',
     ] as const) {
       const ids = new Set<string>();
       backup[key].forEach((record, index) => {
@@ -125,6 +131,17 @@ export const backupSchema = z
     });
     const invalid = (path: string, message: string) =>
       context.addIssue({ code: 'custom', path: [path], message });
+    if (
+      backup.version < 3 &&
+      (backup.monthlyLimits.length || backup.budgets.some((b) => b.rollover))
+    )
+      invalid('version', 'Monthly limits and rollover require backup version 3');
+    const limitMonths = new Set<string>();
+    for (const plan of backup.monthlyLimits) {
+      if (limitMonths.has(plan.month) || plan.currency !== backup.currency)
+        invalid('monthlyLimits', 'Duplicate month or currency mismatch');
+      limitMonths.add(plan.month);
+    }
     if (backup.version === 1 && (backup.debts.length || backup.debtEvents.length))
       invalid('version', 'Debt history requires backup version 2');
     const debtMap = new Map(backup.debts.map((debt) => [debt.id, debt]));

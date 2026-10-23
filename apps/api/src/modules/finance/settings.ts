@@ -23,6 +23,7 @@ export async function updateSettings(
         'transactions',
         'debts',
         'budgets',
+        'monthly_budget_limits',
         'savings_goals',
         'recurring_rules',
         'savings_contributions',

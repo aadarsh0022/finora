@@ -25,7 +25,7 @@ export const budgetInputSchema = z
     categoryId: entityIdSchema,
     month: monthSchema,
     amountMinor: positiveMinorSchema,
-    rollover: z.literal(false).default(false),
+    rollover: z.boolean().default(false),
     warningThresholdBasisPoints: z.number().int().min(1).max(10000).default(8000),
   })
   .strict();
@@ -37,7 +37,36 @@ export const budgetStatusSchema = budgetSchema.extend({
   overBudget: z.boolean(),
   warningReached: z.boolean(),
   timezone: z.string(),
+  carriedMinor: exactInteger.optional(),
+  effectiveLimitMinor: exactInteger.optional(),
 });
+export const monthlyLimitInputSchema = z
+  .object({
+    month: monthSchema,
+    amountMinor: positiveMinorSchema,
+    version: versionSchema.optional(),
+  })
+  .strict();
+export const monthlyLimitSchema = z.object({
+  month: monthSchema,
+  amountMinor: positiveMinorSchema,
+  ...entity,
+});
+export const monthlyLimitStatusSchema = z.object({
+  month: monthSchema,
+  plan: monthlyLimitSchema.nullable(),
+  spentMinor: exactInteger,
+  remainingMinor: exactInteger.nullable(),
+  warningReached: z.boolean(),
+});
+export const copyBudgetsSchema = z
+  .object({
+    fromMonth: monthSchema,
+    toMonth: monthSchema,
+    copyRollover: z.boolean().default(false),
+  })
+  .strict()
+  .refine((v) => v.fromMonth !== v.toMonth, 'Choose a different target month');
 export const goalInputSchema = z
   .object({
     name: nameSchema,

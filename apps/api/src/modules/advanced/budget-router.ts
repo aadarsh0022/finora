@@ -5,6 +5,8 @@ import {
   deleteRecordSchema,
   entityIdSchema,
   monthSchema,
+  monthlyLimitInputSchema,
+  copyBudgetsSchema,
 } from '@finora/contracts';
 import { authenticate } from '../auth/service';
 import { ApiError, readBody, success } from '../../utils/http';
@@ -19,6 +21,36 @@ export async function budgetRoute(request: Request, requestId: string): Promise<
   const context = await authenticate(request);
   await ensureAdvancedIndexes();
   const result = (data: unknown, status = 200) => success(data, requestId, status);
+  if (path.length === 2 && rawId === 'copy' && request.method === 'POST') {
+    z.object({}).strict().parse(Object.fromEntries(url.searchParams));
+    return result(
+      await service.copyBudgets(context, request, await readBody(request, copyBudgetsSchema)),
+    );
+  }
+  if (path.length === 2 && rawId === 'total') {
+    if (request.method === 'GET') {
+      const input = z
+        .object({ month: monthSchema })
+        .strict()
+        .parse(Object.fromEntries(url.searchParams));
+      return result(await service.totalLimit(context, input.month));
+    }
+    z.object({}).strict().parse(Object.fromEntries(url.searchParams));
+    if (request.method === 'POST')
+      return result(
+        await service.saveTotalLimit(
+          context,
+          request,
+          await readBody(request, monthlyLimitInputSchema),
+        ),
+        201,
+      );
+    if (request.method === 'DELETE') {
+      const input = await readBody(request, deleteRecordSchema.extend({ month: monthSchema }));
+      return result(await service.removeTotalLimit(context, request, input.month, input.version));
+    }
+    throw new ApiError(405, 'METHOD_NOT_ALLOWED', 'This method is not supported.');
+  }
   const id = rawId ? entityIdSchema.parse(rawId) : undefined;
   if (path.length > 2) throw new ApiError(404, 'NOT_FOUND', 'This endpoint does not exist.');
   if (!id && request.method === 'GET') {

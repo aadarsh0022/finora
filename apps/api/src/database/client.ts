@@ -69,6 +69,7 @@ async function ensureIndexes(db: Db) {
     'debts',
     'debt_events',
     'budgets',
+    'monthly_budget_limits',
     'savings_goals',
     'recurring_rules',
     'recurring_occurrences',
@@ -98,6 +99,9 @@ async function ensureIndexes(db: Db) {
     );
   await db.collection('import_previews').createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 });
   await db.collection('debt_events').createIndex({ userId: 1, debtId: 1, date: -1 });
+  await db
+    .collection('monthly_budget_limits')
+    .createIndex({ userId: 1, month: 1 }, { unique: true });
 }
 
 export async function closeDatabase() {

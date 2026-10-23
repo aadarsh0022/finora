@@ -12,6 +12,7 @@ import {
   recurringOccurrenceSchema,
   debtSchema,
   debtEventSchema,
+  monthlyLimitSchema,
   backupSchema,
   type Backup,
   type TransactionFilters,
@@ -39,6 +40,12 @@ const tables: {
   max: number;
   parse: (value: unknown) => Portable;
 }[] = [
+  {
+    key: 'monthlyLimits',
+    collection: 'monthly_budget_limits',
+    max: 1200,
+    parse: (v) => portable(monthlyLimitSchema, v),
+  },
   { key: 'debts', collection: 'debts', max: 200, parse: (v) => portable(debtSchema, v) },
   {
     key: 'debtEvents',
@@ -177,6 +184,7 @@ function plan(backup: Backup, current: Snapshot) {
   };
   if (
     natural(backup.budgets, current.budgets, (row) => `${row.month}:${row.categoryId}`) ||
+    natural(backup.monthlyLimits, current.monthlyLimits, (row) => row.month) ||
     natural(
       backup.recurringOccurrences,
       current.recurringOccurrences,
@@ -205,7 +213,12 @@ function plan(backup: Backup, current: Snapshot) {
     !backupSchema.safeParse({
       ...backup,
       ...merged,
-      version: merged.debts.length ? 2 : backup.version,
+      version:
+        merged.monthlyLimits.length || merged.budgets.some((b) => b.rollover)
+          ? 3
+          : merged.debts.length
+            ? 2
+            : backup.version,
     }).success
   )
     conflicts++;
@@ -245,7 +258,12 @@ export async function exportBackup(context: AuthContext): Promise<Backup> {
         const records = await snapshot(db, session, context.user.id);
         return backupSchema.parse({
           format: 'finora-backup',
-          version: records.debts.length ? 2 : 1,
+          version:
+            records.monthlyLimits.length || records.budgets.some((b) => b.rollover)
+              ? 3
+              : records.debts.length
+                ? 2
+                : 1,
           exportedAt: new Date().toISOString(),
           currency: await currentCurrency(db, session, context),
           ...records,
