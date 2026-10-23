@@ -51,6 +51,7 @@ function Navigation() {
           headerTintColor: theme.text,
           contentStyle: { backgroundColor: theme.background },
           headerShadowVisible: false,
+          headerTitle: '',
         }}
       >
         <Stack.Screen name="index" options={{ headerShown: false }} />
@@ -61,6 +62,7 @@ function Navigation() {
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           <Stack.Screen name="account" options={{ title: 'Account' }} />
           <Stack.Screen name="accounts" options={{ title: 'Accounts' }} />
+          <Stack.Screen name="settings" options={{ title: 'Settings' }} />
           <Stack.Screen
             name="transaction"
             options={{ title: 'Transaction', presentation: 'modal' }}

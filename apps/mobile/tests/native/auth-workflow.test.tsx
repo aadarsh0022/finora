@@ -82,6 +82,7 @@ test('validates registration before sending and passes the chosen base currency 
     screen.getByLabelText('Password · at least 12 characters'),
     'synthetic-test-password',
   );
+  await fireEvent.press(screen.getByRole('button', { name: 'Base currency' }));
   await fireEvent.press(screen.getByRole('radio', { name: 'USD' }));
   await fireEvent.press(screen.getByRole('button', { name: 'Create account' }));
   await waitFor(() => expect(acceptSession).toHaveBeenCalledWith(tokens));

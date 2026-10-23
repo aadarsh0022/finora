@@ -40,7 +40,7 @@ export default function Settings() {
     },
   });
   return (
-    <Screen title="Settings" subtitle="Make Finora feel like yours.">
+    <Screen title="Settings" includeTopInset={false}>
       <Card style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
         <View
           style={{
@@ -73,32 +73,23 @@ export default function Settings() {
         />
       )}
       {settings.data && (
-        <SettingsGroup title="Personalize">
+        <SettingsGroup title="Preferences">
           <PreferencesForm initial={settings.data} />
         </SettingsGroup>
       )}
       <SettingsGroup title="Your money">
+        <SettingsRow title="Accounts" icon="wallet" onPress={() => router.push('/accounts')} />
         <SettingsRow
-          title="Money coming back"
-          subtitle="Refunds, deposits and reimbursements"
-          icon="repeat"
-          onPress={() => router.push('/receivables')}
+          title="Categories"
+          icon="grid"
+          last
+          onPress={() => router.push('/categories')}
         />
-        <SettingsRow
-          title="Money Ahead"
-          subtitle="Commitments, scenarios and purchase previews"
-          icon="goal"
-          onPress={() => router.push('/money-ahead')}
-        />
-        <SettingsRow
-          title="Weekly check-in"
-          subtitle="Review entries and follow-ups"
-          icon="document"
-          onPress={() => router.push('/weekly-review')}
-        />
+      </SettingsGroup>
+      <SettingsGroup title="Data and security">
         <SettingsRow
           title="Reminders"
-          subtitle="Private prompts, on this device"
+          subtitle="Private prompts on this device"
           icon="preferences"
           onPress={() => router.push('/reminders')}
         />
@@ -108,27 +99,6 @@ export default function Settings() {
           icon="document"
           onPress={() => router.push('/favourites')}
         />
-        <SettingsRow
-          title="Debts"
-          subtitle="Borrowed, lent and repayments"
-          icon="repeat"
-          onPress={() => router.push('/debts')}
-        />
-        <SettingsRow title="Accounts" icon="wallet" onPress={() => router.push('/accounts')} />
-        <SettingsRow title="Categories" icon="grid" onPress={() => router.push('/categories')} />
-        <SettingsRow
-          title="Savings goals"
-          icon="goal"
-          onPress={() => router.push({ pathname: '/planning', params: { mode: 'goals' } })}
-        />
-        <SettingsRow
-          title="Recurring transactions"
-          icon="repeat"
-          last
-          onPress={() => router.push({ pathname: '/planning', params: { mode: 'recurring' } })}
-        />
-      </SettingsGroup>
-      <SettingsGroup title="Data and security">
         <SettingsRow
           title="Sync status"
           subtitle="Pending offline transactions"
@@ -433,7 +403,7 @@ function SettingsRow({
           width: 34,
           height: 34,
           borderRadius: 10,
-          backgroundColor: theme.accentSoft,
+          backgroundColor: theme.background,
           alignItems: 'center',
           justifyContent: 'center',
         }}
@@ -441,7 +411,7 @@ function SettingsRow({
         <Svg width={19} height={19} viewBox="0 0 24 24" accessible={false}>
           <Path
             d={settingsIcons[icon]}
-            stroke={theme.accent}
+            stroke={theme.muted}
             strokeWidth={1.6}
             strokeLinecap="round"
             strokeLinejoin="round"

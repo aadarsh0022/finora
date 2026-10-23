@@ -1,3 +1,4 @@
+import { ProfileAction } from '../../components/design';
 import { transactionPageSchema } from '@finora/contracts';
 import { calendarDate } from '@finora/finance-core';
 import { router } from 'expo-router';
@@ -106,7 +107,8 @@ export default function Transactions() {
   }
   return (
     <Screen
-      title="Transactions"
+      title="Activity"
+      headerAction={<ProfileAction />}
       subtitle="Your money, one entry at a time."
       onRefresh={() => query.refetch()}
       floatingAction={

@@ -1,3 +1,7 @@
+import { View, Pressable } from 'react-native';
+import { openURL } from 'expo-linking';
+import { publicPageUrl } from '../../public-site';
+import { SelectField } from '../../components/flow';
 import { useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -13,7 +17,7 @@ import {
   sessionTokensSchema,
 } from '@finora/contracts';
 import type { Currency } from '@finora/contracts';
-import { AppButton, AppText, Card, Choice, Feedback, Field, Screen } from '../../components/ui';
+import { AppButton, AppText, Feedback, Field, Screen } from '../../components/ui';
 import { useApp } from '../../providers/app-provider';
 
 export function AuthForm({ mode }: { mode: 'login' | 'register' }) {
@@ -63,21 +67,16 @@ export function AuthForm({ mode }: { mode: 'login' | 'register' }) {
       <AppText style={{ fontFamily: 'DMSansBold', fontSize: 32, letterSpacing: -1 }}>
         finora
       </AppText>
-      <AppText tone="accent" style={{ letterSpacing: 2, fontSize: 12 }}>
-        A CLEARER EVERYDAY
-      </AppText>
       <AppText
         accessibilityRole="header"
         style={{ fontFamily: 'DMSansBold', fontSize: 36, lineHeight: 44 }}
       >
-        {registration ? 'Your next chapter\nstarts here.' : 'Welcome back.\nMake room for clarity.'}
+        {registration ? 'Create your account' : 'Welcome back'}
       </AppText>
       <AppText tone="muted">
-        {registration
-          ? 'A calm space for the money you track. Choose your base currency before your first account.'
-          : 'Sign in to pick up where you left off.'}
+        {registration ? 'A clearer view of your money.' : 'Sign in to pick up where you left off.'}
       </AppText>
-      <Card>
+      <View style={{ gap: 20 }}>
         {registration && (
           <Controller
             control={control}
@@ -126,12 +125,17 @@ export function AuthForm({ mode }: { mode: 'login' | 'register' }) {
           )}
         />
         {registration && (
-          <Choice
+          <SelectField
             label="Base currency"
             value={currency}
             options={currencySchema.options.map((value) => ({ value, label: value }))}
             onChange={setCurrency}
           />
+        )}
+        {registration && (
+          <AppText tone="muted" style={{ fontSize: 13 }}>
+            Currency is fixed after your first account.
+          </AppText>
         )}
         <AppButton
           title={registration ? 'Create account' : 'Sign in'}
@@ -140,7 +144,7 @@ export function AuthForm({ mode }: { mode: 'login' | 'register' }) {
             void handleSubmit(submit)();
           }}
         />
-      </Card>
+      </View>
       {!!error && <Feedback error={error} />}
       {!registration && (
         <Link href="/(auth)/forgot-password" asChild>
@@ -151,9 +155,26 @@ export function AuthForm({ mode }: { mode: 'login' | 'register' }) {
       )}
       <Link href={registration ? '/(auth)/login' : '/(auth)/register'} asChild>
         <AppText tone="accent" style={{ textAlign: 'center', padding: 12 }}>
-          {registration ? 'Already tracking with us? Sign in' : 'New here? Create your account'}
+          {registration ? 'Already have an account? Sign in' : 'New here? Create your account'}
         </AppText>
       </Link>
+      <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 20 }}>
+        {(['privacy', 'terms'] as const).map((page) => (
+          <Pressable
+            key={page}
+            accessibilityRole="link"
+            accessibilityLabel={page === 'privacy' ? 'Privacy policy' : 'Terms'}
+            onPress={() => {
+              void openURL(publicPageUrl(page)).catch(setError);
+            }}
+            style={{ minHeight: 48, justifyContent: 'center' }}
+          >
+            <AppText tone="muted" style={{ fontSize: 13 }}>
+              {page === 'privacy' ? 'Privacy' : 'Terms'}
+            </AppText>
+          </Pressable>
+        ))}
+      </View>
       <AppText tone="muted" style={{ fontSize: 13, textAlign: 'center' }}>
         Manual tracking. No bank credentials required.
       </AppText>

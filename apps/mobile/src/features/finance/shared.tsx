@@ -136,23 +136,23 @@ export function TransactionCard({
       accessibilityHint="Opens transaction details"
       onPress={() => router.push({ pathname: '/transaction', params: { id: item.id } })}
       style={({ pressed }) => ({
-        padding: 16,
-        backgroundColor: theme.surface,
-        borderRadius: 18,
-        borderWidth: 1,
-        borderColor: theme.border,
+        paddingVertical: 16,
+        paddingHorizontal: 2,
+        backgroundColor: theme.background,
+        borderBottomWidth: 1,
+        borderBottomColor: theme.border,
         opacity: pressed ? 0.75 : 1,
         flexDirection: 'row',
         gap: 12,
         alignItems: 'center',
-        minHeight: 92,
+        minHeight: 80,
       })}
     >
       <View
         style={{
           width: 44,
           height: 44,
-          borderRadius: 14,
+          borderRadius: 22,
           backgroundColor:
             item.type === 'EXPENSE'
               ? theme.dangerSoft

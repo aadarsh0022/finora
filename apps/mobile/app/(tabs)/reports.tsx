@@ -1,3 +1,4 @@
+import { ProfileAction } from '../../src/components/design';
 import { reportRangeSchema, reportSummarySchema, type ReportRange } from '@finora/contracts';
 import { calendarDate } from '@finora/finance-core';
 import { useMutation } from '@tanstack/react-query';
@@ -86,7 +87,8 @@ export default function Reports() {
   });
   return (
     <Screen
-      title="Reports"
+      title="Insights"
+      headerAction={<ProfileAction />}
       subtitle="Understand where your money goes."
       onRefresh={() => query.refetch()}
     >

@@ -137,15 +137,7 @@ test('settings navigation opens connected management, planning, backup and secur
     await fireEvent.press(screen.getByRole('button', { name: title }));
     expect(router.push).toHaveBeenCalledWith(destination);
   }
-  await fireEvent.press(screen.getByRole('button', { name: 'Savings goals' }));
-  await waitFor(() =>
-    expect(router.push).toHaveBeenCalledWith({ pathname: '/planning', params: { mode: 'goals' } }),
-  );
-  await fireEvent.press(screen.getByRole('button', { name: 'Recurring transactions' }));
-  expect(router.push).toHaveBeenCalledWith({
-    pathname: '/planning',
-    params: { mode: 'recurring' },
-  });
+  expect(screen.queryByRole('button', { name: 'Savings goals' })).toBeNull();
 });
 
 test('closing preferences confirms unsaved edits and discarding never writes settings', async () => {

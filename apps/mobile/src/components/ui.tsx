@@ -40,6 +40,7 @@ export function Screen({
   onRefresh,
   bottomAction,
   floatingAction,
+  headerAction,
   includeTopInset = true,
 }: {
   title?: string;
@@ -48,6 +49,7 @@ export function Screen({
   onRefresh?: () => Promise<unknown>;
   bottomAction?: ReactNode;
   floatingAction?: ReactNode;
+  headerAction?: ReactNode;
   includeTopInset?: boolean;
 }) {
   const theme = useTheme();
@@ -98,13 +100,24 @@ export function Screen({
           }}
         >
           {network.isConnected === false && (
-            <Card>
-              <AppText tone="danger">
-                {vault
-                  ? 'You’re offline. Previously loaded records are available. New transactions can be saved for sync; other changes need a connection.'
-                  : 'You’re offline. Cached views may be out of date. Reconnect before saving.'}
+            <View
+              style={{
+                padding: 12,
+                backgroundColor: theme.surface,
+                borderRadius: 12,
+                borderWidth: 1,
+                borderColor: theme.border,
+              }}
+            >
+              <AppText style={{ fontSize: 13, fontFamily: 'DMSansBold' }}>
+                Offline · Showing saved records
               </AppText>
-            </Card>
+              <AppText tone="muted" style={{ fontSize: 12, lineHeight: 18 }}>
+                {vault
+                  ? 'New entries wait for sync. Other changes need a connection.'
+                  : 'Reconnect before saving. Records may be out of date.'}
+              </AppText>
+            </View>
           )}
           {user && storageError ? (
             <AppText tone="danger" style={{ fontSize: 13 }}>
@@ -113,19 +126,27 @@ export function Screen({
           ) : null}
           {user && vault && <PendingStatus />}
           {title && (
-            <View style={{ gap: 8 }}>
-              <AppText
-                accessibilityRole="header"
-                style={{
-                  fontFamily: 'DMSansBold',
-                  fontSize: 30,
-                  lineHeight: 38,
-                  letterSpacing: -1,
-                }}
-              >
-                {title}
-              </AppText>
-              {subtitle && <AppText tone="muted">{subtitle}</AppText>}
+            <View style={{ gap: 6 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                <AppText
+                  accessibilityRole="header"
+                  style={{
+                    fontFamily: 'DMSansBold',
+                    fontSize: 30,
+                    lineHeight: 38,
+                    letterSpacing: -1,
+                    flex: 1,
+                  }}
+                >
+                  {title}
+                </AppText>
+                {headerAction}
+              </View>
+              {subtitle && (
+                <AppText tone="muted" style={{ fontSize: 14, lineHeight: 21 }}>
+                  {subtitle}
+                </AppText>
+              )}
             </View>
           )}
           {children}
@@ -168,11 +189,19 @@ function PendingStatus() {
       accessibilityRole="button"
       accessibilityLabel="View pending sync"
       onPress={() => router.push('/sync')}
-      style={{ padding: 12, backgroundColor: theme.accentSoft, borderRadius: 12 }}
+      style={{
+        paddingVertical: 10,
+        paddingHorizontal: 12,
+        backgroundColor: theme.accentSoft,
+        borderRadius: 12,
+        minHeight: 48,
+        justifyContent: 'center',
+      }}
     >
       <AppText style={{ fontSize: 13 }}>
-        {pending.data.length} {pending.data.length === 1 ? 'entry' : 'entries'} waiting for sync ·
-        View details
+        {pending.data.filter((item) => item.value.state === 'PENDING').length} pending ·{' '}
+        {pending.data.filter((item) => item.value.state === 'ATTENTION').length} need review · View
+        sync
       </AppText>
     </Pressable>
   );
@@ -187,9 +216,9 @@ export function Card({ style, ...props }: ViewProps) {
           backgroundColor: theme.surface,
           borderColor: theme.border,
           borderWidth: 1,
-          borderRadius: 18,
-          padding: 18,
-          gap: 12,
+          borderRadius: 14,
+          padding: 16,
+          gap: 14,
         },
         style,
       ]}
@@ -248,6 +277,22 @@ export function Field({
   ...props
 }: TextInputProps & { label: string; error?: string; hint?: string; trailingAction?: ReactNode }) {
   const theme = useTheme();
+  const [focused, setFocused] = useState(false);
+  const [revealed, setRevealed] = useState(false);
+  const endAction =
+    trailingAction ??
+    (props.secureTextEntry ? (
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`${revealed ? 'Hide' : 'Show'} ${label.toLowerCase()}`}
+        onPress={() => setRevealed(!revealed)}
+        style={{ minWidth: 48, minHeight: 48, alignItems: 'center', justifyContent: 'center' }}
+      >
+        <AppText tone="accent" style={{ fontSize: 12 }}>
+          {revealed ? 'Hide' : 'Show'}
+        </AppText>
+      </Pressable>
+    ) : undefined);
   return (
     <View style={{ gap: 7 }}>
       <AppText style={{ fontSize: 14, fontFamily: 'DMSansBold' }}>{label}</AppText>
@@ -255,16 +300,25 @@ export function Field({
         <TextInput
           {...props}
           accessibilityLabel={label}
+          secureTextEntry={props.secureTextEntry && !revealed}
+          onFocus={(event) => {
+            setFocused(true);
+            props.onFocus?.(event);
+          }}
+          onBlur={(event) => {
+            setFocused(false);
+            props.onBlur?.(event);
+          }}
           placeholderTextColor={theme.muted}
           style={[
             {
               minHeight: 54,
               color: theme.text,
               backgroundColor: theme.surface,
-              borderColor: error ? theme.danger : theme.border,
+              borderColor: error ? theme.danger : focused ? theme.accent : theme.border,
               borderWidth: 1,
               padding: 14,
-              paddingRight: trailingAction ? 54 : 14,
+              paddingRight: endAction ? 62 : 14,
               borderRadius: 12,
               fontSize: 16,
               fontFamily: 'DMSans',
@@ -272,11 +326,11 @@ export function Field({
             props.style,
           ]}
         />
-        {trailingAction && (
+        {endAction && (
           <View
             style={{ position: 'absolute', right: 5, top: 0, bottom: 0, justifyContent: 'center' }}
           >
-            {trailingAction}
+            {endAction}
           </View>
         )}
       </View>
@@ -298,17 +352,35 @@ export function Choice<T extends string>({
   value,
   options,
   onChange,
+  presentation,
 }: {
   label: string;
   value: T;
-  options: readonly { value: T; label: string }[];
+  presentation?: 'segmented' | 'list';
+  options: readonly { value: T; label: string; description?: string }[];
   onChange: (value: T) => void;
 }) {
   const theme = useTheme();
+  const segmented =
+    presentation === 'segmented' ||
+    (presentation !== 'list' && options.length <= 4 && options.every((o) => o.label.length <= 20));
   return (
     <View style={{ gap: 10 }}>
-      <AppText>{label}</AppText>
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+      <AppText style={{ fontSize: 14, fontFamily: 'DMSansBold' }}>{label}</AppText>
+      <View
+        style={
+          segmented
+            ? {
+                flexDirection: 'row',
+                flexWrap: 'wrap',
+                gap: 4,
+                padding: 4,
+                borderRadius: 14,
+                backgroundColor: theme.border,
+              }
+            : { gap: 8 }
+        }
+      >
         {options.map((option) => (
           <Pressable
             key={option.value}
@@ -316,17 +388,38 @@ export function Choice<T extends string>({
             accessibilityState={{ checked: option.value === value }}
             onPress={() => onChange(option.value)}
             style={{
-              padding: 12,
+              paddingVertical: 12,
+              paddingHorizontal: 10,
               minHeight: 48,
+              flexGrow: segmented ? 1 : 0,
+              flexBasis: segmented ? 'auto' : undefined,
               borderRadius: 12,
-              borderWidth: 1,
+              borderWidth: segmented ? 0 : 1,
               borderColor: option.value === value ? theme.accent : theme.border,
-              backgroundColor: option.value === value ? theme.accentSoft : theme.surface,
+              backgroundColor:
+                option.value === value
+                  ? theme.accentSoft
+                  : segmented
+                    ? 'transparent'
+                    : theme.surface,
+              justifyContent: 'center',
+              gap: 3,
             }}
           >
-            <AppText style={{ fontFamily: option.value === value ? 'DMSansBold' : 'DMSans' }}>
+            <AppText
+              style={{
+                fontSize: 14,
+                textAlign: segmented ? 'center' : 'left',
+                fontFamily: option.value === value ? 'DMSansBold' : 'DMSans',
+              }}
+            >
               {option.label}
             </AppText>
+            {option.description && (
+              <AppText tone="muted" style={{ fontSize: 13, lineHeight: 19 }}>
+                {option.description}
+              </AppText>
+            )}
           </Pressable>
         ))}
       </View>

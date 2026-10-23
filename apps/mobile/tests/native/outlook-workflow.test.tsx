@@ -1,3 +1,5 @@
+import Plan from '../../app/(tabs)/plan';
+import { router } from 'expo-router';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import {
@@ -61,7 +63,9 @@ function fixture() {
     moreRecentCount: 0,
   });
 }
-async function mount(options: { pending?: boolean; unknown?: boolean; weekly?: boolean } = {}) {
+async function mount(
+  options: { pending?: boolean; unknown?: boolean; weekly?: boolean; plan?: boolean } = {},
+) {
   let payload = fixture();
   const { vault } = testVault(id);
   const preferences = outlookPreferencesSchema.parse({
@@ -124,11 +128,15 @@ async function mount(options: { pending?: boolean; unknown?: boolean; weekly?: b
   const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
   await render(
     <QueryClientProvider client={client}>
-      {options.weekly ? <WeeklyReview /> : <MoneyAhead />}
+      {options.plan ? <Plan /> : options.weekly ? <WeeklyReview /> : <MoneyAhead />}
     </QueryClientProvider>,
   );
   await screen.findByText(
-    options.weekly ? '2. Review recent entries' : 'Every deduction, explained',
+    options.plan
+      ? 'Your plans'
+      : options.weekly
+        ? '2. Review recent entries'
+        : 'Every deduction, explained',
   );
   return {
     vault,
@@ -220,3 +228,36 @@ test('pauses an existing purchase estimate if a new pending save could overlap t
   expect(screen.queryByText(/Lowest projected amount:/)).toBeNull();
   expect(screen.getByRole('button', { name: 'Preview a purchase' })).toBeDisabled();
 });
+
+test('Plan exposes the financial tools and excludes expected income from its headline', async () => {
+  await mount({ plan: true });
+  await screen.findByText(formatMoney('700000', 'INR', 'en-IN'));
+  expect(screen.getByText('Estimated available · Expected income excluded')).toBeOnTheScreen();
+  for (const [label, path] of [
+    ['Money owed', '/debts'],
+    ['Coming back', '/receivables'],
+    ['Your weekly check-in', '/weekly-review'],
+  ] as const) {
+    await fireEvent.press(screen.getByRole('button', { name: label }));
+    expect(router.push).toHaveBeenCalledWith(path);
+  }
+  for (const [label, mode] of [
+    ['Budgets', 'budgets'],
+    ['Savings goals', 'goals'],
+    ['Recurring', 'recurring'],
+  ] as const) {
+    await fireEvent.press(screen.getByRole('button', { name: label }));
+    expect(router.push).toHaveBeenCalledWith({ pathname: '/planning', params: { mode } });
+  }
+});
+test.each([{ pending: true }, { unknown: true }])(
+  'Plan withholds an incomplete estimate: %s',
+  async (options) => {
+    const { client } = await mount({ ...options, plan: true });
+    await waitFor(() => expect(client.isFetching()).toBe(0));
+    expect(screen.queryByText(formatMoney('700000', 'INR', 'en-IN'))).toBeNull();
+    expect(
+      screen.getByText('Review balances and commitments to see your estimate.'),
+    ).toBeOnTheScreen();
+  },
+);

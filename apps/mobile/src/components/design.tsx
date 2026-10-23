@@ -1,0 +1,244 @@
+import { useState, type ReactNode } from 'react';
+import { Pressable, View } from 'react-native';
+import { router } from 'expo-router';
+import Svg, { Path } from 'react-native-svg';
+import { AppText } from './ui';
+import { useTheme } from '../theme';
+
+const paths = {
+  wallet: 'M3 6h17v14H3V6Zm0 0V4h14v2M16 11h4v5h-4z',
+  activity: 'M5 6h14M5 12h14M5 18h14',
+  plan: 'M12 3a9 9 0 1 0 9 9M12 3v9h9',
+  goal: 'M12 3a9 9 0 1 0 9 9M12 7a5 5 0 1 0 5 5M12 12l9-9m-5 0h5v5',
+  repeat: 'M4 8h16m-4-4 4 4-4 4M20 16H4m4-4-4 4 4 4',
+  calendar: 'M4 5h16v16H4zM8 3v4m8-4v4M4 10h16',
+  shield: 'm12 3 8 3v6c0 5-8 9-8 9s-8-4-8-9V6l8-3Zm-4 9 3 3 5-6',
+  info: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18ZM12 11v6m0-10h.01',
+  plus: 'M12 5v14M5 12h14',
+  chevron: 'm9 5 7 7-7 7',
+  more: 'M5 12h.01M12 12h.01M19 12h.01',
+} as const;
+export type IconName = keyof typeof paths;
+
+export function Icon({
+  name,
+  color,
+  size = 22,
+}: {
+  name: IconName;
+  color?: string;
+  size?: number;
+}) {
+  const theme = useTheme();
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" accessible={false}>
+      <Path
+        d={paths[name]}
+        stroke={color ?? theme.muted}
+        strokeWidth={1.8}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        fill="none"
+      />
+    </Svg>
+  );
+}
+
+export function ProfileAction() {
+  const theme = useTheme();
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel="Open settings"
+      onPress={() => router.push('/settings')}
+      style={({ pressed }) => ({
+        minWidth: 48,
+        minHeight: 48,
+        alignItems: 'center',
+        justifyContent: 'center',
+        opacity: pressed ? 0.6 : 1,
+      })}
+    >
+      <View
+        style={{
+          width: 36,
+          height: 36,
+          borderRadius: 18,
+          backgroundColor: theme.border,
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <AppText style={{ fontFamily: 'DMSansBold' }}>F</AppText>
+      </View>
+    </Pressable>
+  );
+}
+
+export function AddTransactionAction() {
+  const theme = useTheme();
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel="Add a transaction"
+      onPress={() => router.push('/transaction')}
+      style={({ pressed }) => ({
+        width: 56,
+        height: 56,
+        borderRadius: 28,
+        backgroundColor: theme.accent,
+        alignItems: 'center',
+        justifyContent: 'center',
+        opacity: pressed ? 0.75 : 1,
+        elevation: 3,
+        boxShadow: '0px 3px 8px #00000022',
+      })}
+    >
+      <Icon name="plus" color={theme.onAccent} size={26} />
+    </Pressable>
+  );
+}
+
+export function SectionHeading({
+  title,
+  action,
+  onPress,
+}: {
+  title: string;
+  action?: string;
+  onPress?: () => void;
+}) {
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+      <AppText
+        accessibilityRole="header"
+        style={{ flex: 1, fontFamily: 'DMSansBold', fontSize: 20, lineHeight: 28 }}
+      >
+        {title}
+      </AppText>
+      {action && onPress && (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={action}
+          onPress={onPress}
+          style={{ minHeight: 48, justifyContent: 'center', paddingHorizontal: 4 }}
+        >
+          <AppText tone="accent" style={{ fontSize: 14, fontFamily: 'DMSansBold' }}>
+            {action}
+          </AppText>
+        </Pressable>
+      )}
+    </View>
+  );
+}
+
+export function ActionRow({
+  title,
+  subtitle,
+  value,
+  icon = 'chevron',
+  onPress,
+  danger = false,
+  last = false,
+}: {
+  title: string;
+  subtitle?: string;
+  value?: string;
+  icon?: IconName;
+  onPress: () => void;
+  danger?: boolean;
+  last?: boolean;
+}) {
+  const theme = useTheme();
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={title}
+      onPress={onPress}
+      style={({ pressed }) => ({
+        minHeight: 72,
+        paddingVertical: 14,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 14,
+        borderBottomWidth: last ? 0 : 1,
+        borderBottomColor: theme.border,
+        opacity: pressed ? 0.6 : 1,
+      })}
+    >
+      <View
+        style={{
+          width: 40,
+          height: 40,
+          borderRadius: 20,
+          backgroundColor: theme.background,
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <Icon name={icon} color={danger ? theme.danger : theme.muted} />
+      </View>
+      <View style={{ flex: 1, gap: 3 }}>
+        <AppText tone={danger ? 'danger' : 'text'} style={{ fontFamily: 'DMSansBold' }}>
+          {title}
+        </AppText>
+        {subtitle && (
+          <AppText tone="muted" style={{ fontSize: 13, lineHeight: 19 }}>
+            {subtitle}
+          </AppText>
+        )}
+      </View>
+      {value && (
+        <AppText tone="muted" style={{ fontSize: 13, flexShrink: 1 }}>
+          {value}
+        </AppText>
+      )}
+      <Icon name="chevron" size={18} />
+    </Pressable>
+  );
+}
+
+export function Disclosure({
+  title,
+  children,
+  initiallyOpen = false,
+}: {
+  title: string;
+  children: ReactNode;
+  initiallyOpen?: boolean;
+}) {
+  const [open, setOpen] = useState(initiallyOpen);
+  const theme = useTheme();
+  return (
+    <View style={{ gap: open ? 12 : 0 }}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={title}
+        accessibilityState={{ expanded: open }}
+        onPress={() => setOpen(!open)}
+        style={{ minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: 12 }}
+      >
+        <Icon name="info" />
+        <AppText style={{ flex: 1, fontSize: 14, fontFamily: 'DMSansBold' }}>{title}</AppText>
+        <AppText style={{ color: theme.muted, fontSize: 20 }}>{open ? '−' : '+'}</AppText>
+      </Pressable>
+      {open && children}
+    </View>
+  );
+}
+
+export function ImpactNotice({ title, children }: { title: string; children?: ReactNode }) {
+  const theme = useTheme();
+  return (
+    <View style={{ padding: 16, borderRadius: 14, backgroundColor: theme.accentSoft, gap: 6 }}>
+      <AppText style={{ fontSize: 14, lineHeight: 21, fontFamily: 'DMSansBold' }}>{title}</AppText>
+      {typeof children === 'string' ? (
+        <AppText tone="muted" style={{ fontSize: 13, lineHeight: 20 }}>
+          {children}
+        </AppText>
+      ) : (
+        children
+      )}
+    </View>
+  );
+}

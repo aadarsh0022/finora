@@ -25,27 +25,29 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="transactions"
         options={{
-          title: 'Transactions',
+          title: 'Activity',
           tabBarIcon: ({ color }) => <NavigationIcon name="transactions" color={color} />,
         }}
       />
       <Tabs.Screen
-        name="budgets"
+        name="plan"
         options={{
-          title: 'Budgets',
+          title: 'Plan',
           tabBarIcon: ({ color }) => <NavigationIcon name="budgets" color={color} />,
         }}
       />
       <Tabs.Screen
         name="reports"
         options={{
-          title: 'Reports',
+          title: 'Insights',
           tabBarIcon: ({ color }) => <NavigationIcon name="reports" color={color} />,
         }}
       />
+      <Tabs.Screen name="budgets" options={{ href: null }} />
       <Tabs.Screen
         name="settings"
         options={{
+          href: null,
           title: 'Settings',
           tabBarIcon: ({ color }) => <NavigationIcon name="settings" color={color} />,
         }}
