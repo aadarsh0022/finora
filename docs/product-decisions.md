@@ -1,5 +1,12 @@
 # Product and implementation decisions
 
+- 24 October: send a personalized transactional welcome email after the first
+  successful signup, using a first-name HTML greeting and hosted support/privacy
+  links. Delivery runs through Next.js after-response work, is deduplicated at the
+  provider by user ID, and never turns a completed signup into an email error.
+  Failed welcome delivery is logged without personal data; automatic retry is not
+  provided by this best-effort notification.
+
 - 24 October: the private administration page uses an explicitly light monochrome
   theme, summary cards, a searchable current-page table and responsive overflow.
   Session counts remain labelled as valid sessions rather than live presence.

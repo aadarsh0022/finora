@@ -1,8 +1,12 @@
 import { dispatch } from '../../../../src/router';
+import { after } from 'next/server';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
-export const GET = dispatch;
-export const POST = dispatch;
-export const PATCH = dispatch;
-export const DELETE = dispatch;
-export const PUT = dispatch;
+function route(request: Request) {
+  return dispatch(request, after);
+}
+export const GET = route;
+export const POST = route;
+export const PATCH = route;
+export const DELETE = route;
+export const PUT = route;
