@@ -153,6 +153,7 @@ test('consents explicitly, sends only bounded question context and renders exact
       body: {
         question: 'What is my current balance?',
         previousQuestions: [],
+        previousReplies: [],
         acceptedPolicyVersion: assistantPolicyVersion,
       },
     },
