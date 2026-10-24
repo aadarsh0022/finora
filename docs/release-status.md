@@ -162,3 +162,16 @@ Play Console now verifies code 4 as available to selected Alpha testers at 100%
 rollout in 178 countries/regions. Code 5 still requires a fresh signed bundle,
 Play upload, the owner's full 20-minute wait, verification and review submission.
 Public production and billing remain outside this closed-testing release.
+
+## Lock reopening correction: GitHub only
+
+After code 5 was uploaded, the owner reported a lock screen despite not enabling
+biometrics. Disabled-policy background handling and startup UI were corrected;
+nine native lock cases pass. The enabled lock screen now uses a full-height,
+safe-area-aware layout with centered identity and lower unlock/recovery controls.
+
+The owner subsequently restricted this session to fixes and GitHub pushes only.
+Do not upload or submit the pending Play draft, build another release, or infer
+publication from the earlier upload. No release version increment accompanies
+this source fix. A future release requires renewed authorization and a newly
+verified artifact containing the correction.

@@ -6,12 +6,17 @@ import {
   useSyncExternalStore,
   type ReactNode,
 } from 'react';
-import { AppState, Modal, View } from 'react-native';
+import { AppState, Modal, ScrollView, View } from 'react-native';
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
+import { StatusBar } from 'expo-status-bar';
+import { FinoraWordmark } from '../components/brand';
+import { Icon } from '../components/design';
 import * as LocalAuthentication from 'expo-local-authentication';
 import * as SecureStore from 'expo-secure-store';
 import { AppLockController } from '../security/app-lock';
 import { useApp } from './app-provider';
-import { AppButton, AppText, Card, Feedback, Loading, Screen } from '../components/ui';
+import { AppButton, AppText, Card, Feedback } from '../components/ui';
+import { Startup } from '../components/startup';
 import { useTheme } from '../theme';
 
 const key = (userId: string) => `finora.app-lock.v1.${userId}`;
@@ -73,8 +78,13 @@ export function AppLockProvider({ children }: { children: ReactNode }) {
     !!user &&
     (state.owner !== user.id ||
       !state.ready ||
-      !state.active ||
-      (state.enabled && !state.unlocked));
+      (state.enabled && (!state.active || !state.unlocked)));
+  // Reading policy is startup, not a biometric challenge. In particular, a
+  // native Modal must not turn an inactive state into a lock when policy is off.
+  const showLock =
+    !!user &&
+    state.owner === user.id &&
+    (!!state.error || (state.ready && state.enabled && !state.unlocked));
   async function signOutAndReset() {
     if (!user) return;
     const owner = user.id;
@@ -101,49 +111,113 @@ export function AppLockProvider({ children }: { children: ReactNode }) {
         >
           {children}
         </View>
+        {hidden && !showLock && (
+          <View
+            style={{
+              position: 'absolute',
+              inset: 0,
+              backgroundColor: theme.background,
+            }}
+          >
+            <Startup />
+          </View>
+        )}
         <Modal
-          visible={hidden}
+          visible={showLock}
           animationType="none"
           presentationStyle="fullScreen"
           onRequestClose={() => undefined}
         >
-          <View style={{ flex: 1, backgroundColor: theme.background }}>
-            <Screen title="Finora is locked" subtitle="Your financial details are hidden.">
-              {!state.ready && !state.error ? <Loading /> : null}
-              {state.error ? (
-                <Feedback
-                  error={new Error(state.error)}
-                  retry={() => {
-                    if (!state.ready) void controller.select(user?.id ?? null);
-                    else void controller.unlock();
+          <SafeAreaProvider style={{ flex: 1, backgroundColor: theme.background }}>
+            <SafeAreaView style={{ flex: 1 }} edges={['top', 'bottom', 'left', 'right']}>
+              <StatusBar style={theme.onAccent === '#FFFFFF' ? 'dark' : 'light'} />
+              <ScrollView
+                bounces={false}
+                contentContainerStyle={{ flexGrow: 1, padding: 24, gap: 24 }}
+              >
+                <FinoraWordmark />
+                <View
+                  style={{
+                    flexGrow: 1,
+                    flexShrink: 0,
+                    minHeight: 220,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 18,
+                    paddingVertical: 32,
                   }}
-                />
-              ) : null}
-              {state.ready && state.enabled && (
-                <AppButton
-                  title="Unlock with biometrics"
-                  loading={state.busy}
-                  onPress={() => {
-                    void controller.unlock();
-                  }}
-                />
-              )}
-              {error ? <Feedback error={new Error(error)} /> : null}
-              <AppButton
-                title="Sign out and reset app lock"
-                variant="secondary"
-                loading={signingOut}
-                disabled={state.busy}
-                onPress={() => {
-                  void signOutAndReset();
-                }}
-              />
-              <AppText tone="muted">
-                If biometrics are unavailable, sign out here and use your email and password to sign
-                in again.
-              </AppText>
-            </Screen>
-          </View>
+                >
+                  <View
+                    style={{
+                      width: 88,
+                      height: 88,
+                      borderRadius: 28,
+                      backgroundColor: theme.accentSoft,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <Icon name="lock" color={theme.accent} size={36} />
+                  </View>
+                  <AppText
+                    accessibilityRole="header"
+                    style={{
+                      fontFamily: 'DMSansBold',
+                      fontSize: 30,
+                      lineHeight: 38,
+                      textAlign: 'center',
+                    }}
+                  >
+                    Finora is locked
+                  </AppText>
+                  <AppText
+                    tone="muted"
+                    style={{ fontSize: 15, lineHeight: 23, textAlign: 'center', maxWidth: 290 }}
+                  >
+                    Your financial details are hidden.
+                  </AppText>
+                </View>
+                <View style={{ gap: 14 }}>
+                  {state.error ? (
+                    <Feedback
+                      error={new Error(state.error)}
+                      retry={() => {
+                        if (!state.ready) void controller.select(user?.id ?? null);
+                        else void controller.unlock();
+                      }}
+                    />
+                  ) : null}
+                  {error ? <Feedback error={new Error(error)} /> : null}
+                  {state.ready && state.enabled && (
+                    <AppButton
+                      title="Unlock with biometrics"
+                      loading={state.busy}
+                      disabled={signingOut}
+                      onPress={() => {
+                        void controller.unlock();
+                      }}
+                    />
+                  )}
+                  <AppButton
+                    title="Sign out and reset app lock"
+                    variant="secondary"
+                    loading={signingOut}
+                    disabled={state.busy}
+                    onPress={() => {
+                      void signOutAndReset();
+                    }}
+                  />
+                  <AppText
+                    tone="muted"
+                    style={{ fontSize: 12, lineHeight: 18, textAlign: 'center' }}
+                  >
+                    If biometrics are unavailable, sign out and sign in again with your email and
+                    password.
+                  </AppText>
+                </View>
+              </ScrollView>
+            </SafeAreaView>
+          </SafeAreaProvider>
         </Modal>
       </View>
     </LockContext.Provider>

@@ -1,3 +1,4 @@
+import mockSafeAreaContext from 'react-native-safe-area-context/jest/mock';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import { AppState, Text, type AppStateStatus } from 'react-native';
 import * as LocalAuthentication from 'expo-local-authentication';
@@ -7,6 +8,7 @@ import { ApiClient } from '../../src/api/client';
 import { AppLockProvider } from '../../src/providers/app-lock-provider';
 import { useApp } from '../../src/providers/app-provider';
 
+jest.mock('react-native-safe-area-context', () => mockSafeAreaContext);
 jest.mock('../../src/providers/app-provider', () => ({ useApp: jest.fn() }));
 jest.mock('expo-network', () => ({ useNetworkState: jest.fn(() => ({ isConnected: true })) }));
 jest.mock('expo-local-authentication', () => ({
@@ -82,14 +84,15 @@ async function mount() {
   );
 }
 
-function expectHidden() {
+function expectHidden(lockModal = true) {
   expect(screen.queryByText('Private balance ₹100')).not.toBeOnTheScreen();
   expect(
     screen.getByText('Private balance ₹100', { includeHiddenElements: true }),
   ).not.toBeVisible();
   const modal = screen.container.queryAll((instance) => instance.type === 'Modal');
-  expect(modal).toHaveLength(1);
-  expect(modal[0]?.props).toMatchObject({ visible: true, presentationStyle: 'fullScreen' });
+  expect(modal).toHaveLength(lockModal ? 1 : 0);
+  if (lockModal)
+    expect(modal[0]?.props).toMatchObject({ visible: true, presentationStyle: 'fullScreen' });
 }
 
 test('hides financial content immediately while reading enabled policy and requires a successful strong biometric', async () => {
@@ -101,8 +104,11 @@ test('hides financial content immediately while reading enabled policy and requi
       }),
   );
   await mount();
-  expectHidden();
-  expect(screen.getByRole('progressbar', { name: 'Loading your records' })).toBeOnTheScreen();
+  expectHidden(false);
+  expect(screen.queryByText('Finora is locked')).toBeNull();
+  expect(
+    screen.getByRole('progressbar', { name: 'Opening Finora AI Money Manager' }),
+  ).toBeOnTheScreen();
   await act(() => complete('enabled'));
   const unlock = await screen.findByRole('button', { name: 'Unlock with biometrics' });
   expectHidden();
@@ -194,4 +200,30 @@ test('resets only this account policy after credential deletion finishes success
     jest.mocked(SecureStore.setItemAsync).mock.invocationCallOrder[0]!,
   );
   expect(screen.container.queryAll((instance) => instance.type === 'Modal')).toHaveLength(0);
+});
+
+test.each([null, 'disabled'])(
+  'never presents a biometric lock when the saved policy is %s',
+  async (policy) => {
+    jest.mocked(SecureStore.getItemAsync).mockResolvedValue(policy);
+    await mount();
+    await waitFor(() => expect(screen.getByText('Private balance ₹100')).toBeVisible());
+    for (const state of ['inactive', 'background', 'active', 'background', 'active'] as const) {
+      await act(() => lifecycle(state));
+      expect(screen.getByText('Private balance ₹100')).toBeVisible();
+      expect(screen.queryByText('Finora is locked')).toBeNull();
+      expect(screen.queryByRole('button', { name: 'Sign out and reset app lock' })).toBeNull();
+    }
+    expect(LocalAuthentication.authenticateAsync).not.toHaveBeenCalled();
+  },
+);
+
+test('an initially inactive app with lock disabled becomes usable without a biometric or sign-out', async () => {
+  AppState.currentState = 'inactive';
+  jest.mocked(SecureStore.getItemAsync).mockResolvedValue('disabled');
+  await mount();
+  await waitFor(() => expect(screen.getByText('Private balance ₹100')).toBeVisible());
+  expect(screen.queryByText('Finora is locked')).toBeNull();
+  expect(LocalAuthentication.authenticateAsync).not.toHaveBeenCalled();
+  expect(clearSession).not.toHaveBeenCalled();
 });
