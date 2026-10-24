@@ -178,6 +178,7 @@ async function mount(data: Overview, hold?: Promise<void>) {
     acceptSession: async () => undefined,
     restore: async () => undefined,
     clearSession: async () => undefined,
+    saveOnboarding: async () => undefined,
     refreshUser: async () => undefined,
     storageError: '',
     syncing: false,

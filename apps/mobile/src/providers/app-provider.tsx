@@ -1,7 +1,12 @@
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import * as SecureStore from 'expo-secure-store';
-import { userSchema, type SessionTokens, type User } from '@finora/contracts';
+import {
+  userSchema,
+  type onboardingSyncSchema,
+  type SessionTokens,
+  type User,
+} from '@finora/contracts';
 import { ApiClient, ClientError, storedTokensSchema, type TokenStore } from '../api/client';
 import { useUi } from '../stores/ui';
 import { AppState } from 'react-native';
@@ -9,6 +14,9 @@ import { useNetworkState } from 'expo-network';
 import { z } from 'zod';
 import { cachedOwner, openVault, rememberOwner, type DeviceVault } from '../storage/vault';
 import { canUseOffline, drainOutbox } from '../storage/outbox';
+import { drainSetup, readSetup, saveSetup } from '../storage/setup';
+import { retryDelay, shouldRetrySync } from '../storage/sync-retry';
+import * as Crypto from 'expo-crypto';
 import { cancelLocalReminders, refreshLocalReminders } from '../notifications/reminders';
 
 const tokenKey = 'finora.session.v1';
@@ -35,9 +43,10 @@ interface AppContextValue {
   user: User | null;
   phase: 'loading' | 'ready' | 'error';
   error: string;
-  acceptSession(tokens: SessionTokens): Promise<void>;
+  acceptSession(tokens: SessionTokens, options?: { registration: boolean }): Promise<void>;
+  saveOnboarding(body: z.infer<typeof onboardingSyncSchema>): Promise<void>;
   restore(): Promise<void>;
-  clearSession(): Promise<void>;
+  clearSession(options?: { purgeLocal: boolean }): Promise<void>;
   refreshUser(): Promise<void>;
   vault?: DeviceVault;
   storageError: string;
@@ -66,7 +75,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [syncing, setSyncing] = useState(false);
   const syncFlight = useRef<Promise<void> | null>(null);
   const restoring = useRef(false);
+  const retryTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const retryAttempt = useRef(0);
+  const networkRef = useRef(true);
   const network = useNetworkState();
+  networkRef.current = network.isConnected !== false && network.isInternetReachable !== false;
+  function cancelRetry() {
+    clearTimeout(retryTimer.current);
+    retryTimer.current = undefined;
+  }
+  useEffect(() => () => cancelRetry(), []);
   const origin = process.env.EXPO_PUBLIC_API_URL ?? '';
   const [api] = useState(
     () =>
@@ -100,6 +118,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
       vaultRef.current = current;
       setVault(current);
     }
+    const setup = await readSetup(current);
+    if (setup)
+      nextUser = {
+        ...nextUser,
+        preferences: setup.user.preferences,
+        onboardingCompletedAt: setup.user.onboardingCompletedAt,
+      };
+    setUser(nextUser);
     await current.write('profile', { schemaVersion: 1, user: nextUser });
     await rememberOwner(origin, nextUser.id);
     return current;
@@ -108,20 +134,46 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (syncFlight.current) return syncFlight.current;
     const current = vaultRef.current;
     if (!current) return;
+    cancelRetry();
+    const scheduleRetry = () => {
+      if (
+        vaultRef.current !== current ||
+        !networkRef.current ||
+        retryTimer.current ||
+        AppState.currentState !== 'active'
+      )
+        return;
+      retryTimer.current = setTimeout(() => {
+        retryTimer.current = undefined;
+        if (vaultRef.current === current && AppState.currentState === 'active')
+          void syncPending().catch(() => undefined);
+      }, retryDelay(retryAttempt.current++));
+    };
     setSyncing(true);
     const flight = (async () => {
       try {
         if (!verified.current) await refreshUser();
         if (vaultRef.current !== current) return;
-        const count = await drainOutbox(
+        const setupUser = await drainSetup(
           current,
           api,
           () => vaultRef.current === current && verified.current,
         );
-        if (count && vaultRef.current === current)
+        if (setupUser && vaultRef.current === current) setUser(setupUser);
+        const count = await drainOutbox(
+          current,
+          api,
+          () => vaultRef.current === current && verified.current,
+          scheduleRetry,
+        );
+        if (!retryTimer.current) retryAttempt.current = 0;
+        if ((count || setupUser) && vaultRef.current === current)
           await queryClient.invalidateQueries({ queryKey: [current.ownerId] });
         if (count && user && vaultRef.current === current)
           void refreshLocalReminders(current, api, user).catch(() => undefined);
+      } catch (failure) {
+        if (shouldRetrySync(failure)) scheduleRetry();
+        throw failure;
       } finally {
         if (vaultRef.current === current)
           await queryClient.invalidateQueries({ queryKey: [current.ownerId, 'local'] });
@@ -157,7 +209,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
               7 * 86400000,
             );
             if (profile?.value.user.id === owner) {
-              savedUser = profile.value.user;
+              const setup = await readSetup(current);
+              savedUser = setup
+                ? {
+                    ...profile.value.user,
+                    preferences: setup.user.preferences,
+                    onboardingCompletedAt: setup.user.onboardingCompletedAt,
+                  }
+                : profile.value.user;
               vaultRef.current = current;
               setVault(current);
               setUser(savedUser);
@@ -216,6 +275,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       }
     } finally {
       restoring.current = false;
+      if (vaultRef.current && verified.current && networkRef.current)
+        void syncPending().catch(() => undefined);
     }
   }
   useEffect(() => {
@@ -227,14 +288,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
     else if (!user && phase === 'ready') void cancelLocalReminders().catch(() => undefined);
   }, [user, vault, verifiedOnline, phase, api]);
   useEffect(() => {
+    cancelRetry();
+    retryAttempt.current = 0;
     if (network.isConnected && vault && !restoring.current)
-      void syncPending().catch(() =>
-        setStorageError('Pending entries could not be synchronized. Open Sync status to retry.'),
-      );
+      void syncPending().catch(() => undefined);
   }, [network.isConnected, verifiedOnline, vault]);
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (state) => {
+      if (state !== 'active') cancelRetry();
       if (state === 'active') {
+        retryAttempt.current = 0;
         if (verified.current) void syncPending().catch(() => undefined);
         else if (vaultRef.current) void restore();
         if (verified.current && user && vaultRef.current)
@@ -243,7 +306,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     });
     return () => subscription.remove();
   }, [api, user]);
-  async function acceptSession(tokens: SessionTokens) {
+  async function acceptSession(tokens: SessionTokens, options?: { registration: boolean }) {
     await cancelLocalReminders().catch(() => undefined);
     verified.current = false;
     setVerifiedOnline(false);
@@ -253,7 +316,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
     useUi.getState().reset();
     setUser(tokens.user);
     try {
-      await activate(tokens.user);
+      const local = await activate(tokens.user);
+      if (options?.registration) {
+        await local.write('read:accounts?includeArchived=true', []);
+        await local.write('read:accounts', []);
+      }
       setStorageError('');
     } catch {
       setStorageError(
@@ -285,16 +352,27 @@ export function AppProvider({ children }: { children: ReactNode }) {
           error,
           restore,
           acceptSession,
-          clearSession: async () => {
+          clearSession: async (options) => {
             await cancelLocalReminders().catch(() => undefined);
             const previous = vaultRef.current;
             vaultRef.current = undefined;
             setVault(undefined);
             await api.clearSession();
             await rememberOwner(origin, null);
-            await previous?.close(true);
+            await previous?.close(options?.purgeLocal ?? false);
           },
           refreshUser,
+          saveOnboarding: async (body) => {
+            const current = vaultRef.current;
+            if (!current || !user || current.ownerId !== user.id)
+              throw new Error(
+                'Secure local storage is unavailable. Your setup has not been saved.',
+              );
+            const saved = await saveSetup(current, user, Crypto.randomUUID(), body);
+            if (vaultRef.current !== current) throw new Error('Local session changed.');
+            setUser(saved.user);
+            await queryClient.invalidateQueries({ queryKey: [user.id], refetchType: 'none' });
+          },
           vault,
           storageError,
           syncing,

@@ -1,4 +1,4 @@
-import { Pressable, View } from 'react-native';
+import { Pressable, useWindowDimensions, View } from 'react-native';
 import { router } from 'expo-router';
 import type { Overview } from '@finora/contracts';
 import { AppText, Card } from '../../components/ui';
@@ -20,14 +20,29 @@ export function HomeSummary({
 }) {
   const theme = useTheme();
   const balance = amount(data.totalBalanceMinor);
+  const { width, fontScale } = useWindowDimensions();
+  const stackMetrics =
+    width < 360 ||
+    fontScale > 1.2 ||
+    [data.incomeMinor, data.expensesMinor].some((value) => amount(value).length > 11);
   return (
     <View style={{ gap: 12 }}>
-      <View style={{ borderRadius: 16, overflow: 'hidden', minHeight: 140, padding: 18 }}>
+      <View
+        style={{
+          borderRadius: 16,
+          overflow: 'hidden',
+          minHeight: 168,
+          padding: 18,
+          gap: 6,
+          flexShrink: 0,
+          backgroundColor: '#087E62',
+        }}
+      >
         <HeroGradient />
-        <View style={{ position: 'absolute', right: 6, top: 16 }}>
+        <View style={{ position: 'absolute', right: 4, top: 6, opacity: 0.35 }}>
           <BalanceArtwork />
         </View>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, maxWidth: '76%' }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
           <AppText style={{ color: '#E5F7ED', fontSize: 13 }}>
             Total balance · {data.currency}
           </AppText>
@@ -57,7 +72,7 @@ export function HomeSummary({
             lineHeight: 44,
             fontFamily: 'DMSansBold',
             letterSpacing: -1,
-            maxWidth: '77%',
+            width: '100%',
             fontVariant: ['tabular-nums'],
           }}
         >
@@ -67,16 +82,21 @@ export function HomeSummary({
           accessibilityRole="button"
           accessibilityLabel="Accounts"
           onPress={() => router.push('/accounts')}
-          style={{ minHeight: 32, justifyContent: 'center', alignSelf: 'flex-start' }}
+          style={{
+            minHeight: 40,
+            justifyContent: 'center',
+            alignSelf: 'stretch',
+            paddingVertical: 4,
+          }}
         >
-          <AppText style={{ color: '#E4F7EC', fontSize: 12 }}>
+          <AppText style={{ color: '#E4F7EC', fontSize: 12, lineHeight: 20 }}>
             Across {data.accounts.length} {data.accounts.length === 1 ? 'account' : 'accounts'} ·
             Manage →
           </AppText>
         </Pressable>
       </View>
       <Card style={{ padding: 0, gap: 0, overflow: 'hidden', borderWidth: 0 }}>
-        <View style={{ flexDirection: 'row' }}>
+        <View style={{ flexDirection: stackMetrics ? 'column' : 'row' }}>
           {(
             [
               ['Income', data.incomeMinor, false],
@@ -90,7 +110,8 @@ export function HomeSummary({
                 flexDirection: 'row',
                 gap: 10,
                 padding: 14,
-                borderRightWidth: expense ? 0 : 1,
+                borderRightWidth: !stackMetrics && !expense ? 1 : 0,
+                borderBottomWidth: stackMetrics && !expense ? 1 : 0,
                 borderColor: theme.border,
               }}
             >

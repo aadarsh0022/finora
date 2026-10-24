@@ -166,3 +166,29 @@ cache age limits remain in place. Dedicated saved-read tests cover slow-server
 hydration and failures. These improvements do not establish full offline-first
 correctness: local ledger repositories, reconciliation and all-feature offline
 writes in phases 2 through 5 above remain outstanding.
+
+## Setup slice implemented, 24 October 2026
+
+- Onboarding reads only the encrypted device vault and saves preferences, optional
+  first account and completion as one durable operation. It does not await HTTP.
+  Missing account snapshots are treated as unknown, never as an empty account list.
+  Registration seeds the known empty account baseline; existing profiles with an
+  unknown baseline can finish and manage accounts later.
+- The authenticated `POST /api/v1/onboarding/sync` validates the shared DTO, derives
+  ownership from the session and atomically applies settings/account/completion.
+  Client-generated account IDs survive retries. Durable idempotency receipts prevent
+  duplicate starting balances following a lost response. Currency and concurrent
+  preference conflicts are rejected without partially applying setup.
+- Sync runs after setup navigation, on session restore, foreground and reconnect.
+  Network/timeouts, HTTP 429 and server errors retry while the app is active using
+  2s exponential backoff capped at five minutes. Closing the app pauses execution;
+  reopening resumes it. Conflicts/authentication errors are not blindly retried.
+  Setup drains before queued transactions. Sign-out closes the vault without deleting
+  unsent device records; authentication still gates reopening the owner-scoped vault.
+  Explicit account deletion still purges the local vault.
+- This is a bounded onboarding slice, not completion of the all-feature local ledger.
+  Most feature mutations remain server-first; read snapshots still have expiry and
+  full local financial projections/entity synchronization remain planned below.
+  SQLCipher requires a compatible native build; Expo Go cannot provide this vault.
+  The new API endpoint must be deployed before new clients can synchronize setup.
+- This session is GitHub fixes only. No Play upload, submission or version bump.

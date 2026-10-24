@@ -48,7 +48,7 @@ export default function Security() {
       if (!input.success) throw new Error('Enter your password and type DELETE to confirm.');
       await api.request('auth/account', messageSchema, { method: 'DELETE', body: input.data });
       allowLeave();
-      await clearSession();
+      await clearSession({ purgeLocal: true });
     },
   });
   const busy = password.isPending || logoutOthers.isPending || deletion.isPending;

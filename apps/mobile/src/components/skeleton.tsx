@@ -1,4 +1,4 @@
-import { View, type DimensionValue, type ViewStyle } from 'react-native';
+import { useWindowDimensions, View, type DimensionValue, type ViewStyle } from 'react-native';
 import { useTheme } from '../theme';
 import type { ReactNode } from 'react';
 
@@ -46,8 +46,9 @@ function Panel({ children, style }: { children: ReactNode; style?: ViewStyle }) 
   );
 }
 function Metrics() {
+  const { width, fontScale } = useWindowDimensions();
   return (
-    <View style={{ flexDirection: 'row', gap: 24 }}>
+    <View style={{ flexDirection: width < 360 || fontScale > 1.2 ? 'column' : 'row', gap: 24 }}>
       {[0, 1].map((index) => (
         <View key={index} style={{ flex: 1, gap: 10 }}>
           <Block width="70%" height={12} />
@@ -57,11 +58,11 @@ function Metrics() {
     </View>
   );
 }
-function Rows() {
+function Rows({ count = 3 }: { count?: number }) {
   const theme = useTheme();
   return (
     <View>
-      {[0, 1, 2].map((index) => (
+      {Array.from({ length: count }, (_, index) => index).map((index) => (
         <View
           key={index}
           style={{
@@ -92,7 +93,7 @@ function Dashboard() {
   const theme = useTheme();
   return (
     <>
-      <Panel style={{ minHeight: 140, backgroundColor: theme.accentSoft, borderWidth: 0, gap: 16 }}>
+      <Panel style={{ minHeight: 168, backgroundColor: theme.accentSoft, borderWidth: 0, gap: 16 }}>
         <Block width="48%" height={14} />
         <Block width="65%" height={40} />
         <Block width="45%" height={12} />
@@ -191,6 +192,7 @@ function Reports() {
   );
 }
 export function Loading({ variant = 'list' }: { variant?: Variant }) {
+  const { height } = useWindowDimensions();
   return (
     <View
       accessible
@@ -212,7 +214,7 @@ export function Loading({ variant = 'list' }: { variant?: Variant }) {
         ) : variant === 'form' ? (
           <Form />
         ) : variant === 'list' ? (
-          <Rows />
+          <Rows count={Math.max(3, Math.min(10, Math.ceil((height - 240) / 66)))} />
         ) : (
           <Cards variant={variant} />
         )}

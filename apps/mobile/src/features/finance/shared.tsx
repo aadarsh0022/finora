@@ -10,6 +10,7 @@ import { TransactionIcon } from './transaction-icon';
 import { useTheme } from '../../theme';
 import { useApp } from '../../providers/app-provider';
 import { canUseOffline } from '../../storage/outbox';
+import { readSetup, setupProjection } from '../../storage/setup';
 import { useNetworkState } from 'expo-network';
 import { ClientError } from '../../api/client';
 
@@ -55,6 +56,9 @@ export function useRead<T>(path: string, schema: ZodType<T>, enabled = true) {
     enabled: !!user && enabled && (!vault || path.startsWith('auth/') || hydrated === scope),
     queryFn: async ({ signal }) => {
       try {
+        const setup = vault ? await readSetup(vault) : undefined;
+        const projection = setup ? setupProjection(setup, path) : undefined;
+        if (projection !== undefined) return schema.parse(projection);
         if (network.isConnected === false || network.isInternetReachable === false)
           throw new ClientError('NETWORK', 'Connect to load records not yet saved on this device.');
         const value = await api.request(path, schema, { signal });

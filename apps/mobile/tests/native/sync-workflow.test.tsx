@@ -61,6 +61,7 @@ async function mount(offline = false, unreadable = false) {
     acceptSession: async () => undefined,
     restore: async () => undefined,
     clearSession: async () => undefined,
+    saveOnboarding: async () => undefined,
     refreshUser: async () => undefined,
   });
   const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });

@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { currencySchema } from './primitives';
+import { accountInputSchema, accountSchema } from './finance';
 
 export * from './finance';
 export * from './primitives';
@@ -107,3 +108,17 @@ export * from './reports';
 export * from './entitlements';
 export * from './outlook';
 export * from './assistant';
+
+// One durable setup operation. Identity is always derived from the authenticated session.
+export const onboardingSyncSchema = z
+  .object({
+    baseline: preferencesSchema,
+    preferences: preferencesSchema,
+    account: accountInputSchema.extend({ id: z.uuid() }).strict().optional(),
+  })
+  .strict();
+export const onboardingSyncResultSchema = z.object({
+  user: userSchema,
+  account: accountSchema.optional(),
+  settings: settingsSchema,
+});

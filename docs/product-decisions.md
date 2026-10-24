@@ -82,3 +82,10 @@ Consulted 20 October 2026; exact installed versions are recorded in the lockfile
   Email sign-in remains the only authentication provider. AI answers lead with
   exact local text and optional compact details; transaction drafts clarify
   missing fields and require explicit confirmation inside chat.
+
+- 24 October: onboarding is a local durable operation in the existing encrypted
+  SQLite vault, with automatic retry and an atomic, idempotent server setup endpoint.
+  Network failure never discards accepted local setup. Unknown local baselines must
+  not be interpreted as empty server data. The remaining all-feature offline ledger
+  is still in progress; see offline-first-plan.md. Current authorization is fixes and
+  GitHub pushes only, with no Play action.

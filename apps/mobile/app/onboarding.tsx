@@ -1,42 +1,34 @@
 import { useRef, useState } from 'react';
 import { View } from 'react-native';
 import { router } from 'expo-router';
+import { useQuery } from '@tanstack/react-query';
+import * as Crypto from 'expo-crypto';
 import type { z } from 'zod';
 import {
   accountInputSchema,
-  accountSchema,
   currencySchema,
-  settingsSchema,
-  settingsUpdateSchema,
-  userSchema,
+  onboardingSyncSchema,
   type Preferences,
 } from '@finora/contracts';
-import { parseMoney } from '@finora/finance-core';
-import {
-  AppButton,
-  AppText,
-  Card,
-  Choice,
-  Feedback,
-  Field,
-  Loading,
-  Screen,
-} from '../src/components/ui';
+import { formatMoney, parseMoney } from '@finora/finance-core';
+import { AppButton, AppText, Card, Choice, Feedback, Field, Screen } from '../src/components/ui';
 import { SelectField } from '../src/components/flow';
 import { ActionRow, Icon, ReviewSheet } from '../src/components/design';
-import { accountsSchema, useMoney, useRead } from '../src/features/finance/shared';
-import { useFinanceMutation, useUnsavedChanges } from '../src/hooks/finance';
+import { accountsSchema } from '../src/features/finance/shared';
+import { useUnsavedChanges } from '../src/hooks/finance';
 import { useApp } from '../src/providers/app-provider';
 import { useUi } from '../src/stores/ui';
 import { useTheme } from '../src/theme';
 
 export default function Onboarding() {
-  const { user, refreshUser } = useApp();
+  const { user, vault, saveOnboarding, syncPending } = useApp();
   const theme = useTheme();
-  const money = useMoney();
   const [step, setStep] = useState(0);
-  const settings = useRead('settings', settingsSchema);
-  const accounts = useRead('accounts?includeArchived=true', accountsSchema);
+  const accounts = useQuery({
+    queryKey: [user?.id, 'local', 'setup-accounts'],
+    queryFn: async () =>
+      (await vault?.read('read:accounts?includeArchived=true', accountsSchema))?.value ?? null,
+  });
   const [currency, setCurrency] = useState(user?.preferences.baseCurrency ?? 'INR');
   const [timezone, setTimezone] = useState(user?.preferences.timezone ?? 'Asia/Kolkata');
   const [appearance, setAppearance] = useState<Preferences['preferredTheme']>(
@@ -47,15 +39,11 @@ export default function Onboarding() {
   const [amount, setAmount] = useState('0');
   const [error, setError] = useState<unknown>();
   const [working, setWorking] = useState(false);
-  const [created, setCreated] = useState(false);
-  const [completed, setCompleted] = useState(false);
   const [reviewed, setReviewed] = useState<z.infer<typeof accountInputSchema>>();
-  const prefs = useFinanceMutation('settings', settingsSchema, 'PATCH');
-  const addAccount = useFinanceMutation('accounts', accountSchema);
-  const complete = useFinanceMutation('onboarding/complete', userSchema);
   const lock = useRef(false);
-  const busy = working || prefs.isPending || addAccount.isPending || complete.isPending;
-  const hasAccount = created || !!accounts.data?.length;
+  const busy = working || accounts.isPending;
+  // An absent baseline is not proof that this existing user has no financial records.
+  const hasAccount = accounts.data == null || !!accounts.data.length;
   const dirty = !hasAccount && (name !== 'Everyday' || amount !== '0' || type !== 'CHECKING');
   const allowLeave = useUnsavedChanges(dirty);
   function leave() {
@@ -63,18 +51,27 @@ export default function Onboarding() {
     allowLeave();
     router.replace('/(tabs)');
   }
-  async function finish() {
+  async function finish(account?: z.infer<typeof accountInputSchema>) {
     if (lock.current) return;
     lock.current = true;
     setWorking(true);
     setError(undefined);
     try {
-      if (!completed) {
-        await complete.mutateAsync({});
-        setCompleted(true);
-      }
-      await refreshUser();
+      if (!user) throw new Error('Please sign in again.');
+      await saveOnboarding(
+        onboardingSyncSchema.parse({
+          baseline: user.preferences,
+          preferences: {
+            ...user.preferences,
+            baseCurrency: hasAccount ? user.preferences.baseCurrency : currency,
+            timezone,
+            preferredTheme: appearance,
+          },
+          account: account ? { ...account, id: Crypto.randomUUID() } : undefined,
+        }),
+      );
       leave();
+      void syncPending().catch(() => undefined);
     } catch (failure) {
       setError(failure);
     } finally {
@@ -90,32 +87,20 @@ export default function Onboarding() {
       return;
     }
     if (step === 1) {
-      if (!settings.data || !accounts.data) return;
-      setWorking(true);
       try {
-        const initial = settings.data;
-        if (
-          currency !== initial.preferences.baseCurrency ||
-          timezone !== initial.preferences.timezone ||
-          appearance !== initial.preferences.preferredTheme
-        )
-          await prefs.mutateAsync(
-            settingsUpdateSchema.parse({
-              preferences: {
-                ...initial.preferences,
-                baseCurrency: currency,
-                timezone,
-                preferredTheme: appearance,
-              },
-              version: initial.version,
-            }),
-          );
-        await refreshUser();
+        if (!user) return;
+        onboardingSyncSchema.parse({
+          baseline: user.preferences,
+          preferences: {
+            ...user.preferences,
+            baseCurrency: hasAccount ? user.preferences.baseCurrency : currency,
+            timezone,
+            preferredTheme: appearance,
+          },
+        });
         setStep(2);
       } catch (failure) {
         setError(failure);
-      } finally {
-        setWorking(false);
       }
       return;
     }
@@ -128,7 +113,10 @@ export default function Onboarding() {
         accountInputSchema.parse({
           name,
           type,
-          openingBalanceMinor: parseMoney(amount, user?.preferences.baseCurrency ?? currency),
+          openingBalanceMinor: parseMoney(
+            amount,
+            hasAccount ? (user?.preferences.baseCurrency ?? currency) : currency,
+          ),
         }),
       );
     } catch (failure) {
@@ -178,10 +166,7 @@ export default function Onboarding() {
                     : 'Review first account'
             }
             loading={busy}
-            disabled={
-              step > 0 &&
-              (settings.isPending || accounts.isPending || !!settings.error || !!accounts.error)
-            }
+            disabled={busy}
             onPress={() => {
               void next();
             }}
@@ -258,17 +243,7 @@ export default function Onboarding() {
           </AppText>
         </>
       )}
-      {step > 0 && (settings.isPending || accounts.isPending) && <Loading variant="form" />}
-      {(settings.error || accounts.error) && step > 0 && (
-        <Feedback
-          error={settings.error ?? accounts.error}
-          retry={() => {
-            void settings.refetch();
-            void accounts.refetch();
-          }}
-        />
-      )}
-      {step === 1 && settings.data && accounts.data && (
+      {step === 1 && (
         <>
           {hasAccount ? (
             <Card>
@@ -311,15 +286,14 @@ export default function Onboarding() {
         </>
       )}
       {step === 2 &&
-        accounts.data &&
         (hasAccount ? (
           <Card>
             <AppText style={{ fontFamily: 'DMSansBold', fontSize: 22 }}>
-              Your account is ready
+              Continue to your money
             </AppText>
             <AppText tone="muted">
-              You can add or manage more accounts later in Settings. No extra account will be
-              created by finishing this guide.
+              You can add or manage accounts in Settings. Finishing this guide keeps your existing
+              records.
             </AppText>
           </Card>
         ) : (
@@ -343,7 +317,7 @@ export default function Onboarding() {
               ]}
             />
             <Field
-              label={`Starting balance (${user?.preferences.baseCurrency ?? currency})`}
+              label={`Starting balance (${currency})`}
               value={amount}
               onChangeText={setAmount}
               keyboardType="numbers-and-punctuation"
@@ -359,7 +333,6 @@ export default function Onboarding() {
       {!!error && (
         <>
           <Feedback error={error} />
-          <AppButton title="Continue for now" variant="secondary" disabled={busy} onPress={leave} />
         </>
       )}
       <ReviewSheet
@@ -369,25 +342,25 @@ export default function Onboarding() {
           reviewed
             ? [
                 { label: 'Name', value: reviewed.name },
-                { label: 'Starting balance', value: money(reviewed.openingBalanceMinor) },
+                {
+                  label: 'Starting balance',
+                  value: formatMoney(
+                    reviewed.openingBalanceMinor,
+                    currency,
+                    user?.preferences.locale ?? 'en-IN',
+                  ),
+                },
               ]
             : []
         }
         impact="Creates this account with a starting balance. It does not record income or connect to a bank."
         confirmLabel="Create account"
         busy={busy}
-        error={addAccount.error?.message}
+        error={error instanceof Error ? error.message : undefined}
         onClose={() => setReviewed(undefined)}
         onConfirm={() => {
           if (!reviewed || busy || hasAccount) return;
-          void addAccount
-            .mutateAsync(reviewed)
-            .then(async () => {
-              setCreated(true);
-              setReviewed(undefined);
-              await finish();
-            })
-            .catch(() => undefined);
+          void finish(reviewed);
         }}
       />
     </Screen>

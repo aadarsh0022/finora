@@ -58,6 +58,7 @@ export async function drainOutbox(
   vault: DeviceVault,
   api: Pick<ApiClient, 'request'>,
   isCurrent: () => boolean,
+  retryLater?: () => void,
 ) {
   let synced = 0;
   const rows = await vault.list('pending:', queuedTransactionSchema);
@@ -76,6 +77,12 @@ export async function drainOutbox(
       await vault.remove(key);
       synced++;
     } catch (error) {
+      if (
+        isCurrent() &&
+        (canUseOffline(error) ||
+          (error instanceof ClientError && (error.status === 429 || error.status >= 500)))
+      )
+        retryLater?.();
       if (
         !isCurrent() ||
         canUseOffline(error) ||

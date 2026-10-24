@@ -62,7 +62,7 @@ export function AuthForm({ mode }: { mode: 'login' | 'register' }) {
         body,
         authenticated: false,
       });
-      await acceptSession(tokens);
+      await acceptSession(tokens, { registration });
     } catch (failure) {
       setError(failure);
     }

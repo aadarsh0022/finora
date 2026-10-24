@@ -70,6 +70,7 @@ async function mount() {
     acceptSession: async () => undefined,
     restore: async () => undefined,
     clearSession: async () => undefined,
+    saveOnboarding: async () => undefined,
     refreshUser,
     storageError: '',
     syncing: false,

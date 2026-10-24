@@ -3,7 +3,6 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react-nativ
 import { accountWithBalanceSchema, userSchema } from '@finora/contracts';
 import { router } from 'expo-router';
 import Onboarding from '../../app/onboarding';
-import { ApiClient } from '../../src/api/client';
 import { useApp } from '../../src/providers/app-provider';
 import { useUi } from '../../src/stores/ui';
 
@@ -25,86 +24,55 @@ const user = userSchema.parse({
   createdAt: timestamp,
   updatedAt: timestamp,
 });
-let writes: { path: string; body: Record<string, unknown> }[];
+import { testVault } from '../vault-fixture';
+import { saveSetup, readSetup } from '../../src/storage/setup';
+import { randomUUID } from 'expo-crypto';
+let local: ReturnType<typeof testVault>;
+const request = jest.fn();
 beforeEach(() => {
-  writes = [];
+  jest.clearAllMocks();
   useUi.getState().reset();
 });
-async function mount(options: { existing?: boolean; failCompleteOnce?: boolean } = {}) {
-  const account = accountWithBalanceSchema.parse({
-    id: '22222222-2222-4222-8222-222222222222',
-    userId: user.id,
-    name: 'Everyday',
-    type: 'CHECKING',
-    openingBalanceMinor: '0',
-    balanceMinor: '0',
-    currency: 'INR',
-    version: 1,
-    archived: false,
-    createdAt: timestamp,
-    updatedAt: timestamp,
-  });
-  let accounts = options.existing ? [account] : [];
-  let failed = false;
-  const api = new ApiClient(
-    'https://native.test',
-    {
-      get: async () => ({ accessToken: 'a'.repeat(43), refreshToken: 'b'.repeat(43) }),
-      set: async () => undefined,
-      clear: async () => undefined,
-    },
-    () => undefined,
-    async (url, init) => {
-      const path = new URL(url).pathname.replace('/api/v1/', '');
-      if (init?.method !== 'GET') {
-        const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
-        writes.push({ path, body });
-        if (path === 'accounts') {
-          accounts = [{ ...account, ...body }];
-          return Response.json({ success: true, data: accounts[0] });
-        }
-        if (path === 'onboarding/complete') {
-          if (options.failCompleteOnce && !failed) {
-            failed = true;
-            return Response.json(
-              {
-                success: false,
-                error: { code: 'SERVICE_UNAVAILABLE', message: 'Please retry setup completion.' },
-              },
-              { status: 503 },
-            );
-          }
-          return Response.json({
-            success: true,
-            data: { ...user, onboardingCompletedAt: timestamp },
-          });
-        }
-      }
-      return Response.json({
-        success: true,
-        data: path.startsWith('accounts')
-          ? accounts
-          : { preferences: user.preferences, version: 1 },
-      });
-    },
-  );
+async function mount(options: { existing?: boolean; failSave?: boolean; unknown?: boolean } = {}) {
+  local = testVault(user.id);
+  if (!options.unknown)
+    await local.vault.write(
+      'read:accounts?includeArchived=true',
+      options.existing
+        ? [
+            accountWithBalanceSchema.parse({
+              id: '22222222-2222-4222-8222-222222222222',
+              userId: user.id,
+              name: 'Everyday',
+              type: 'CHECKING',
+              openingBalanceMinor: '0',
+              balanceMinor: '0',
+              currency: 'INR',
+              version: 1,
+              archived: false,
+              createdAt: timestamp,
+              updatedAt: timestamp,
+            }),
+          ]
+        : [],
+    );
   jest.mocked(useApp).mockReturnValue({
-    api,
+    api: { request },
     user,
-    refreshUser: jest.fn(async () => undefined),
-  } as unknown as ReturnType<typeof useApp>);
-  const client = new QueryClient({
-    defaultOptions: {
-      queries: { retry: false, gcTime: 0 },
-      mutations: { retry: false, gcTime: 0 },
+    vault: local.vault,
+    syncPending: jest.fn(async () => undefined),
+    saveOnboarding: async (body: Parameters<ReturnType<typeof useApp>['saveOnboarding']>[0]) => {
+      if (options.failSave) throw new Error('Cannot save securely.');
+      await saveSetup(local.vault, user, randomUUID(), body);
     },
-  });
+  } as unknown as ReturnType<typeof useApp>);
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
   await render(
     <QueryClientProvider client={client}>
       <Onboarding />
     </QueryClientProvider>,
   );
-  await screen.findByText('Finora AI Money Manager');
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Get started' })).toBeEnabled());
 }
 async function firstAccountStep() {
   await fireEvent.press(screen.getByRole('button', { name: 'Get started' }));
@@ -112,40 +80,44 @@ async function firstAccountStep() {
   await fireEvent.press(screen.getByRole('button', { name: 'Continue' }));
   await screen.findByLabelText('Account name');
 }
-test('setup can be postponed without creating an account or transaction', async () => {
+test('setup can be postponed with a durable local completion and no HTTP requests', async () => {
   await mount();
   await fireEvent.press(screen.getByRole('button', { name: 'Set up later' }));
   await waitFor(() => expect(router.replace).toHaveBeenCalledWith('/(tabs)'));
-  expect(writes.map((w) => w.path)).toEqual(['onboarding/complete']);
-  expect(useUi.getState().onboardingDismissedOwner).toBe(user.id);
+  const saved = await readSetup(local.vault);
+  expect(saved?.user.onboardingCompletedAt).toBeDefined();
+  expect(saved?.account).toBeUndefined();
+  expect(request).not.toHaveBeenCalled();
 });
-test('first-account review does not write until confirmed and retrying completion never duplicates it', async () => {
-  await mount({ failCompleteOnce: true });
+test('first-account review saves exact minor units locally only after confirmation', async () => {
+  await mount();
   await firstAccountStep();
   await fireEvent.changeText(screen.getByLabelText('Starting balance (INR)'), '125.50');
   await fireEvent.press(screen.getByRole('button', { name: 'Review first account' }));
-  expect(writes).toHaveLength(0);
+  expect(await readSetup(local.vault)).toBeUndefined();
   await fireEvent.press(screen.getByRole('button', { name: 'Create account' }));
-  await screen.findByText('Please retry setup completion.');
-  expect(writes.filter((w) => w.path === 'accounts')).toHaveLength(1);
-  expect(writes.find((w) => w.path === 'accounts')?.body).toMatchObject({
-    openingBalanceMinor: '12550',
-  });
-  expect(router.replace).not.toHaveBeenCalled();
-  await fireEvent.press(screen.getByRole('button', { name: 'Finish setup' }));
   await waitFor(() => expect(router.replace).toHaveBeenCalledWith('/(tabs)'));
-  expect(writes.filter((w) => w.path === 'accounts')).toHaveLength(1);
-  expect(writes.some((w) => w.path === 'transactions')).toBe(false);
+  expect((await readSetup(local.vault))?.account?.openingBalanceMinor).toBe('12550');
+  expect(request).not.toHaveBeenCalled();
 });
-test('revisiting setup preserves an existing account and currency', async () => {
-  await mount({ existing: true });
-  await fireEvent.press(screen.getByRole('button', { name: 'Get started' }));
-  await screen.findByText('Base currency: INR');
-  expect(screen.queryByRole('button', { name: 'Base currency' })).toBeNull();
-  await fireEvent.press(screen.getByRole('button', { name: 'Continue' }));
-  await screen.findByText('Your account is ready');
-  expect(screen.queryByLabelText('Account name')).toBeNull();
-  await fireEvent.press(screen.getByRole('button', { name: 'Finish setup' }));
-  await waitFor(() => expect(router.replace).toHaveBeenCalled());
-  expect(writes.map((w) => w.path)).toEqual(['onboarding/complete']);
+test('a failed local save does not dismiss setup', async () => {
+  await mount({ failSave: true });
+  await fireEvent.press(screen.getByRole('button', { name: 'Set up later' }));
+  await screen.findByText('Cannot save securely.');
+  expect(router.replace).not.toHaveBeenCalled();
+  expect(await readSetup(local.vault)).toBeUndefined();
 });
+test.each([{ existing: true }, { unknown: true }])(
+  'never assumes absent local records mean a new account is needed: %s',
+  async (options) => {
+    await mount(options);
+    await fireEvent.press(screen.getByRole('button', { name: 'Get started' }));
+    await screen.findByText('Base currency: INR');
+    await fireEvent.press(screen.getByRole('button', { name: 'Continue' }));
+    expect(screen.queryByLabelText('Account name')).toBeNull();
+    await fireEvent.press(screen.getByRole('button', { name: 'Finish setup' }));
+    await waitFor(() => expect(router.replace).toHaveBeenCalled());
+    expect((await readSetup(local.vault))?.account).toBeUndefined();
+    expect(request).not.toHaveBeenCalled();
+  },
+);

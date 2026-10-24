@@ -61,6 +61,7 @@ async function mount(mode: 'login' | 'register') {
     acceptSession,
     restore: async () => undefined,
     clearSession: async () => undefined,
+    saveOnboarding: async () => undefined,
     refreshUser: async () => undefined,
     storageError: '',
     syncing: false,
@@ -85,7 +86,7 @@ test('validates registration before sending and passes the chosen base currency 
   await fireEvent.press(screen.getByRole('button', { name: 'Base currency' }));
   await fireEvent.press(screen.getByRole('radio', { name: 'USD' }));
   await fireEvent.press(screen.getByRole('button', { name: 'Create account' }));
-  await waitFor(() => expect(acceptSession).toHaveBeenCalledWith(tokens));
+  await waitFor(() => expect(acceptSession).toHaveBeenCalledWith(tokens, { registration: true }));
   expect(calls).toHaveLength(1);
   expect(calls[0]).toMatchObject({
     path: '/api/v1/auth/register',
