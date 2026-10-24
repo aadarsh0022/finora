@@ -20,8 +20,12 @@ import { outlookRoute } from './modules/outlook/router';
 import { adminRoute } from './modules/assistant/admin';
 import { assistantRoute } from './modules/assistant/router';
 import { ApiError, handle, readBody, success } from './utils/http';
+import { sendWelcomeEmail } from './services/email';
 
-export function dispatch(request: Request) {
+export function dispatch(
+  request: Request,
+  background: (task: () => Promise<void>) => void | Promise<void> = async (task) => task(),
+) {
   return handle(async (requestId) => {
     const path = new URL(request.url).pathname.replace(/\/$/, '');
     const key = `${request.method} ${path}`;
@@ -55,7 +59,17 @@ export function dispatch(request: Request) {
       case 'POST /api/v1/auth/register': {
         const input = await readBody(request, registerSchema);
         await rateLimit(request, path, input.email);
-        return success(await auth.register(input), requestId, 201);
+        const session = await auth.register(input);
+        await background(async () => {
+          try {
+            await sendWelcomeEmail(session.user.email, session.user.name, session.user.id);
+          } catch {
+            console.error(
+              JSON.stringify({ level: 'error', requestId, code: 'WELCOME_DELIVERY_FAILED' }),
+            );
+          }
+        });
+        return success(session, requestId, 201);
       }
       case 'POST /api/v1/auth/login': {
         const input = await readBody(request, loginSchema);
