@@ -58,9 +58,9 @@ export function useFinanceMutation<T>(
       }
       return api.request(path, schema, { method, body, operationKey: operation.current.key });
     },
-    onSuccess: async () => {
+    onSuccess: () => {
       operation.current = null;
-      await queryClient.invalidateQueries({ queryKey: [user?.id] });
+      void queryClient.invalidateQueries({ queryKey: [user?.id] }).catch(() => undefined);
       if (network.isConnected && vault) void syncPending?.().catch(() => undefined);
       if (network.isConnected && vault && user)
         void refreshLocalReminders(vault, api, user).catch(() => undefined);

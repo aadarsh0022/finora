@@ -94,7 +94,10 @@ async function mount(options: { existing?: boolean; failCompleteOnce?: boolean }
     refreshUser: jest.fn(async () => undefined),
   } as unknown as ReturnType<typeof useApp>);
   const client = new QueryClient({
-    defaultOptions: { queries: { retry: false, gcTime: 0 }, mutations: { retry: false } },
+    defaultOptions: {
+      queries: { retry: false, gcTime: 0 },
+      mutations: { retry: false, gcTime: 0 },
+    },
   });
   await render(
     <QueryClientProvider client={client}>

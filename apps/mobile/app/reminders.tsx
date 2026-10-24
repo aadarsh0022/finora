@@ -80,7 +80,7 @@ export default function Reminders() {
       subtitle="Useful reminders. Your financial details stay inside Finora."
       includeTopInset={false}
     >
-      {loading ? <Loading /> : null}
+      {loading ? <Loading variant="form" /> : null}
       {!vault ? (
         <AppText tone="muted">Encrypted device storage is needed for reminders.</AppText>
       ) : !loading ? (

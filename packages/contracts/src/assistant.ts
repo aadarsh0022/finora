@@ -164,7 +164,12 @@ export const assistantTransactionDraftSchema = z
   .strict();
 export type AssistantTransactionDraft = z.infer<typeof assistantTransactionDraftSchema>;
 export const assistantPolicyVersion = '2026-10-23-v2' as const;
+export const assistantConsentInputSchema = z
+  .object({ policyVersion: z.literal(assistantPolicyVersion) })
+  .strict();
 export const assistantCapabilitiesSchema = z.object({
+  remembersConsent: z.boolean().default(false),
+  consentAccepted: z.boolean().default(false),
   enabled: z.boolean(),
   readOnly: z.literal(true),
   provider: z.literal('OpenAI'),

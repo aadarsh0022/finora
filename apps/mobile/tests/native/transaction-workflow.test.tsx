@@ -374,6 +374,8 @@ test('keeps optional details when collapsed and saves them through the compact f
 
 test('keeps an offline entry in the durable pending list without posting it as a server transaction', async () => {
   const { vault } = testVault(owner);
+  await vault.write('read:accounts?includeArchived=true', [account, destination]);
+  await vault.write('read:categories?includeArchived=true', [category]);
   jest
     .mocked(useNetworkState)
     .mockReturnValue({ isConnected: false } as ReturnType<typeof useNetworkState>);

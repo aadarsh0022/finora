@@ -125,7 +125,7 @@ export function Recurring({ onEditing }: { onEditing: (editing: boolean) => void
           { value: 'POSTED', label: 'Posted' },
         ]}
       />
-      {occurrences.isPending && <Loading />}
+      {occurrences.isPending && <Loading variant="recurring" />}
       {occurrences.isError && (
         <Feedback
           error={occurrences.error}
@@ -183,7 +183,7 @@ export function Recurring({ onEditing }: { onEditing: (editing: boolean) => void
       <AppText accessibilityRole="header" style={{ fontFamily: 'DMSansBold', fontSize: 20 }}>
         Your schedules
       </AppText>
-      {rules.isPending && <Loading />}
+      {rules.isPending && <Loading variant="recurring" />}
       {rules.data?.length === 0 && (
         <Card>
           <AppText style={{ fontFamily: 'DMSansBold' }}>

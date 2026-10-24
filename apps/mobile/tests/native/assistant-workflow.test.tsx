@@ -1,6 +1,8 @@
+import * as SecureStore from 'expo-secure-store';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
-import { assistantPolicyVersion, userSchema } from '@finora/contracts';
+import { assistantPolicyVersion, userSchema, type AssistantToolResult } from '@finora/contracts';
+import { answerText } from '../../src/features/assistant/result';
 import { formatMoney } from '@finora/finance-core';
 import { useNetworkState } from 'expo-network';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -8,6 +10,11 @@ import AssistantScreen from '../../src/features/assistant/chat';
 import { ApiClient, type HttpTransport } from '../../src/api/client';
 import { useApp } from '../../src/providers/app-provider';
 
+jest.mock('expo-secure-store', () => ({
+  getItemAsync: jest.fn(async () => null),
+  setItemAsync: jest.fn(async () => undefined),
+  WHEN_UNLOCKED_THIS_DEVICE_ONLY: 1,
+}));
 jest.mock('../../src/providers/app-provider', () => ({ useApp: jest.fn() }));
 jest.mock('../../src/storage/hooks', () => ({
   usePendingTransactions: () => ({ data: [], isPending: false }),
@@ -23,6 +30,7 @@ const user = userSchema.parse({
   createdAt: timestamp,
   updatedAt: timestamp,
 });
+const balanceReply = `Your recorded balance is ${formatMoney('900719925474099301', 'INR', 'en-IN')} across 0 accounts.`;
 const answer = {
   answerId: '22222222-2222-4222-8222-222222222222',
   kind: 'answer',
@@ -41,11 +49,16 @@ const answer = {
 let requests: { path: string; body: Record<string, unknown> }[];
 beforeEach(() => {
   requests = [];
+  jest.mocked(SecureStore.getItemAsync).mockResolvedValue(null);
   jest
     .mocked(useNetworkState)
     .mockReturnValue({ isConnected: true } as ReturnType<typeof useNetworkState>);
 });
-async function mount(options: { enabled?: boolean; chat?: HttpTransport } = {}) {
+async function mount(
+  options: { enabled?: boolean; chat?: HttpTransport; remembered?: boolean } = {},
+) {
+  if (options.remembered)
+    jest.mocked(SecureStore.getItemAsync).mockResolvedValue(assistantPolicyVersion);
   const api = new ApiClient(
     'https://native.test',
     {
@@ -78,7 +91,10 @@ async function mount(options: { enabled?: boolean; chat?: HttpTransport } = {}) 
   );
   jest.mocked(useApp).mockReturnValue({ api, user } as ReturnType<typeof useApp>);
   const client = new QueryClient({
-    defaultOptions: { queries: { retry: false, gcTime: 0 }, mutations: { retry: false } },
+    defaultOptions: {
+      queries: { retry: false, gcTime: 0 },
+      mutations: { retry: false, gcTime: 0 },
+    },
   });
   const content = () => (
     <SafeAreaProvider
@@ -93,15 +109,18 @@ async function mount(options: { enabled?: boolean; chat?: HttpTransport } = {}) 
     </SafeAreaProvider>
   );
   const view = await render(content());
-  await screen.findByText(
-    options.enabled === false
-      ? 'AI chat is not enabled yet'
-      : 'Understand your money. Review every change.',
-  );
+  if (options.remembered) await screen.findByLabelText('Your question');
+  else
+    await screen.findByText(
+      options.enabled === false
+        ? 'AI chat is not enabled yet'
+        : 'Understand your money. Review every change.',
+    );
   return { ...view, content, api };
 }
 async function allow() {
-  await fireEvent.press(screen.getByRole('button', { name: 'Allow AI for this chat' }));
+  await fireEvent.press(screen.getByRole('button', { name: 'Enable Finora AI' }));
+  await screen.findByLabelText('Your question');
 }
 async function ask() {
   await fireEvent.changeText(screen.getByLabelText('Your question'), 'What is my current balance?');
@@ -111,7 +130,7 @@ async function ask() {
 test('does not send questions before consent and honestly shows disabled configuration', async () => {
   await mount({ enabled: false });
   expect(screen.queryByLabelText('Your question')).toBeNull();
-  expect(screen.queryByRole('button', { name: 'Allow AI for this chat' })).toBeNull();
+  expect(screen.queryByRole('button', { name: 'Enable Finora AI' })).toBeNull();
   expect(requests).toHaveLength(0);
 });
 
@@ -121,8 +140,13 @@ test('consents explicitly, sends only bounded question context and renders exact
   expect(screen.queryByLabelText('Your question')).toBeNull();
   await allow();
   await ask();
-  await screen.findByText('Here is your recorded balance.');
+  await screen.findByText(balanceReply);
+  expect(screen.queryByText('Includes archived accounts.')).toBeNull();
+  expect(screen.queryByText('View accounts')).toBeNull();
+  await fireEvent.press(screen.getByRole('button', { name: 'Show answer details' }));
   expect(screen.getByText(formatMoney('900719925474099301', 'INR', 'en-IN'))).toBeOnTheScreen();
+  await fireEvent.press(screen.getByRole('button', { name: 'Hide answer details' }));
+  expect(screen.queryByText('View accounts')).toBeNull();
   expect(requests).toEqual([
     {
       path: 'assistant/chat',
@@ -134,8 +158,9 @@ test('consents explicitly, sends only bounded question context and renders exact
     },
   ]);
   await fireEvent.press(screen.getByRole('button', { name: 'Clear chat' }));
-  expect(screen.queryByText('Here is your recorded balance.')).toBeNull();
-  expect(screen.getByRole('button', { name: 'Allow AI for this chat' })).toBeOnTheScreen();
+  expect(screen.queryByText(balanceReply)).toBeNull();
+  expect(screen.queryByRole('button', { name: 'Enable Finora AI' })).toBeNull();
+  expect(screen.getByLabelText('Your question')).toBeOnTheScreen();
 });
 
 test('preserves a failed question for manual retry and never queues or retries it automatically', async () => {
@@ -148,10 +173,10 @@ test('preserves a failed question for manual retry and never queues or retries i
   await waitFor(() => expect(screen.getByRole('button', { name: 'Send question' })).toBeEnabled());
   expect(screen.getByLabelText('Your question')).toHaveDisplayValue('What is my current balance?');
   expect(chat).toHaveBeenCalledTimes(1);
-  expect(screen.queryByText('Here is your recorded balance.')).toBeNull();
+  expect(screen.queryByText(balanceReply)).toBeNull();
   chat.mockResolvedValue(Response.json({ success: true, data: answer }));
   await fireEvent.press(screen.getByRole('button', { name: 'Send question' }));
-  await screen.findByText('Here is your recorded balance.');
+  await screen.findByText(balanceReply);
   expect(requests[1]?.body.previousQuestions).toEqual([]);
 });
 
@@ -173,8 +198,9 @@ test('clearing a pending request discards its late answer', async () => {
   await act(async () => {
     resolve(Response.json({ success: true, data: answer }));
   });
-  expect(screen.queryByText('Here is your recorded balance.')).toBeNull();
-  expect(screen.getByRole('button', { name: 'Allow AI for this chat' })).toBeOnTheScreen();
+  expect(screen.queryByText(balanceReply)).toBeNull();
+  expect(screen.queryByRole('button', { name: 'Enable Finora AI' })).toBeNull();
+  expect(screen.getByLabelText('Your question')).toBeOnTheScreen();
 });
 
 test('stopping a response preserves the question and ignores a late reply', async () => {
@@ -194,7 +220,7 @@ test('stopping a response preserves the question and ignores a late reply', asyn
   await act(async () => {
     resolve(Response.json({ success: true, data: answer }));
   });
-  expect(screen.queryByText('Here is your recorded balance.')).toBeNull();
+  expect(screen.queryByText(balanceReply)).toBeNull();
   expect(screen.getByRole('button', { name: 'Send question' })).toBeEnabled();
 });
 
@@ -202,7 +228,7 @@ test('reports an answer inside the app without attaching conversation text', asy
   await mount();
   await allow();
   await ask();
-  await screen.findByText('Here is your recorded balance.');
+  await screen.findByText(balanceReply);
   await fireEvent.press(screen.getByRole('button', { name: 'Report this answer' }));
   await fireEvent.press(screen.getByRole('radio', { name: 'Unsafe or inappropriate' }));
   await fireEvent.press(screen.getByRole('button', { name: 'Send report' }));
@@ -217,14 +243,14 @@ test('a changed signed-in user sees neither the prior chat nor its consent', asy
   const view = await mount();
   await allow();
   await ask();
-  await screen.findByText('Here is your recorded balance.');
+  await screen.findByText(balanceReply);
   jest.mocked(useApp).mockReturnValue({
     api: view.api,
     user: { ...user, id: '33333333-3333-4333-8333-333333333333' },
   } as ReturnType<typeof useApp>);
   await view.rerender(view.content());
-  await screen.findByRole('button', { name: 'Allow AI for this chat' });
-  expect(screen.queryByText('Here is your recorded balance.')).toBeNull();
+  await screen.findByRole('button', { name: 'Enable Finora AI' });
+  expect(screen.queryByText(balanceReply)).toBeNull();
   expect(screen.queryByLabelText('Your question')).toBeNull();
 });
 
@@ -232,13 +258,70 @@ test('offline state disables sending without hiding the recorded snapshot', asyn
   const view = await mount();
   await allow();
   await ask();
-  await screen.findByText('Here is your recorded balance.');
+  await screen.findByText(balanceReply);
   jest
     .mocked(useNetworkState)
     .mockReturnValue({ isConnected: false } as ReturnType<typeof useNetworkState>);
   await view.rerender(view.content());
   await fireEvent.changeText(screen.getByLabelText('Your question'), 'And my debts?');
   expect(screen.getByRole('button', { name: 'Send question' })).toBeDisabled();
-  expect(screen.getByText('Here is your recorded balance.')).toBeOnTheScreen();
+  expect(screen.getByText(balanceReply)).toBeOnTheScreen();
   expect(requests).toHaveLength(1);
+});
+
+test('dated answers work on Hermes without Intl formatRange', () => {
+  const descriptor = Object.getOwnPropertyDescriptor(Intl.DateTimeFormat.prototype, 'formatRange');
+  Object.defineProperty(Intl.DateTimeFormat.prototype, 'formatRange', {
+    value: undefined,
+    configurable: true,
+  });
+  try {
+    const metadata = {
+      source: 'server-recorded' as const,
+      readOnly: true as const,
+      includesLocalPending: false as const,
+      currency: 'INR' as const,
+      timezone: 'Asia/Kolkata',
+      retrievedAt: timestamp,
+    };
+    const cases: AssistantToolResult[] = [
+      {
+        ...metadata,
+        name: 'get_cashflow',
+        data: {
+          from: '2026-10-01',
+          to: '2026-10-24',
+          incomeMinor: '100000',
+          expensesMinor: '568000',
+          netMinor: '-468000',
+        },
+      },
+      {
+        ...metadata,
+        name: 'get_category_spending',
+        data: {
+          from: '2026-09-30',
+          to: '2026-10-24',
+          totalExpensesMinor: '568000',
+          categories: [],
+        },
+      },
+    ];
+    for (const result of cases) {
+      const text = answerText(result);
+      expect(text).toContain('24 Oct 2026');
+      expect(text).toContain(formatMoney('568000', 'INR', 'en-IN'));
+      expect(text).not.toContain('2026-10-24');
+    }
+  } finally {
+    if (descriptor) Object.defineProperty(Intl.DateTimeFormat.prototype, 'formatRange', descriptor);
+    else Reflect.deleteProperty(Intl.DateTimeFormat.prototype, 'formatRange');
+  }
+});
+
+test('remembers accepted privacy notice after reopening without sending a question', async () => {
+  await mount({ remembered: true });
+  expect(screen.queryByRole('button', { name: 'Enable Finora AI' })).toBeNull();
+  expect(screen.getByLabelText('Your question')).toBeOnTheScreen();
+  expect(requests).toHaveLength(0);
 });

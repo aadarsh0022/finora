@@ -94,7 +94,7 @@ export function Budgets({ onEditing }: { onEditing: (editing: boolean) => void }
         disabled={!categories.data}
         onPress={() => edit('new')}
       />
-      {query.isPending && <Loading />}
+      {query.isPending && <Loading variant="budgets" />}
       {query.isError && (
         <Feedback
           error={query.error}

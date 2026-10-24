@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1024" height="500" viewBox="0 0 1024 500">
-  <title>Finora — Your money, clearly.</title>
-  <desc>Original Finora F-and-leaf mark and geometric path lettering on a green background.</desc>
+  <title>Finora AI Money Manager</title>
+  <desc>Original Finora overlapping-leaf mark and geometric path lettering on a green background.</desc>
   <defs>
     <g id="F"><path d="M2 30V2H22M2 15H18"/></g>
     <g id="i"><path d="M5 12V30"/><circle cx="5" cy="3" r="2.7" fill="currentColor" stroke="none"/></g>
@@ -22,11 +22,7 @@
   <path d="M750 500C876 421 961 293 1024 132V500Z" fill="#1C4839"/>
   <path d="M831 500C921 411 982 315 1024 222" fill="none" stroke="#265841" stroke-width="2"/>
   <rect x="78" y="112" width="280" height="276" rx="54" fill="#204C39"/>
-  <g transform="translate(218 250) scale(.5) translate(-540 -540)">
-    <rect x="360" y="316" width="105" height="470" rx="28" fill="#F1FBF5"/>
-    <rect x="420" y="500" width="230" height="96" rx="28" fill="#F1FBF5"/>
-    <path d="M435 403C447 305 576 272 731 304C708 401 586 439 435 403Z" fill="#8DE2AF"/>
-  </g>
+  <defs><linearGradient id="leaf" x1="0" y1="1" x2="1" y2="0"><stop stop-color="#009368"/><stop offset="1" stop-color="#79DCAE"/></linearGradient></defs><g transform="translate(218 250) scale(6) translate(-18 -18)"><path d="M12 3H34V18C34 27 28 33 19 33H3V18C3 9 7 3 12 3Z" fill="url(#leaf)"/><path d="M3 19C3 12 8 9 15 9H25V20C25 28 19 33 11 33H3Z" fill="#00835F" opacity=".8"/><path d="M15 3H34V12H24C17 12 13 17 13 24V33H3V19C3 10 7 3 15 3Z" fill="#B1EBCB" opacity=".3"/></g>
   <!-- Original geometric wordmark: Finora. All lettering is paths, never system fonts. -->
   <g transform="translate(410 151) scale(2.7)" fill="none" color="#F1FBF5" stroke="currentColor" stroke-width="4.4" stroke-linecap="round" stroke-linejoin="round">
     <use href="#F"/>

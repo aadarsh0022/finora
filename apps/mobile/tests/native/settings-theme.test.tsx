@@ -110,7 +110,7 @@ test('saves the selected theme through the real versioned mutation before refres
 test('uses the system scheme when selected and explicit theme preferences override it', async () => {
   await mount();
   const theme = await renderHook(() => useTheme());
-  expect(theme.result.current.text).toBe('#18212B');
+  expect(theme.result.current.text).toBe('#101322');
   currentUser = {
     ...currentUser,
     preferences: { ...currentUser.preferences, preferredTheme: 'system' },
@@ -123,7 +123,7 @@ test('uses the system scheme when selected and explicit theme preferences overri
     preferences: { ...currentUser.preferences, preferredTheme: 'light' },
   };
   await theme.rerender(undefined);
-  expect(theme.result.current.text).toBe('#18212B');
+  expect(theme.result.current.text).toBe('#101322');
 });
 
 test('settings navigation opens connected management, planning, backup and security destinations', async () => {

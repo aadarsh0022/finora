@@ -22,7 +22,7 @@ export default function Accounts() {
           { value: 'archived', label: 'Archived' },
         ]}
       />
-      {query.isPending && <Loading />}
+      {query.isPending && <Loading variant="accounts" />}
       {query.isError && (
         <Feedback
           error={query.error}

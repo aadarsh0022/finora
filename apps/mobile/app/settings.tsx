@@ -63,7 +63,7 @@ export default function Settings() {
           </AppText>
         </View>
       </Card>
-      {settings.isPending && <Loading />}
+      {settings.isPending && <Loading variant="form" />}
       {settings.isError && (
         <Feedback
           error={settings.error}

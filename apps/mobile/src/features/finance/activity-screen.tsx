@@ -1,4 +1,4 @@
-import { ProfileAction } from '../../components/design';
+import { ProfileAction, Icon } from '../../components/design';
 import { transactionPageSchema } from '@finora/contracts';
 import { calendarDate } from '@finora/finance-core';
 import { router } from 'expo-router';
@@ -16,13 +16,7 @@ import {
   Screen,
 } from '../../components/ui';
 import { DateField, FlowSheet, SelectField } from '../../components/flow';
-import {
-  accountsSchema,
-  categoriesSchema,
-  SavedDataNotice,
-  TransactionCard,
-  useRead,
-} from './shared';
+import { accountsSchema, categoriesSchema, useMoney, TransactionCard, useRead } from './shared';
 import { activityQuery, emptyActivityFilters, type ActivityFilters } from './filters';
 import { useApp } from '../../providers/app-provider';
 import { useTheme } from '../../theme';
@@ -30,6 +24,7 @@ import { useTheme } from '../../theme';
 export default function Transactions() {
   const { user } = useApp();
   const theme = useTheme();
+  const money = useMoney();
   const currency = user?.preferences.baseCurrency ?? 'INR';
   const timezone = user?.preferences.timezone ?? 'Asia/Kolkata';
   const [search, setSearch] = useState('');
@@ -108,6 +103,8 @@ export default function Transactions() {
   return (
     <Screen
       title="Activity"
+      titleSize={36}
+      showPendingStatus={false}
       headerAction={<ProfileAction />}
       subtitle="Your money, one entry at a time."
       onRefresh={() => query.refetch()}
@@ -140,6 +137,9 @@ export default function Transactions() {
         <View style={{ flex: 1 }}>
           <Field
             label="Search transactions"
+            hideLabel
+            leadingAction={<Icon name="search" size={19} />}
+            style={{ minHeight: 48, fontSize: 14 }}
             placeholder="Merchant or note"
             value={search}
             onChangeText={setSearch}
@@ -163,15 +163,40 @@ export default function Transactions() {
             }
           />
         </View>
-        <AppButton
-          title={count ? `Filters (${count})` : 'Filters'}
-          variant="secondary"
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={count ? `Filters (${count})` : 'Filters'}
           onPress={() => {
             setDraft({ ...applied, q: search });
             setError('');
             setOpen(true);
           }}
-        />
+          style={{
+            width: 48,
+            height: 48,
+            borderWidth: 1,
+            borderColor: theme.border,
+            backgroundColor: theme.surface,
+            borderRadius: 14,
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <Icon name="filters" color={theme.accent} size={22} />
+          {count > 0 && (
+            <View
+              style={{
+                position: 'absolute',
+                top: 5,
+                right: 5,
+                width: 7,
+                height: 7,
+                borderRadius: 4,
+                backgroundColor: theme.accent,
+              }}
+            />
+          )}
+        </Pressable>
       </View>
       {search.trim().length > 0 && search.trim().length < 3 && (
         <AppText tone="muted" style={{ fontSize: 12, lineHeight: 18, marginTop: -14 }}>
@@ -180,6 +205,7 @@ export default function Transactions() {
       )}
       <Choice
         label="Type"
+        hideLabel
         value={applied.type}
         onChange={(type) => apply({ ...applied, type, categoryId: 'all', q: search })}
         options={[
@@ -221,7 +247,6 @@ export default function Transactions() {
         </View>
       )}
       {!open && error ? <Feedback error={new Error(error)} /> : null}
-      <SavedDataNotice at={query.cachedAt} />
       {query.isPending && <Loading />}
       {query.isError && (
         <Feedback
@@ -242,10 +267,12 @@ export default function Transactions() {
       )}
       {query.data && (
         <>
-          <AppText tone="muted" style={{ fontSize: 13 }}>
-            {query.data.total} {query.data.total === 1 ? 'transaction' : 'transactions'}
-            {page > 1 ? ` · Page ${page}` : ''}
-          </AppText>
+          {page > 1 && (
+            <AppText tone="muted" style={{ fontSize: 13 }}>
+              {query.data.total} {query.data.total === 1 ? 'transaction' : 'transactions'}
+              {` · Page ${page}`}
+            </AppText>
+          )}
           {!items.length && (
             <Card>
               <AppText style={{ fontFamily: 'DMSansBold', fontSize: 20 }}>
@@ -272,36 +299,65 @@ export default function Transactions() {
           )}
           {[...groups].map(([day, records]) => (
             <View key={day} style={{ gap: 8 }}>
-              <AppText
-                tone="muted"
-                style={{ fontSize: 13, fontFamily: 'DMSansBold', marginTop: 4 }}
+              <View
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: 12,
+                  paddingTop: 8,
+                  paddingHorizontal: 2,
+                }}
               >
-                {day === 'By amount'
-                  ? day
-                  : new Intl.DateTimeFormat(user?.preferences.locale ?? 'en-IN', {
-                      weekday: 'short',
-                      day: 'numeric',
-                      month: 'short',
-                      year: 'numeric',
-                      timeZone: 'UTC',
-                    }).format(new Date(`${day}T12:00:00Z`))}
-              </AppText>
-              {records.map((item) => (
-                <TransactionCard
-                  key={item.id}
-                  item={item}
-                  accountName={
-                    accounts.data?.find((account) => account.id === item.accountId)?.name
-                  }
-                  destinationAccountName={
-                    accounts.data?.find((account) => account.id === item.destinationAccountId)?.name
-                  }
-                  categoryName={
-                    categories.data?.find((category) => category.id === item.categoryId)?.name
-                  }
-                  showDate={day === 'By amount'}
-                />
-              ))}
+                <AppText style={{ fontSize: 15, fontFamily: 'DMSansBold' }}>
+                  {day === 'By amount'
+                    ? day
+                    : day === calendarDate(new Date(), timezone)
+                      ? 'Today'
+                      : day ===
+                          new Date(
+                            new Date(`${calendarDate(new Date(), timezone)}T12:00:00Z`).getTime() -
+                              86400000,
+                          )
+                            .toISOString()
+                            .slice(0, 10)
+                        ? 'Yesterday'
+                        : new Intl.DateTimeFormat(user?.preferences.locale ?? 'en-IN', {
+                            day: 'numeric',
+                            month: 'short',
+                            year: 'numeric',
+                            timeZone: 'UTC',
+                          }).format(new Date(`${day}T12:00:00Z`))}
+                </AppText>
+                <AppText tone="muted" style={{ fontSize: 12 }}>
+                  {applied.type === 'TRANSFER'
+                    ? `${records.length} ${records.length === 1 ? 'transfer' : 'transfers'}`
+                    : query.data.total <= query.data.pageSize && day !== 'By amount'
+                      ? `${money(records.reduce((total, record) => total + (record.type === 'EXPENSE' ? BigInt(record.amountMinor) : 0n), 0n).toString())} spent`
+                      : `${records.length} shown`}
+                </AppText>
+              </View>
+              <View
+                style={{ backgroundColor: theme.surface, borderRadius: 16, overflow: 'hidden' }}
+              >
+                {records.map((item) => (
+                  <TransactionCard
+                    key={item.id}
+                    item={item}
+                    accountName={
+                      accounts.data?.find((account) => account.id === item.accountId)?.name
+                    }
+                    destinationAccountName={
+                      accounts.data?.find((account) => account.id === item.destinationAccountId)
+                        ?.name
+                    }
+                    categoryName={
+                      categories.data?.find((category) => category.id === item.categoryId)?.name
+                    }
+                    showDate={day === 'By amount'}
+                  />
+                ))}
+              </View>
             </View>
           ))}
           {query.data.total > query.data.pageSize && (

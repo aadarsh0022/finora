@@ -4,6 +4,7 @@ import {
   assistantChatInputSchema,
   assistantFeedbackInputSchema,
   assistantPolicyVersion,
+  assistantConsentInputSchema,
 } from '@finora/contracts';
 import { authenticate } from '../auth/service';
 import { rateLimit } from '../../security/rate-limit';
@@ -27,6 +28,8 @@ export async function assistantRoute(
     return success(
       {
         enabled: assistantEnabled(),
+        remembersConsent: true,
+        consentAccepted: context.user.assistantConsentPolicy === assistantPolicyVersion,
         readOnly: true,
         provider: 'OpenAI',
         model: 'gpt-6-luna',
@@ -34,6 +37,17 @@ export async function assistantRoute(
       },
       requestId,
     );
+  }
+  if (path === '/api/v1/assistant/consent') {
+    if (request.method !== 'POST') throw new ApiError(405, 'METHOD_NOT_ALLOWED', 'Use POST.');
+    const input = await readBody(request, assistantConsentInputSchema);
+    await rateLimit(request, 'assistant-consent', context.user.id, 10);
+    const { users } = await database();
+    await users.updateOne(
+      { id: context.user.id },
+      { $set: { assistantConsentPolicy: input.policyVersion } },
+    );
+    return success({ message: 'AI preference saved.' }, requestId);
   }
   if (path === '/api/v1/assistant/chat') {
     if (request.method !== 'POST') throw new ApiError(405, 'METHOD_NOT_ALLOWED', 'Use POST.');

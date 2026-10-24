@@ -38,7 +38,7 @@ export function Goals({ onEditing }: { onEditing: (editing: boolean) => void }) 
         Track savings toward your next milestone.
       </AppText>
       <AppButton title="Create savings goal" onPress={() => select('new')} />
-      {query.isPending && <Loading />}
+      {query.isPending && <Loading variant="goals" />}
       {query.isError && (
         <Feedback
           error={query.error}
@@ -151,7 +151,7 @@ function GoalDetail({ id, done }: { id: string; done: () => void }) {
   const [contributionDirty, setContributionDirty] = useState(false);
   const update = useFinanceMutation(`goals/${id}`, goalSchema, 'PATCH');
   const remove = useFinanceMutation(`goals/${id}`, deletedSchema, 'DELETE');
-  if (query.isPending) return <Loading />;
+  if (query.isPending) return <Loading variant="goals" />;
   if (query.isError)
     return (
       <>

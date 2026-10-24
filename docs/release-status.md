@@ -147,3 +147,18 @@ and shows nine opted-in testers. Public production access is still unavailable.
 The signed version 4 AAB is being built; no new upload or review submission has
 been verified. Browser control currently lists the Play release draft but fails
 to attach. Confirm the final artifact and Play status before claiming submission.
+
+## Version 0.2.1 / code 5 preparation, 24 October 2026
+
+The owner explicitly authorized pushing this refinement and uploading it to the
+existing closed test. The new release preserves app.finora.money and the existing
+upload key. It includes the reference-based redesign, new logo, inline AI draft
+clarification/confirmation, text-first answers, remembered AI privacy acceptance,
+branded animated startup, profile action, Home details and faster cached reopening.
+Full local-ledger/offline reconciliation remains unfinished and is not a release
+claim. Cross-device remembered AI acceptance requires the accompanying API update.
+
+Play Console now verifies code 4 as available to selected Alpha testers at 100%
+rollout in 178 countries/regions. Code 5 still requires a fresh signed bundle,
+Play upload, the owner's full 20-minute wait, verification and review submission.
+Public production and billing remain outside this closed-testing release.

@@ -1,3 +1,4 @@
+import * as SecureStore from 'expo-secure-store';
 import {
   assistantCapabilitiesSchema,
   assistantChatResponseSchema,
@@ -5,7 +6,7 @@ import {
   type AssistantChatResponse,
 } from '@finora/contracts';
 import { useQuery } from '@tanstack/react-query';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   KeyboardAvoidingView,
   Linking,
@@ -23,12 +24,14 @@ import { AppButton, AppText, Card, Choice, Feedback } from '../../components/ui'
 import { Icon } from '../../components/design';
 import { ChatThinking, UserBubble } from './chrome';
 import { FlowSheet } from '../../components/flow';
-import { AssistantResult } from './result';
-import { TransactionDraftCard } from './transaction-draft';
+import { AssistantResult, answerText } from './result';
+import { AnswerActions } from './answer-actions';
+import { TransactionConversation, type DraftReply } from './transaction-conversation';
 import { useApp } from '../../providers/app-provider';
-import { usePendingTransactions } from '../../storage/hooks';
 import { publicPageUrl } from '../../public-site';
 import { useTheme } from '../../theme';
+import { FinoraMark } from '../../components/brand';
+import { queuedTransactionSchema } from '../../storage/outbox';
 
 type Turn = { question: string; answer: AssistantChatResponse };
 export default function AssistantScreen() {
@@ -37,13 +40,30 @@ export default function AssistantScreen() {
 }
 
 function AssistantSession() {
-  const { user, api, vault } = useApp();
+  const { user, api, vault, syncPending } = useApp();
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const network = useNetworkState();
   const offline = network.isConnected === false || network.isInternetReachable === false;
-  const pending = usePendingTransactions();
   const [consent, setConsent] = useState(false);
+  const [consentReady, setConsentReady] = useState(false);
+  const [accepting, setAccepting] = useState(false);
+  const consentRecorded = useRef(false);
+  useEffect(() => {
+    let active = true;
+    if (!user) return;
+    void SecureStore.getItemAsync(`finora.ai-consent.v1.${user.id}`)
+      .then((saved) => {
+        if (active) setConsent(saved === assistantPolicyVersion);
+      })
+      .catch(() => undefined)
+      .finally(() => {
+        if (active) setConsentReady(true);
+      });
+    return () => {
+      active = false;
+    };
+  }, [user?.id]);
   const [draft, setDraft] = useState('');
   const [turns, setTurns] = useState<Turn[]>([]);
   const [busy, setBusy] = useState(false);
@@ -59,6 +79,18 @@ function AssistantSession() {
   const reportFlight = useRef<AbortController | null>(null);
   const scroll = useRef<ScrollViewInstance>(null);
   const followLatest = useRef(true);
+  const transactionReply = useRef<DraftReply | null>(null);
+  const [awaitingTransaction, setAwaitingTransaction] = useState(false);
+  const registerDraftReply = useCallback((handler: DraftReply) => {
+    transactionReply.current = handler;
+    setAwaitingTransaction(true);
+    return () => {
+      if (transactionReply.current === handler) {
+        transactionReply.current = null;
+        setAwaitingTransaction(false);
+      }
+    };
+  }, []);
   const capabilities = useQuery({
     queryKey: [user?.id, 'assistant-capabilities'],
     enabled: !!user,
@@ -68,6 +100,55 @@ function AssistantSession() {
     queryFn: ({ signal }) =>
       api.request('assistant/capabilities', assistantCapabilitiesSchema, { signal }),
   });
+  useEffect(() => {
+    if (consentReady && capabilities.data?.consentAccepted) setConsent(true);
+  }, [consentReady, capabilities.data?.consentAccepted]);
+  useEffect(() => {
+    if (
+      !consentReady ||
+      !consent ||
+      !capabilities.data?.remembersConsent ||
+      capabilities.data.consentAccepted ||
+      consentRecorded.current
+    )
+      return;
+    consentRecorded.current = true;
+    void api
+      .request('assistant/consent', z.object({ message: z.string() }), {
+        method: 'POST',
+        body: { policyVersion: assistantPolicyVersion },
+      })
+      .catch(() => {
+        consentRecorded.current = false;
+      });
+  }, [
+    api,
+    consentReady,
+    consent,
+    capabilities.data?.remembersConsent,
+    capabilities.data?.consentAccepted,
+  ]);
+  async function acceptConsent() {
+    if (!user || accepting) return;
+    setAccepting(true);
+    setError(undefined);
+    try {
+      if (capabilities.data?.remembersConsent)
+        await api.request('assistant/consent', z.object({ message: z.string() }), {
+          method: 'POST',
+          body: { policyVersion: assistantPolicyVersion },
+        });
+      consentRecorded.current = !!capabilities.data?.remembersConsent;
+      await SecureStore.setItemAsync(`finora.ai-consent.v1.${user.id}`, assistantPolicyVersion, {
+        keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY,
+      }).catch(() => undefined);
+      setConsent(true);
+    } catch (failure) {
+      setError(failure);
+    } finally {
+      setAccepting(false);
+    }
+  }
   useEffect(
     () => () => {
       flight.current?.abort();
@@ -78,6 +159,8 @@ function AssistantSession() {
     [],
   );
   function clear() {
+    transactionReply.current = null;
+    setAwaitingTransaction(false);
     flight.current?.abort();
     flight.current = null;
     setBusy(false);
@@ -87,11 +170,22 @@ function AssistantSession() {
     setError(undefined);
     setNotice('');
     setReported([]);
-    setConsent(false);
   }
   async function send(question = draft.trim()) {
-    if (!question || !consent || !capabilities.data?.enabled || offline || flight.current || !user)
+    if (
+      !question ||
+      !consent ||
+      !capabilities.data?.enabled ||
+      (offline && !transactionReply.current) ||
+      flight.current ||
+      !user
+    )
       return;
+    if (transactionReply.current) {
+      transactionReply.current(question);
+      setDraft('');
+      return;
+    }
     const controller = new AbortController();
     flight.current = controller;
     setBusy(true);
@@ -101,6 +195,15 @@ function AssistantSession() {
     setError(undefined);
     setNotice('');
     try {
+      if (vault) {
+        await syncPending?.();
+        const recent = await vault.list('pending:', queuedTransactionSchema);
+        if (recent.length)
+          throw new Error(
+            'Some recent changes need attention before AI can give an up-to-date answer. Check your transactions and try again.',
+          );
+        if (flight.current !== controller) return;
+      }
       const answer = await api.request('assistant/chat', assistantChatResponseSchema, {
         method: 'POST',
         signal: controller.signal,
@@ -177,14 +280,33 @@ function AssistantSession() {
           }}
         >
           <View style={{ flex: 1, gap: 2 }}>
-            <AppText
-              accessibilityRole="header"
-              style={{ fontSize: 20, lineHeight: 28, fontFamily: 'DMSansBold' }}
-            >
-              Finora AI
-            </AppText>
-            <AppText tone="muted" style={{ fontSize: 12 }}>
-              Money manager
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+              <AppText
+                accessibilityRole="header"
+                style={{
+                  fontSize: 30,
+                  lineHeight: 38,
+                  fontFamily: 'DMSansBold',
+                  letterSpacing: -0.8,
+                }}
+              >
+                Finora AI
+              </AppText>
+              <View
+                style={{
+                  backgroundColor: theme.accentSoft,
+                  borderRadius: 8,
+                  paddingHorizontal: 8,
+                  paddingVertical: 3,
+                }}
+              >
+                <AppText tone="accent" style={{ fontSize: 12 }}>
+                  Beta
+                </AppText>
+              </View>
+            </View>
+            <AppText tone="muted" style={{ fontSize: 14 }}>
+              Your personal money manager
             </AppText>
           </View>
           {(turns.length > 0 || busy) && (
@@ -192,7 +314,14 @@ function AssistantSession() {
               accessibilityRole="button"
               accessibilityLabel="Clear chat"
               onPress={clear}
-              style={{ width: 48, height: 48, alignItems: 'center', justifyContent: 'center' }}
+              style={{
+                width: 48,
+                height: 48,
+                alignItems: 'center',
+                justifyContent: 'center',
+                backgroundColor: theme.surface,
+                borderRadius: 14,
+              }}
             >
               <Icon name="newChat" color={theme.text} />
             </Pressable>
@@ -243,7 +372,7 @@ function AssistantSession() {
               />
             </Card>
           )}
-          {capabilities.data?.enabled && !consent && (
+          {capabilities.data?.enabled && consentReady && !consent && (
             <Card>
               <AppText style={{ fontFamily: 'DMSansBold', fontSize: 20 }}>
                 Understand your money. Review every change.
@@ -264,8 +393,7 @@ function AssistantSession() {
               </AppText>
               <AppText tone="muted">
                 This chat stays in app memory and is not saved in Finora AI’s database. Clear chat
-                removes it from this screen. Answers use online records and exclude unsynced
-                entries.
+                removes it from this screen. Answers use recorded data available at the time shown.
               </AppText>
               <AppButton
                 title="Read privacy policy"
@@ -277,23 +405,17 @@ function AssistantSession() {
                 }}
               />
               <AppButton
-                title="Allow AI for this chat"
+                title="Enable Finora AI"
                 disabled={offline}
-                onPress={() => setConsent(true)}
+                loading={accepting}
+                onPress={() => {
+                  void acceptConsent();
+                }}
               />
             </Card>
           )}
           {consent && (
             <>
-              {vault && (!!pending.error || pending.isPending || !!pending.data?.length) && (
-                <Card>
-                  <AppText tone="muted">
-                    {pending.error || pending.isPending
-                      ? 'Local sync status is unavailable. Answers only include recorded online data.'
-                      : 'You have unsynced entries. These are excluded from chat answers.'}
-                  </AppText>
-                </Card>
-              )}
               {!turns.length && !busy && (
                 <View style={{ flex: 1, justifyContent: 'center', gap: 22, paddingBottom: 28 }}>
                   <View style={{ gap: 8 }}>
@@ -339,32 +461,118 @@ function AssistantSession() {
               {turns.map(({ question, answer }) => (
                 <View key={answer.answerId} style={{ gap: 12 }}>
                   <UserBubble question={question} />
-                  <AppText accessibilityLiveRegion="polite">{answer.message}</AppText>
-                  {answer.result && <AssistantResult result={answer.result} />}
-                  {answer.draft && (
-                    <TransactionDraftCard draft={answer.draft} answerId={answer.answerId} />
+                  <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 10 }}>
+                    <View
+                      style={{
+                        width: 42,
+                        height: 44,
+                        backgroundColor: theme.surface,
+                        borderRadius: 14,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      <FinoraMark size={27} />
+                    </View>
+                    <View
+                      style={{
+                        flex: 1,
+                        backgroundColor: theme.surface,
+                        borderRadius: 20,
+                        padding: 13,
+                      }}
+                    >
+                      <AppText accessibilityLiveRegion="polite" style={{ fontSize: 15 }}>
+                        {answer.draft?.missingFields.length
+                          ? 'Let’s fill in a detail first.'
+                          : answer.result
+                            ? answerText(answer.result, user?.preferences.locale)
+                            : answer.message}
+                      </AppText>
+                    </View>
+                  </View>
+                  {answer.result && (
+                    <AssistantResult
+                      result={answer.result}
+                      actions={
+                        <AnswerActions
+                          answer={answer}
+                          reported={reported.includes(answer.answerId)}
+                          onReport={() => {
+                            setReport(answer.answerId);
+                            setReason('incorrect');
+                            setReportError(undefined);
+                          }}
+                        />
+                      }
+                    />
                   )}
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel={
-                      reported.includes(answer.answerId) ? 'Answer reported' : 'Report this answer'
-                    }
-                    disabled={reported.includes(answer.answerId)}
-                    onPress={() => {
-                      setReport(answer.answerId);
-                      setReason('incorrect');
-                      setReportError(undefined);
-                    }}
-                    style={{ alignSelf: 'flex-start', minHeight: 44, justifyContent: 'center' }}
-                  >
-                    <AppText tone="muted" style={{ fontSize: 12 }}>
-                      {reported.includes(answer.answerId)
-                        ? 'Reported · thank you'
-                        : 'Report an issue with this answer'}
-                    </AppText>
-                  </Pressable>
+                  {answer.draft && (
+                    <TransactionConversation
+                      draft={answer.draft}
+                      answerId={answer.answerId}
+                      register={registerDraftReply}
+                    />
+                  )}
                 </View>
               ))}
+              {!!turns.length && !busy && !awaitingTransaction && (
+                <View style={{ gap: 8 }}>
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={{ gap: 8 }}
+                    accessibilityLabel="Suggested questions"
+                  >
+                    {(
+                      [
+                        ['activity', 'Show my monthly summary', 'Show my monthly summary'],
+                        [
+                          'arrowRight',
+                          'What are my top expenses?',
+                          'Show my spending by category this month',
+                        ],
+                        [
+                          'calendar',
+                          'How much did I spend this month?',
+                          'How much did I spend this month?',
+                        ],
+                        ['goal', 'How are my budgets?', 'How are my budgets this month?'],
+                        ['wallet', 'What do I owe?', 'What do I owe?'],
+                      ] as const
+                    )
+                      .filter(
+                        ([, , question]) =>
+                          question.toLocaleLowerCase() !==
+                          turns[turns.length - 1]?.question.toLocaleLowerCase(),
+                      )
+                      .map(([icon, label, question]) => (
+                        <Pressable
+                          key={question}
+                          accessibilityRole="button"
+                          accessibilityLabel={label}
+                          disabled={offline}
+                          onPress={() => {
+                            void send(question);
+                          }}
+                          style={{
+                            minHeight: 44,
+                            maxWidth: 200,
+                            backgroundColor: theme.surface,
+                            borderRadius: 15,
+                            padding: 10,
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            gap: 7,
+                          }}
+                        >
+                          <Icon name={icon} color={theme.accent} size={19} />
+                          <AppText style={{ fontSize: 12, lineHeight: 17 }}>{label}</AppText>
+                        </Pressable>
+                      ))}
+                  </ScrollView>
+                </View>
+              )}
               {busy && (
                 <View style={{ gap: 18 }}>
                   <UserBubble question={pendingQuestion} />
@@ -402,7 +610,11 @@ function AssistantSession() {
             >
               <TextInput
                 accessibilityLabel="Your question"
-                placeholder="Finora AI"
+                placeholder={
+                  awaitingTransaction
+                    ? 'Enter the missing detail…'
+                    : 'Ask anything about your money…'
+                }
                 placeholderTextColor={theme.muted}
                 value={draft}
                 onChangeText={setDraft}
@@ -429,8 +641,10 @@ function AssistantSession() {
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel={busy ? 'Stop response' : 'Send question'}
-                accessibilityState={{ disabled: !busy && (offline || !draft.trim()) }}
-                disabled={!busy && (offline || !draft.trim())}
+                accessibilityState={{
+                  disabled: !busy && ((offline && !awaitingTransaction) || !draft.trim()),
+                }}
+                disabled={!busy && ((offline && !awaitingTransaction) || !draft.trim())}
                 onPress={() => {
                   if (busy) stop();
                   else void send();
@@ -439,10 +653,13 @@ function AssistantSession() {
                   width: 44,
                   height: 44,
                   borderRadius: 22,
-                  backgroundColor: theme.text,
+                  backgroundColor: theme.accent,
                   justifyContent: 'center',
                   alignItems: 'center',
-                  opacity: (!busy && (offline || !draft.trim())) || pressed ? 0.35 : 1,
+                  opacity:
+                    (!busy && ((offline && !awaitingTransaction) || !draft.trim())) || pressed
+                      ? 0.35
+                      : 1,
                 })}
               >
                 {busy ? (
@@ -459,9 +676,6 @@ function AssistantSession() {
                 )}
               </Pressable>
             </View>
-            <AppText tone="muted" style={{ fontSize: 11, textAlign: 'center' }}>
-              Drafts need your confirmation. No financial advice.
-            </AppText>
           </View>
         )}
       </KeyboardAvoidingView>

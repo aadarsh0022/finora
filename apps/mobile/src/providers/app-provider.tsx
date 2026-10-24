@@ -138,7 +138,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   async function restore() {
     if (restoring.current) return;
     restoring.current = true;
-    setPhase('loading');
+    if (!vaultRef.current) setPhase('loading');
     setError('');
     try {
       const tokens = await secureStore.get();
@@ -193,7 +193,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
           verified.current = true;
           setVerifiedOnline(true);
         } catch (failure) {
-          if (!savedUser || !canUseOffline(failure)) throw failure;
+          if (
+            !savedUser ||
+            !(
+              canUseOffline(failure) ||
+              (failure instanceof ClientError && (failure.status >= 500 || failure.status === 429))
+            )
+          )
+            throw failure;
         }
       }
       setPhase('ready');

@@ -111,7 +111,7 @@ export default function TransactionScreen() {
   )
     return (
       <Screen>
-        <Loading />
+        <Loading variant="form" />
       </Screen>
     );
   const favourite = favourites.data?.find((row) => row.value.id === params.favourite)?.value;

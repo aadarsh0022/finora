@@ -258,7 +258,7 @@ export default function Onboarding() {
           </AppText>
         </>
       )}
-      {step > 0 && (settings.isPending || accounts.isPending) && <Loading />}
+      {step > 0 && (settings.isPending || accounts.isPending) && <Loading variant="form" />}
       {(settings.error || accounts.error) && step > 0 && (
         <Feedback
           error={settings.error ?? accounts.error}

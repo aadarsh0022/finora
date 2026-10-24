@@ -8,6 +8,7 @@ import { FlowSheet } from './flow';
 import { useTheme } from '../theme';
 
 const paths = {
+  profile: 'M12 3a4 4 0 1 0 0 8 4 4 0 0 0 0-8ZM4 21v-2a8 8 0 0 1 16 0v2',
   wallet: 'M3 6h17v14H3V6Zm0 0V4h14v2M16 11h4v5h-4z',
   activity: 'M5 6h14M5 12h14M5 18h14',
   plan: 'M12 3a9 9 0 1 0 9 9M12 3v9h9',
@@ -21,6 +22,15 @@ const paths = {
   newChat: 'M13 5H5v15h15v-8M11 13l1-4 7-7 3 3-7 7-4 1Z',
   chevron: 'm9 5 7 7-7 7',
   more: 'M5 12h.01M12 12h.01M19 12h.01',
+  search: 'm16 16 5 5M18 10a8 8 0 1 1-16 0 8 8 0 0 1 16 0Z',
+  filters: 'M3 7h18M3 17h18M8 4v6m8 4v6',
+  mail: 'M3 5h18v14H3zM3 6l9 7 9-7',
+  lock: 'M5 10h14v11H5zM8 10V7a4 4 0 0 1 8 0v3',
+  arrowRight: 'M4 12h16m-6-6 6 6-6 6',
+  thumbsUp: 'M7 10H3v11h4V10Zm0 0 5-8c3 0 2 5 2 7h5a2 2 0 0 1 2 3l-2 7a3 3 0 0 1-3 2H7',
+  thumbsDown: 'M7 14H3V3h4v11Zm0 0 5 8c3 0 2-5 2-7h5a2 2 0 0 0 2-3l-2-7a3 3 0 0 0-3-2H7',
+  copy: 'M8 8h12v13H8zM16 8V3H3v13h5',
+  share: 'M8 15c3-5 6-6 11-6V4l4 7-4 7v-5c-5 0-8 0-11 2ZM4 8H1v14h16v-3',
 } as const;
 export type IconName = keyof typeof paths;
 
@@ -54,27 +64,28 @@ export function ProfileAction() {
     <Pressable
       accessibilityRole="button"
       accessibilityLabel="Open settings"
+      accessibilityHint="Manage your profile, preferences and security"
       onPress={() => router.push('/settings')}
+      hitSlop={6}
       style={({ pressed }) => ({
-        minWidth: 48,
+        minWidth: 96,
         minHeight: 48,
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        borderRadius: 24,
+        borderWidth: 1,
+        borderColor: theme.border,
+        backgroundColor: pressed ? theme.border : theme.accentSoft,
+        flexDirection: 'row',
+        gap: 7,
         alignItems: 'center',
         justifyContent: 'center',
-        opacity: pressed ? 0.6 : 1,
       })}
     >
-      <View
-        style={{
-          width: 36,
-          height: 36,
-          borderRadius: 18,
-          backgroundColor: theme.border,
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-      >
-        <AppText style={{ fontFamily: 'DMSansBold' }}>F</AppText>
-      </View>
+      <Icon name="profile" color={theme.accent} size={20} />
+      <AppText tone="accent" style={{ fontSize: 13, fontFamily: 'DMSansBold' }}>
+        Profile
+      </AppText>
     </Pressable>
   );
 }
@@ -107,10 +118,12 @@ export function SectionHeading({
   title,
   action,
   onPress,
+  actionLabel,
 }: {
   title: string;
   action?: string;
   onPress?: () => void;
+  actionLabel?: string;
 }) {
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
@@ -123,7 +136,7 @@ export function SectionHeading({
       {action && onPress && (
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={action}
+          accessibilityLabel={actionLabel ?? action}
           onPress={onPress}
           style={{ minHeight: 48, justifyContent: 'center', paddingHorizontal: 4 }}
         >

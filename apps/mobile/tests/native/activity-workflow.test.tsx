@@ -96,7 +96,7 @@ async function mount() {
 test('shows transaction information with filters closed on arrival and opens row details', async () => {
   await mount();
   expect(screen.getByText('−₹12.50')).toBeOnTheScreen();
-  expect(screen.getByText('1 transaction')).toBeOnTheScreen();
+  expect(screen.getByText('₹12.50 spent')).toBeOnTheScreen();
   expect(screen.queryByRole('button', { name: 'Account' })).toBeNull();
   expect(screen.queryByRole('button', { name: 'Apply filters' })).toBeNull();
   await fireEvent.press(screen.getByRole('button', { name: 'Add transaction' }));

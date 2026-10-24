@@ -75,3 +75,10 @@ Consulted 20 October 2026; exact installed versions are recorded in the lockfile
   supports an explicitly confirmed first account. The owner later authorized
   pushing this work and requested closed-testing preparation; testing publication
   still requires passing checks and a compatible hosted API deployment.
+
+- Update, 24 October: apply the supplied light, mint and white-card reference
+  across mobile screens, preserve explicit dark-mode choice, and use the new
+  overlapping green Finora mark. Insights receives the supplied overview layout.
+  Email sign-in remains the only authentication provider. AI answers lead with
+  exact local text and optional compact details; transaction drafts clarify
+  missing fields and require explicit confirmation inside chat.

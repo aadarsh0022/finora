@@ -12,6 +12,7 @@ export const userRecordSchema = z.object({
   createdAt: z.date(),
   updatedAt: z.date(),
   onboardingCompletedAt: z.date().optional(),
+  assistantConsentPolicy: z.string().optional(),
   resetHash: z.string().optional(),
   resetExpiresAt: z.date().optional(),
 });

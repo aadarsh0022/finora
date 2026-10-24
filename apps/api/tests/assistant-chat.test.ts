@@ -273,3 +273,42 @@ it('stores only bounded feedback metadata, expires it and deletes only the owner
     1,
   );
 });
+
+it('remembers versioned AI consent for the authenticated account only', async () => {
+  const first = await createUser();
+  const second = await createUser('other@example.com');
+  const state = async (token: string) =>
+    data(await call('GET', 'assistant/capabilities', undefined, token));
+  expect(await state(first.accessToken)).toMatchObject({
+    remembersConsent: true,
+    consentAccepted: false,
+  });
+  expect(
+    (await call('POST', 'assistant/consent', { policyVersion: assistantPolicyVersion })).status,
+  ).toBe(401);
+  expect(
+    (await call('POST', 'assistant/consent', { policyVersion: 'old' }, first.accessToken)).status,
+  ).toBe(400);
+  expect(
+    (
+      await call(
+        'POST',
+        'assistant/consent',
+        { policyVersion: assistantPolicyVersion, userId: '99999999-9999-4999-8999-999999999999' },
+        first.accessToken,
+      )
+    ).status,
+  ).toBe(400);
+  expect(
+    (
+      await call(
+        'POST',
+        'assistant/consent',
+        { policyVersion: assistantPolicyVersion },
+        first.accessToken,
+      )
+    ).status,
+  ).toBe(200);
+  expect(await state(first.accessToken)).toMatchObject({ consentAccepted: true });
+  expect(await state(second.accessToken)).toMatchObject({ consentAccepted: false });
+});

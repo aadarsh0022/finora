@@ -64,10 +64,10 @@ export function UserBubble({ question }: { question: string }) {
       style={{
         alignSelf: 'flex-end',
         maxWidth: '88%',
-        backgroundColor: theme.border,
+        backgroundColor: theme.accentSoft,
         borderRadius: 22,
         paddingHorizontal: 17,
-        paddingVertical: 12,
+        paddingVertical: 15,
       }}
     >
       <AppText style={{ lineHeight: 24 }}>{question}</AppText>

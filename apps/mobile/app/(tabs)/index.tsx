@@ -2,7 +2,7 @@ import { overviewSchema } from '@finora/contracts';
 import { calendarDate } from '@finora/finance-core';
 import { Redirect, router } from 'expo-router';
 import { useEffect } from 'react';
-import { Pressable, View } from 'react-native';
+import { View } from 'react-native';
 import { AppButton, AppText, Card, Feedback, Loading, Screen } from '../../src/components/ui';
 import { AddTransactionAction, ProfileAction, SectionHeading } from '../../src/components/design';
 import { OutlookSummary } from '../../src/features/planning/outlook-summary';
@@ -12,16 +12,19 @@ import {
   TransactionCard,
   categoriesSchema,
   messageSchema,
-  SavedDataNotice,
 } from '../../src/features/finance/shared';
 import { useApp } from '../../src/providers/app-provider';
+import { HomeDetails } from '../../src/features/finance/home-details';
+import { HomeSummary } from '../../src/features/finance/home-summary';
 import { useTheme } from '../../src/theme';
+import { FinoraWordmark } from '../../src/components/brand';
 import { useFinanceMutation } from '../../src/hooks/finance';
 import { useUi } from '../../src/stores/ui';
 
 export default function Home() {
   const { user } = useApp();
   const theme = useTheme();
+  const firstName = user?.name.trim().split(/\s+/)[0];
   const money = useMoney();
   const month = calendarDate(new Date(), user?.preferences.timezone ?? 'Asia/Kolkata').slice(0, 7);
   const overview = useRead(`reports/overview?month=${month}`, overviewSchema);
@@ -39,13 +42,21 @@ export default function Home() {
     return <Redirect href="/onboarding" />;
   return (
     <Screen
-      title="Your money"
+      title={firstName ? `Hi, ${firstName}` : 'Your money'}
       subtitle="Make room for what matters."
-      headerAction={<ProfileAction />}
+      titleSize={28}
+      showPendingStatus={false}
+      topContent={
+        <View
+          style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}
+        >
+          <FinoraWordmark />
+          <ProfileAction />
+        </View>
+      }
       floatingAction={<AddTransactionAction />}
       onRefresh={() => Promise.all([overview.refetch(), categories.refetch()])}
     >
-      <SavedDataNotice at={overview.cachedAt} />
       {seed.isPending && <AppText tone="muted">Preparing your suggested categories…</AppText>}
       {seed.error && <Feedback error={seed.error} retry={() => seed.mutate({})} />}
       {categories.isError && (
@@ -67,101 +78,7 @@ export default function Home() {
       )}
       {data && (
         <>
-          <Card style={{ gap: 10 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-              <AppText tone="muted" style={{ flex: 1, fontSize: 14 }}>
-                Recorded balance · {data.currency}
-              </AppText>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={hidden ? 'Show total balance' : 'Hide total balance'}
-                onPress={toggleBalances}
-                style={{
-                  minWidth: 48,
-                  minHeight: 48,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  marginVertical: -8,
-                }}
-              >
-                <AppText tone="accent" style={{ fontSize: 13 }}>
-                  {hidden ? 'Show' : 'Hide'}
-                </AppText>
-              </Pressable>
-            </View>
-            <AppText
-              style={{
-                fontSize: 36,
-                lineHeight: 46,
-                fontFamily: 'DMSansBold',
-                fontVariant: ['tabular-nums'],
-              }}
-            >
-              {amount(data.totalBalanceMinor)}
-            </AppText>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Accounts"
-              onPress={() => router.push('/accounts')}
-              style={{ minHeight: 48, justifyContent: 'center' }}
-            >
-              <AppText tone="muted" style={{ fontSize: 13 }}>
-                Across {data.accounts.length} {data.accounts.length === 1 ? 'account' : 'accounts'}{' '}
-                · Manage →
-              </AppText>
-            </Pressable>
-            <View
-              style={{
-                borderTopColor: theme.border,
-                borderTopWidth: 1,
-                paddingTop: 14,
-                flexDirection: 'row',
-                gap: 16,
-              }}
-            >
-              {(
-                [
-                  ['Income', data.incomeMinor, 'accent'],
-                  ['Spent', data.expensesMinor, 'danger'],
-                ] as const
-              ).map(([label, value, tone]) => (
-                <View key={label} style={{ flex: 1, gap: 4 }}>
-                  <AppText tone="muted" style={{ fontSize: 13 }}>
-                    {label} · This month
-                  </AppText>
-                  <AppText
-                    tone={tone}
-                    style={{
-                      fontSize: 21,
-                      lineHeight: 28,
-                      fontFamily: 'DMSansBold',
-                      fontVariant: ['tabular-nums'],
-                    }}
-                  >
-                    {amount(value)}
-                  </AppText>
-                </View>
-              ))}
-            </View>
-            <View
-              style={{
-                flexDirection: 'row',
-                justifyContent: 'space-between',
-                flexWrap: 'wrap',
-                gap: 6,
-              }}
-            >
-              <AppText tone="muted" style={{ fontSize: 13 }}>
-                Net cash flow
-              </AppText>
-              <AppText
-                tone={BigInt(data.netMinor) < 0n ? 'danger' : 'accent'}
-                style={{ fontSize: 14, fontFamily: 'DMSansBold' }}
-              >
-                {amount(data.netMinor)}
-              </AppText>
-            </View>
-          </Card>
+          <HomeSummary data={data} hidden={hidden} toggle={toggleBalances} amount={amount} />
           {!data.accounts.length && (
             <Card>
               <AppText style={{ fontFamily: 'DMSansBold' }}>Start with your first account</AppText>
@@ -175,37 +92,36 @@ export default function Home() {
           <View>
             <SectionHeading
               title="Recent activity"
-              action="View all transactions"
+              action="View all →"
+              actionLabel="View all transactions"
               onPress={() => router.push('/(tabs)/transactions')}
             />
-            {data.recentTransactions.length ? (
-              data.recentTransactions
-                .slice(0, 3)
-                .map((item) => (
-                  <TransactionCard
-                    key={item.id}
-                    item={item}
-                    accountName={data.accounts.find((a) => a.id === item.accountId)?.name}
-                    destinationAccountName={
-                      data.accounts.find((a) => a.id === item.destinationAccountId)?.name
-                    }
-                    categoryName={categories.data?.find((c) => c.id === item.categoryId)?.name}
-                  />
-                ))
-            ) : (
-              <AppText tone="muted">Your transactions will appear here.</AppText>
-            )}
+            <View style={{ backgroundColor: theme.surface, borderRadius: 16, overflow: 'hidden' }}>
+              {data.recentTransactions.length ? (
+                data.recentTransactions
+                  .slice(0, 3)
+                  .map((item) => (
+                    <TransactionCard
+                      key={item.id}
+                      item={item}
+                      accountName={data.accounts.find((a) => a.id === item.accountId)?.name}
+                      destinationAccountName={
+                        data.accounts.find((a) => a.id === item.destinationAccountId)?.name
+                      }
+                      categoryName={categories.data?.find((c) => c.id === item.categoryId)?.name}
+                    />
+                  ))
+              ) : (
+                <AppText tone="muted">Your transactions will appear here.</AppText>
+              )}
+            </View>
           </View>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="View spending reports"
-            onPress={() => router.push('/(tabs)/reports')}
-            style={{ minHeight: 48, justifyContent: 'center' }}
-          >
-            <AppText tone="accent" style={{ fontSize: 14 }}>
-              Explore your spending in Insights →
-            </AppText>
-          </Pressable>
+          <HomeDetails
+            data={data}
+            categories={categories.data ?? []}
+            amount={amount}
+            hidden={hidden}
+          />
         </>
       )}
     </Screen>

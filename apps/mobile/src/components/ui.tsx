@@ -11,6 +11,7 @@ import {
   type TextInputProps,
   type TextProps,
   type ViewProps,
+  type ViewStyle,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNetworkState } from 'expo-network';
@@ -20,6 +21,7 @@ import { HeaderHeightContext } from 'expo-router/react-navigation';
 import { router } from 'expo-router';
 import { useApp } from '../providers/app-provider';
 import { usePendingTransactions } from '../storage/hooks';
+import Svg, { Path, Circle } from 'react-native-svg';
 
 export function AppText({
   tone = 'text',
@@ -42,6 +44,9 @@ export function Screen({
   bottomAction,
   floatingAction,
   headerAction,
+  topContent,
+  titleSize = 30,
+  contentStyle,
   showPendingStatus = true,
   includeTopInset = true,
 }: {
@@ -52,6 +57,9 @@ export function Screen({
   bottomAction?: ReactNode;
   floatingAction?: ReactNode;
   headerAction?: ReactNode;
+  topContent?: ReactNode;
+  titleSize?: number;
+  contentStyle?: ViewStyle;
   showPendingStatus?: boolean;
   includeTopInset?: boolean;
 }) {
@@ -96,12 +104,13 @@ export function Screen({
             ) : undefined
           }
           contentContainerStyle={{
-            padding: 20,
+            padding: 18,
             paddingBottom: floatingAction ? 104 : bottomAction ? 24 : 40,
-            gap: 20,
+            gap: 16,
             maxWidth: 720,
             width: '100%',
             alignSelf: 'center',
+            ...contentStyle,
           }}
         >
           {network.isConnected === false && (
@@ -130,6 +139,7 @@ export function Screen({
             </AppText>
           ) : null}
           {showPendingStatus && user && vault && <PendingStatus />}
+          {topContent}
           {title && (
             <View style={{ gap: 6 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
@@ -137,7 +147,7 @@ export function Screen({
                   accessibilityRole="header"
                   style={{
                     fontFamily: 'DMSansBold',
-                    fontSize: 30,
+                    fontSize: titleSize,
                     lineHeight: 38,
                     letterSpacing: -1,
                     flex: 1,
@@ -236,12 +246,14 @@ export function AppButton({
   loading = false,
   disabled = false,
   variant = 'primary',
+  trailingIcon,
 }: {
   title: string;
   onPress: () => void;
   loading?: boolean;
   disabled?: boolean;
   variant?: 'primary' | 'secondary' | 'danger';
+  trailingIcon?: ReactNode;
 }) {
   const theme = useTheme();
   const background = variant === 'primary' ? theme.accent : theme.surface;
@@ -271,6 +283,7 @@ export function AppButton({
     >
       {loading && <ActivityIndicator color={color} />}
       <AppText style={{ color, fontFamily: 'DMSansBold', textAlign: 'center' }}>{title}</AppText>
+      {trailingIcon && <View style={{ position: 'absolute', right: 18 }}>{trailingIcon}</View>}
     </Pressable>
   );
 }
@@ -279,8 +292,17 @@ export function Field({
   error,
   hint,
   trailingAction,
+  leadingAction,
+  hideLabel = false,
   ...props
-}: TextInputProps & { label: string; error?: string; hint?: string; trailingAction?: ReactNode }) {
+}: TextInputProps & {
+  label: string;
+  error?: string;
+  hint?: string;
+  trailingAction?: ReactNode;
+  leadingAction?: ReactNode;
+  hideLabel?: boolean;
+}) {
   const theme = useTheme();
   const [focused, setFocused] = useState(false);
   const [revealed, setRevealed] = useState(false);
@@ -293,14 +315,21 @@ export function Field({
         onPress={() => setRevealed(!revealed)}
         style={{ minWidth: 48, minHeight: 48, alignItems: 'center', justifyContent: 'center' }}
       >
-        <AppText tone="accent" style={{ fontSize: 12 }}>
-          {revealed ? 'Hide' : 'Show'}
-        </AppText>
+        <Svg width={21} height={21} viewBox="0 0 24 24" accessible={false}>
+          <Path
+            d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12Z"
+            stroke={theme.muted}
+            strokeWidth={1.6}
+            fill="none"
+          />
+          <Circle cx={12} cy={12} r={3} stroke={theme.muted} strokeWidth={1.6} fill="none" />
+          {revealed && <Path d="m4 3 16 18" stroke={theme.muted} strokeWidth={1.6} />}
+        </Svg>
       </Pressable>
     ) : undefined);
   return (
     <View style={{ gap: 7 }}>
-      <AppText style={{ fontSize: 14, fontFamily: 'DMSansBold' }}>{label}</AppText>
+      {!hideLabel && <AppText style={{ fontSize: 14, fontFamily: 'DMSansBold' }}>{label}</AppText>}
       <View>
         <TextInput
           {...props}
@@ -323,6 +352,7 @@ export function Field({
               borderColor: error ? theme.danger : focused ? theme.accent : theme.border,
               borderWidth: 1,
               padding: 14,
+              paddingLeft: leadingAction ? 44 : 14,
               paddingRight: endAction ? 62 : 14,
               borderRadius: 12,
               fontSize: 16,
@@ -331,6 +361,14 @@ export function Field({
             props.style,
           ]}
         />
+        {leadingAction && (
+          <View
+            pointerEvents="none"
+            style={{ position: 'absolute', left: 14, top: 0, bottom: 0, justifyContent: 'center' }}
+          >
+            {leadingAction}
+          </View>
+        )}
         {endAction && (
           <View
             style={{ position: 'absolute', right: 5, top: 0, bottom: 0, justifyContent: 'center' }}
@@ -359,11 +397,13 @@ export function Choice<T extends string>({
   onChange,
   presentation,
   disabled = false,
+  hideLabel = false,
 }: {
   label: string;
   value: T;
   presentation?: 'segmented' | 'list';
   disabled?: boolean;
+  hideLabel?: boolean;
   options: readonly { value: T; label: string; description?: string }[];
   onChange: (value: T) => void;
 }) {
@@ -373,7 +413,7 @@ export function Choice<T extends string>({
     (presentation !== 'list' && options.length <= 4 && options.every((o) => o.label.length <= 20));
   return (
     <View style={{ gap: 10 }}>
-      <AppText style={{ fontSize: 14, fontFamily: 'DMSansBold' }}>{label}</AppText>
+      {!hideLabel && <AppText style={{ fontSize: 14, fontFamily: 'DMSansBold' }}>{label}</AppText>}
       <View
         style={
           segmented
@@ -446,50 +486,4 @@ export function Feedback({ error, retry }: { error: unknown; retry?: () => void 
     </Card>
   );
 }
-export function Loading({ variant = 'list' }: { variant?: 'list' | 'dashboard' | 'form' }) {
-  const theme = useTheme();
-  const block = { backgroundColor: theme.border, borderRadius: 6 };
-  return (
-    <View
-      accessible
-      accessibilityRole="progressbar"
-      accessibilityLabel="Loading your records"
-      accessibilityState={{ busy: true }}
-      style={{ width: '100%', gap: 12 }}
-    >
-      <View
-        accessibilityElementsHidden
-        importantForAccessibility="no-hide-descendants"
-        style={{ gap: 12 }}
-      >
-        {variant === 'dashboard' && (
-          <Card style={{ minHeight: 164, justifyContent: 'center', gap: 18 }}>
-            <View style={[block, { width: '38%', height: 14 }]} />
-            <View style={[block, { width: '65%', height: 36 }]} />
-            <View style={[block, { width: '48%', height: 12 }]} />
-          </Card>
-        )}
-        {Array.from({ length: 3 }, (_, index) => (
-          <Card
-            key={index}
-            style={{
-              flexDirection: variant === 'form' ? 'column' : 'row',
-              alignItems: variant === 'form' ? 'stretch' : 'center',
-              gap: 14,
-              minHeight: 92,
-            }}
-          >
-            {variant !== 'form' && (
-              <View style={[block, { width: 44, height: 44, borderRadius: 14 }]} />
-            )}
-            <View style={{ flex: 1, gap: 12 }}>
-              <View style={[block, { width: '58%', height: 16 }]} />
-              <View style={[block, { width: '38%', height: variant === 'form' ? 32 : 12 }]} />
-            </View>
-            {variant !== 'form' && <View style={[block, { width: 68, height: 18 }]} />}
-          </Card>
-        ))}
-      </View>
-    </View>
-  );
-}
+export { Loading } from './skeleton';

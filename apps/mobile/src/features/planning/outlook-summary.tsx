@@ -72,15 +72,16 @@ export function OutlookSummary() {
         <View style={{ gap: 4 }}>
           <AppText
             style={{
-              fontSize: 30,
+              fontSize: 28,
               lineHeight: 38,
               fontFamily: 'DMSansBold',
               fontVariant: ['tabular-nums'],
+              maxWidth: '78%',
             }}
           >
             {hidden ? '••••••' : money(result.availableMinor!)}
           </AppText>
-          <AppText tone="muted" style={{ fontSize: 13 }}>
+          <AppText tone="muted" style={{ fontSize: 12, maxWidth: '76%' }}>
             Estimated available · Expected income excluded
           </AppText>
         </View>
@@ -89,6 +90,32 @@ export function OutlookSummary() {
           Review balances and commitments to see your estimate.
         </AppText>
       )}
+      <View
+        pointerEvents="none"
+        accessibilityElementsHidden
+        importantForAccessibility="no-hide-descendants"
+        style={{
+          position: 'absolute',
+          right: 17,
+          bottom: 38,
+          flexDirection: 'row',
+          alignItems: 'flex-end',
+          gap: 4,
+        }}
+      >
+        {[16, 25, 34, 46, 57].map((height, index) => (
+          <View
+            key={index}
+            style={{
+              width: 7,
+              height,
+              borderRadius: 4,
+              backgroundColor: theme.accent,
+              opacity: 0.35 + index * 0.12,
+            }}
+          />
+        ))}
+      </View>
       <AppText tone="accent" style={{ fontSize: 14, fontFamily: 'DMSansBold' }}>
         Explore your plan →
       </AppText>

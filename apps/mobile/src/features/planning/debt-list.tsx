@@ -137,7 +137,7 @@ export function DebtList({ receivables = false }: { receivables?: boolean }) {
           { value: 'ALL', label: 'All current' },
         ]}
       />
-      {query.isPending && <Loading />}
+      {query.isPending && <Loading variant="debts" />}
       {query.error && (
         <Feedback
           error={query.error}

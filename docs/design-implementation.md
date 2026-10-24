@@ -82,3 +82,26 @@ typechecking, lint and formatting. The Android JavaScript export succeeded. Nati
 QA covered profile navigation and the keyboard/footer layout on Pixel 8 Pro.
 iOS keyboard behavior and
 release-device background notifications still require separate device QA.
+
+## Reference refresh, 24 October 2026
+
+The 24 October references define an off-white background, white rounded groups,
+muted captions, mint accents and an overlapping green Finora mark. Home uses a
+green balance hero, separate income/spending metrics and a compact Money Ahead
+panel. Activity groups compact merchant rows by date and keeps filters behind
+an icon button. Insights combines the period summary, category chart, budgets,
+upcoming payments and goals, with full calculation details still accessible.
+
+Authentication uses email only. Settings retains grouped navigation and real
+profile data. Planning pages share the same spacing and cards. Skeleton variants
+follow the current dashboard, list, form and Insights structures. Chat answers
+use text with expandable details and inline transaction clarification/confirmation.
+Dark mode respects an explicit preference. Native visual acceptance and physical
+phone keyboard/accessibility checks are separate from automated component tests.
+
+Home now greets the profile first name and includes top spending, budget progress,
+payments awaiting review, savings goals and weekly check-in below recent activity.
+Amounts use exact existing records and follow the balance-hide preference. Empty
+sections provide setup actions. Startup uses the new logo with a gentle animation
+that stops on unmount and respects reduced motion. Expo Go's own initial loader
+is outside this React startup screen; native splash changes require a new build.

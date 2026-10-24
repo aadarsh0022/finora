@@ -156,3 +156,29 @@ stop/cancel behavior. The Android export passed. Pixel 8 Pro showed the compact
 pending state, the middle tab and a completed live balance answer. The emulator's
 hardware-keyboard mode hid the tab bar on input focus; full software-keyboard and
 physical-device QA remain separate checks. Assistant changes are still unpushed.
+
+## Inline chat and compact answers, 24 October 2026
+
+Read answers now lead with exact text assembled locally from the validated tool
+result. Financial values are not sent back to a model to produce this text.
+Additional account, category and budget rows are behind View details, including
+the retrieval time and calculation context. Repeated warning panels and the
+composer disclaimer are removed; initial consent and in-app reporting remain.
+
+Transaction drafts ask for missing amounts, categories and accounts in the chat.
+Only complete drafts show Confirm and save. Editing stays inline; confirmation
+uses the existing authenticated, validated, idempotent transaction endpoint.
+Cancelling or answering a clarification does not write financial records.
+Copy and share run only on explicit user action. Native clipboard access is
+optional on older development builds and sensitive on Android.
+
+## Remembered privacy acceptance
+
+AI acceptance is scoped to the signed-in account and current policy version.
+Clearing chat removes messages but preserves acceptance. SecureStore remembers
+acceptance across restarts on this device. Updated capabilities and the validated
+POST assistant/consent endpoint persist it on the authenticated user record for
+other devices. An older hosted API continues with device-local acceptance until
+that API update is deployed. Stored local acceptance migrates when supported.
+User deletion removes the server preference with the user record. Changing policy
+version requires fresh acceptance; accepting for another user is not permitted.

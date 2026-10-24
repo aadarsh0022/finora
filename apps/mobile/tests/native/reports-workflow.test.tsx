@@ -104,6 +104,13 @@ async function mount() {
         },
       });
     }
+    if (!parsed.pathname.endsWith('/reports/summary'))
+      return Response.json({
+        success: true,
+        data: parsed.pathname.endsWith('/transactions')
+          ? { items: [], total: 0, page: 1, pageSize: 1 }
+          : [],
+      });
     paths.push(parsed.search);
     const range = parsed.searchParams.get('range');
     return Response.json({
@@ -146,7 +153,7 @@ async function mount() {
     </QueryClientProvider>,
   );
   await screen.findByText('Net cash flow');
-  await screen.findByText('Average per day');
+  await screen.findByText('Spending overview');
 }
 async function choosePeriod(name: string) {
   await fireEvent.press(screen.getByRole('button', { name: 'Period' }));
@@ -159,6 +166,8 @@ async function chooseDate(label: string, date: string) {
 
 test('shows totals with account details and calculation explanations collapsed', async () => {
   await mount();
+  expect(screen.queryByText('Opening balance')).toBeNull();
+  await fireEvent.press(screen.getByRole('button', { name: 'Monthly summary' }));
   expect(await screen.findByText('Spending insights')).toBeOnTheScreen();
   expect(screen.getAllByText('-₹4,770.00').length).toBeGreaterThan(0);
   expect(screen.getByText('Expenses exceeded income in this period')).toBeOnTheScreen();

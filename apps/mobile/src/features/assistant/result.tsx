@@ -1,9 +1,12 @@
 import type { AssistantToolResult } from '@finora/contracts';
 import { formatMoney } from '@finora/finance-core';
 import { router } from 'expo-router';
-import { View } from 'react-native';
+import { Pressable, View } from 'react-native';
+import { useState, type ReactNode } from 'react';
 import { AppButton, AppText, Card } from '../../components/ui';
 import { useApp } from '../../providers/app-provider';
+import { useTheme } from '../../theme';
+import { Icon } from '../../components/design';
 
 function Row({
   label,
@@ -29,8 +32,16 @@ function Row({
   );
 }
 
-export function AssistantResult({ result }: { result: AssistantToolResult }) {
+export function AssistantResult({
+  result,
+  actions,
+}: {
+  result: AssistantToolResult;
+  actions?: ReactNode;
+}) {
   const { user } = useApp();
+  const [expanded, setExpanded] = useState(false);
+  const theme = useTheme();
   const money = (value: string) =>
     formatMoney(value, result.currency, user?.preferences.locale ?? 'en-IN');
   let content;
@@ -38,24 +49,41 @@ export function AssistantResult({ result }: { result: AssistantToolResult }) {
     case 'get_balance':
       content = (
         <>
-          <AppText tone="muted">Recorded balance · {result.currency}</AppText>
-          <AppText style={{ fontFamily: 'DMSansBold', fontSize: 30, lineHeight: 40 }}>
-            {money(result.data.totalBalanceMinor)}
-          </AppText>
+          <Row
+            label={`Balance � ${result.currency}`}
+            value={money(result.data.totalBalanceMinor)}
+          />
           {result.data.accounts.slice(0, 5).map((a) => (
-            <Row
+            <Pressable
               key={a.id}
-              label={`${a.name}${a.archived ? ' · archived' : ''}`}
-              value={money(a.balanceMinor)}
-            />
+              accessibilityRole="button"
+              accessibilityLabel={`View ${a.name} account`}
+              onPress={() => router.push({ pathname: '/account', params: { id: a.id } })}
+              style={{
+                padding: 14,
+                borderRadius: 17,
+                backgroundColor: theme.surface,
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 10,
+                borderWidth: 1,
+                borderColor: theme.border,
+              }}
+            >
+              <Icon name="wallet" color={theme.text} />
+              <View style={{ flex: 1 }}>
+                <Row
+                  key={a.id}
+                  label={`${a.name}${a.archived ? ' · archived' : ''}`}
+                  value={money(a.balanceMinor)}
+                />
+              </View>
+              <Icon name="chevron" size={16} />
+            </Pressable>
           ))}
-          <AppText tone="muted" style={{ fontSize: 12 }}>
-            Includes archived accounts. This is recorded money, not a live bank balance or spending
-            forecast.
-          </AppText>
           <AppButton
             title="View accounts"
-            variant="secondary"
+            trailingIcon={<Icon name="chevron" color={theme.onAccent} />}
             onPress={() => router.push('/accounts')}
           />
         </>
@@ -186,15 +214,91 @@ export function AssistantResult({ result }: { result: AssistantToolResult }) {
       break;
   }
   return (
-    <Card style={{ gap: 12 }}>
-      {content}
-      <AppText tone="muted" style={{ fontSize: 11 }}>
-        Recorded online ·{' '}
-        {new Date(result.retrievedAt).toLocaleString(user?.preferences.locale, {
-          timeZone: result.timezone,
-        })}
-        . Local unsynced entries are excluded.
-      </AppText>
-    </Card>
+    <View style={{ gap: 4 }}>
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 4,
+        }}
+      >
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={expanded ? 'Hide answer details' : 'Show answer details'}
+          accessibilityState={{ expanded }}
+          onPress={() => setExpanded(!expanded)}
+          style={{
+            minHeight: 44,
+            justifyContent: 'center',
+            alignSelf: 'flex-start',
+            paddingHorizontal: 8,
+          }}
+        >
+          <AppText tone="accent" style={{ fontSize: 13 }}>
+            {expanded ? 'Hide details' : 'View details'}
+          </AppText>
+        </Pressable>
+        {actions}
+      </View>
+      {expanded && (
+        <Card style={{ gap: 10, padding: 14, borderRadius: 16 }}>
+          {content}
+          <AppText tone="muted" style={{ fontSize: 11 }}>
+            As of{' '}
+            {new Date(result.retrievedAt).toLocaleString(user?.preferences.locale, {
+              timeZone: result.timezone,
+            })}
+            {result.name === 'get_balance'
+              ? '. Includes archived accounts. Recorded money, not a live bank balance.'
+              : ''}
+          </AppText>
+        </Card>
+      )}
+    </View>
   );
+}
+
+// Build exact text locally so financial tool results never need another model request.
+export function answerText(result: AssistantToolResult, locale = 'en-IN'): string {
+  const money = (value: string) => formatMoney(value, result.currency, locale);
+  const date = (value: string) => new Date(`${value}T12:00:00Z`);
+  const period = (from: string, to: string) => {
+    const formatter = new Intl.DateTimeFormat(locale, {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+      timeZone: 'UTC',
+    });
+    return `${formatter.format(date(from))} to ${formatter.format(date(to))}`;
+  };
+  const month =
+    result.name === 'get_budget_status'
+      ? new Intl.DateTimeFormat(locale, { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(
+          date(`${result.data.month}-01`),
+        )
+      : '';
+
+  switch (result.name) {
+    case 'get_balance':
+      return `Your recorded balance is ${money(result.data.totalBalanceMinor)} across ${result.data.accounts.length} ${result.data.accounts.length === 1 ? 'account' : 'accounts'}.`;
+    case 'get_cashflow':
+      return `From ${period(result.data.from, result.data.to)}, you received ${money(result.data.incomeMinor)} and spent ${money(result.data.expensesMinor)}. Your net cash flow is ${money(result.data.netMinor)}.`;
+    case 'get_category_spending': {
+      const top = [...result.data.categories].sort((a, b) =>
+        BigInt(a.amountMinor) === BigInt(b.amountMinor)
+          ? 0
+          : BigInt(a.amountMinor) > BigInt(b.amountMinor)
+            ? -1
+            : 1,
+      )[0];
+      return `You spent ${money(result.data.totalExpensesMinor)} from ${period(result.data.from, result.data.to)}.${top ? ` Your largest category was ${top.name} at ${money(top.amountMinor)}.` : ''}`;
+    }
+    case 'get_budget_status':
+      return result.data.total.remainingMinor === null
+        ? `You spent ${money(result.data.total.spentMinor)} in ${month}. You haven't set an overall monthly budget.`
+        : `You spent ${money(result.data.total.spentMinor)} in ${month}. ${BigInt(result.data.total.remainingMinor) < 0n ? `You're ${money((-BigInt(result.data.total.remainingMinor)).toString())} over your monthly budget.` : `You have ${money(result.data.total.remainingMinor)} left in your monthly budget.`}`;
+    case 'get_debt_summary':
+      return `You owe ${money(result.data.owedByYouMinor)}. Personal loans owed to you total ${money(result.data.personalLoansOwedToYouMinor)}, with ${money(result.data.expectedReceiptsMinor)} in expected receipts.`;
+  }
 }

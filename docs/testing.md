@@ -191,3 +191,13 @@ GitHub Actions run 39998745702 subsequently completed successfully on Linux for
 Next.js production build, Expo dependency validation and Android export. This
 resolves the code-verification gate for that revision without changing Windows
 security policy. The native Jest process exited after its cache timers elapsed.
+
+## 24 October refinement verification
+
+The latest full check passed 147 core/API tests against disposable MongoDB and
+101 native tests, plus strict typechecking, lint and formatting. API production
+build and Android JavaScript export passed. Added cases cover inline transaction
+clarifications/retry, cached hydration, missing native date-range formatting,
+reduced-motion startup, lower Home navigation and account-isolated privacy consent.
+These component/export results do not certify a signed build or full offline-first
+behavior. Native clipboard/launcher/splash assets require an updated binary.

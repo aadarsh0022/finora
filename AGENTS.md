@@ -7,3 +7,11 @@ Keep finance-core independent of frameworks and persistence. Scope all user-owne
 by userId. Test financial invariants and authentication against disposable MongoDB.
 Run pnpm check before committing. Keep changes small and coherent; update documentation
 and honestly report external release gates. Never publish to Play or activate billing.
+
+## Play upload timing preference
+
+When the user explicitly authorizes a Play testing release, wait at least 20 full
+minutes after the bundle upload completes before submitting changes for review.
+Record the upload-completion time, check Play's verification results after the
+waiting period, and submit only if no blocking issues remain. Do not treat a
+successful upload or a saved release draft as a submitted or published release.

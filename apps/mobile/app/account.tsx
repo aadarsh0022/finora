@@ -24,7 +24,7 @@ export default function AccountScreen() {
   if (id && query.isPending)
     return (
       <Screen>
-        <Loading />
+        <Loading variant="form" />
       </Screen>
     );
   if (id && query.isError)

@@ -2,14 +2,14 @@ import { useColorScheme } from 'react-native';
 import { useApp } from '../providers/app-provider';
 
 const light = {
-  background: '#F6F7F9',
+  background: '#F7F9FA',
   surface: '#FFFFFF',
-  text: '#18212B',
-  muted: '#626D79',
-  accent: '#187A5A',
-  accentSoft: '#E5F4EC',
-  border: '#E3E7EC',
-  danger: '#B73838',
+  text: '#101322',
+  muted: '#757D87',
+  accent: '#087E62',
+  accentSoft: '#E5F7EE',
+  border: '#EDF0F2',
+  danger: '#D84F5C',
   dangerSoft: '#FCECEC',
   hero: '#FFFFFF',
   onHero: '#18212B',

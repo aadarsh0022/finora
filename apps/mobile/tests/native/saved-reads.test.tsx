@@ -1,14 +1,15 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen } from '@testing-library/react-native';
+import { act, render, screen } from '@testing-library/react-native';
 import { userSchema } from '@finora/contracts';
 import { z } from 'zod';
-import { ApiClient, ClientError } from '../../src/api/client';
+import { ApiClient, ClientError, type HttpTransport } from '../../src/api/client';
 import { SavedDataNotice, useRead } from '../../src/features/finance/shared';
 import { AppText } from '../../src/components/ui';
 import { useApp } from '../../src/providers/app-provider';
 import { testVault } from '../vault-fixture';
 
 jest.mock('../../src/providers/app-provider', () => ({ useApp: jest.fn() }));
+jest.mock('expo-network', () => ({ useNetworkState: () => ({ isConnected: true }) }));
 const user = userSchema.parse({
   id: '11111111-1111-4111-8111-111111111111',
   name: 'Demo',
@@ -27,7 +28,7 @@ function Page() {
     </>
   );
 }
-async function mount(owner = user.id) {
+async function mount(owner = user.id, transport?: HttpTransport) {
   const local = testVault(owner);
   await local.vault.write('read:fixture', { label: 'Synthetic saved record' });
   const api = new ApiClient(
@@ -38,9 +39,10 @@ async function mount(owner = user.id) {
       clear: async () => undefined,
     },
     () => undefined,
-    async () => {
-      throw new ClientError('NETWORK', 'Offline');
-    },
+    transport ??
+      (async () => {
+        throw new ClientError('NETWORK', 'Offline');
+      }),
   );
   jest
     .mocked(useApp)
@@ -57,6 +59,38 @@ test('hydrates persisted records in a new query client and labels the saved time
   await mount();
   await screen.findByText('Synthetic saved record');
   await screen.findByText(/Saved on this device ·/);
+});
+
+test('shows persisted data while a slow connection is still unresolved, then updates quietly', async () => {
+  let finish!: (value: Response) => void;
+  await mount(
+    user.id,
+    () =>
+      new Promise<Response>((resolve) => {
+        finish = resolve;
+      }),
+  );
+  await screen.findByText('Synthetic saved record');
+  expect(screen.queryByText('Loading')).toBeNull();
+  await act(async () => {
+    finish(Response.json({ success: true, data: { label: 'Fresh server record' } }));
+  });
+  await screen.findByText('Fresh server record');
+  expect(screen.queryByText('Loading')).toBeNull();
+});
+
+test('keeps local data available during a server outage', async () => {
+  await mount(user.id, async () =>
+    Response.json(
+      {
+        success: false,
+        error: { code: 'SERVICE_UNAVAILABLE', message: 'Please retry.' },
+      },
+      { status: 503 },
+    ),
+  );
+  await screen.findByText('Synthetic saved record');
+  expect(screen.queryByText('Unavailable')).toBeNull();
 });
 test('does not read another user’s device vault when offline', async () => {
   await mount('22222222-2222-4222-8222-222222222222');
