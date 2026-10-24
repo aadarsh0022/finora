@@ -1,5 +1,14 @@
 # Product and implementation decisions
 
+- 24 October: the private administration page uses an explicitly light monochrome
+  theme, summary cards, a searchable current-page table and responsive overflow.
+  Session counts remain labelled as valid sessions rather than live presence.
+  Android 0.2.2 (6) is prepared locally for closed testing; no Play publishing.
+
+- 24 October: password recovery emails include a branded HTML reset button with
+  no visible raw reset URL. A plain-text alternative remains for email clients
+  that need it. Token handling, expiration and single-use behavior are unchanged.
+
 - Modular monolith; REST /api/v1, shared Zod contracts, framework-free finance-core.
 - Financial data belongs to a verified session's userId. Public entity IDs are UUIDs.
 - Money is a canonical base-10 integer string on JSON/storage boundaries; arithmetic

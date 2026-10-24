@@ -4,13 +4,13 @@ const config: ExpoConfig = {
   name: 'Finora AI Money Manager',
   slug: 'finora',
   scheme: 'finora',
-  version: '0.2.1',
+  version: '0.2.2',
   orientation: 'portrait',
   userInterfaceStyle: 'automatic',
   icon: './assets/brand/icon.png',
   android: {
     package: 'app.finora.money',
-    versionCode: 5,
+    versionCode: 6,
     allowBackup: false,
     adaptiveIcon: {
       foregroundImage: './assets/brand/adaptive-foreground.png',
