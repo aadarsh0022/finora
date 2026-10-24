@@ -61,6 +61,10 @@ async function ensureIndexes(db: Db) {
       { key: { key: 1 }, unique: true },
       { key: { expiresAt: 1 }, expireAfterSeconds: 0 },
     ],
+    assistant_usage: [
+      { key: { userId: 1, day: 1 }, unique: true },
+      { key: { expiresAt: 1 }, expireAfterSeconds: 0 },
+    ],
     assistant_feedback: [
       { key: { userId: 1, answerId: 1 }, unique: true },
       { key: { expiresAt: 1 }, expireAfterSeconds: 0 },

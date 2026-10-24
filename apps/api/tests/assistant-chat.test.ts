@@ -43,17 +43,17 @@ it('stays disabled without configuration and requires explicit policy consent be
   const { accessToken: token } = await createUser();
   const upstream = vi.fn();
   vi.stubGlobal('fetch', upstream);
-  expect(data(await call('GET', 'assistant/capabilities', undefined, token))).toMatchObject({
+  expect(data(await call('GET', 'assistant/v3/capabilities', undefined, token))).toMatchObject({
     enabled: false,
-    readOnly: true,
+    readOnly: false,
   });
-  expect((await call('POST', 'assistant/chat', input, token)).status).toBe(503);
+  expect((await call('POST', 'assistant/v3/chat', input, token)).status).toBe(503);
   enable();
   expect(
     (
       await call(
         'POST',
-        'assistant/chat',
+        'assistant/v3/chat',
         { question: input.question, previousQuestions: [] },
         token,
       )
@@ -63,16 +63,17 @@ it('stays disabled without configuration and requires explicit policy consent be
     (
       await call(
         'POST',
-        'assistant/chat',
+        'assistant/v3/chat',
         { ...input, previousQuestions: ['a', 'b', 'c', 'd'] },
         token,
       )
     ).status,
   ).toBe(400);
   expect(
-    (await call('POST', 'assistant/chat', { ...input, question: 'x'.repeat(1001) }, token)).status,
+    (await call('POST', 'assistant/v3/chat', { ...input, question: 'x'.repeat(1001) }, token))
+      .status,
   ).toBe(400);
-  expect((await call('POST', 'assistant/chat', input)).status).toBe(401);
+  expect((await call('POST', 'assistant/v3/chat', input)).status).toBe(401);
   expect(upstream).not.toHaveBeenCalled();
 });
 
@@ -96,14 +97,14 @@ it('uses one Luna request to select a tool and keeps identity and financial resu
   enable();
   const upstream = vi.fn(async () => Response.json(toolOutput()));
   vi.stubGlobal('fetch', upstream);
-  const reply = await call('POST', 'assistant/chat', input, token);
+  const reply = await call('POST', 'assistant/v3/chat', input, token);
   expect(reply.status).toBe(200);
   const answer = assistantChatResponseSchema.parse(data(reply));
   expect(answer).toMatchObject({
     kind: 'answer',
     result: { name: 'get_balance', data: { totalBalanceMinor: '900719925474099301' } },
   });
-  expect(upstream).toHaveBeenCalledTimes(1);
+  expect(upstream).toHaveBeenCalledTimes(2);
   const request = (upstream.mock.calls as unknown as [string, RequestInit][])[0]!;
   expect(request[0]).toBe('https://api.openai.com/v1/responses');
   const body = JSON.parse(String(request[1].body)) as Record<string, unknown>;
@@ -138,20 +139,25 @@ it('uses fixed clarification and unsupported answers rather than model-authored 
     data(
       await call(
         'POST',
-        'assistant/chat',
+        'assistant/v3/chat',
         { ...input, question: 'Transfer 500 to another account' },
         token,
       ),
     ),
   );
   expect(answer).toMatchObject({ kind: 'unsupported', result: null });
-  expect(answer.message).toContain('cannot change existing records');
+  expect(answer.message).toContain('recorded accounts');
   upstream.mockImplementation(async () =>
     Response.json(toolOutput('ask_follow_up', { reason: 'date_range' })),
   );
   expect(
     data(
-      await call('POST', 'assistant/chat', { ...input, question: 'What did I spend then?' }, token),
+      await call(
+        'POST',
+        'assistant/v3/chat',
+        { ...input, question: 'What did I spend then?' },
+        token,
+      ),
     ),
   ).toMatchObject({ kind: 'clarification', result: null });
 });
@@ -171,12 +177,12 @@ it('rejects unknown, multiple, invented and unstructured model outputs without l
   ];
   for (const output of bad) {
     upstream.mockResolvedValueOnce(Response.json(output));
-    const response = await call('POST', 'assistant/chat', input, token);
+    const response = await call('POST', 'assistant/v3/chat', input, token);
     expect(response.status).toBe(503);
     expect(JSON.stringify(response.json)).not.toContain('invented');
   }
   upstream.mockResolvedValueOnce(new Response('sensitive provider error text', { status: 401 }));
-  const response = await call('POST', 'assistant/chat', input, token);
+  const response = await call('POST', 'assistant/v3/chat', input, token);
   expect(response.status).toBe(503);
   expect(JSON.stringify(response.json)).not.toContain('sensitive');
   const { db } = await database();
@@ -193,7 +199,7 @@ it('rechecks the session after the model call before reading any financial recor
       return Response.json(toolOutput());
     }),
   );
-  expect((await call('POST', 'assistant/chat', input, token)).status).toBe(401);
+  expect((await call('POST', 'assistant/v3/chat', input, token)).status).toBe(401);
 });
 
 it('bounds the provider deadline and discards an oversized upstream response', async () => {
@@ -236,15 +242,17 @@ it('stores only bounded feedback metadata, expires it and deletes only the owner
     (
       await call(
         'POST',
-        'assistant/feedback',
+        'assistant/v3/feedback',
         { ...report, conversation: 'private text' },
         first.accessToken,
       )
     ).status,
   ).toBe(400);
-  expect((await call('POST', 'assistant/feedback', report, first.accessToken)).status).toBe(200);
-  expect((await call('POST', 'assistant/feedback', report, first.accessToken)).status).toBe(200);
-  expect((await call('POST', 'assistant/feedback', report, second.accessToken)).status).toBe(200);
+  expect((await call('POST', 'assistant/v3/feedback', report, first.accessToken)).status).toBe(200);
+  expect((await call('POST', 'assistant/v3/feedback', report, first.accessToken)).status).toBe(200);
+  expect((await call('POST', 'assistant/v3/feedback', report, second.accessToken)).status).toBe(
+    200,
+  );
   const { db } = await database();
   const firstRecord = await db.collection('assistant_feedback').findOne({ userId: first.user.id });
   expect(Object.keys(firstRecord!).sort()).toEqual([
@@ -278,22 +286,23 @@ it('remembers versioned AI consent for the authenticated account only', async ()
   const first = await createUser();
   const second = await createUser('other@example.com');
   const state = async (token: string) =>
-    data(await call('GET', 'assistant/capabilities', undefined, token));
+    data(await call('GET', 'assistant/v3/capabilities', undefined, token));
   expect(await state(first.accessToken)).toMatchObject({
     remembersConsent: true,
     consentAccepted: false,
   });
   expect(
-    (await call('POST', 'assistant/consent', { policyVersion: assistantPolicyVersion })).status,
+    (await call('POST', 'assistant/v3/consent', { policyVersion: assistantPolicyVersion })).status,
   ).toBe(401);
   expect(
-    (await call('POST', 'assistant/consent', { policyVersion: 'old' }, first.accessToken)).status,
+    (await call('POST', 'assistant/v3/consent', { policyVersion: 'old' }, first.accessToken))
+      .status,
   ).toBe(400);
   expect(
     (
       await call(
         'POST',
-        'assistant/consent',
+        'assistant/v3/consent',
         { policyVersion: assistantPolicyVersion, userId: '99999999-9999-4999-8999-999999999999' },
         first.accessToken,
       )
@@ -303,7 +312,7 @@ it('remembers versioned AI consent for the authenticated account only', async ()
     (
       await call(
         'POST',
-        'assistant/consent',
+        'assistant/v3/consent',
         { policyVersion: assistantPolicyVersion },
         first.accessToken,
       )

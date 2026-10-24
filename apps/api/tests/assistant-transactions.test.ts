@@ -57,7 +57,7 @@ it('prepares an exact owned draft with no write, then the normal confirmed endpo
     data(
       await call(
         'POST',
-        'assistant/chat',
+        'assistant/v3/chat',
         {
           question: 'Record a food expense of 9007199254740993.01',
           previousQuestions: [],
@@ -100,7 +100,7 @@ it('prepares an exact owned draft with no write, then the normal confirmed endpo
     (
       await call(
         'POST',
-        'assistant/tools/run',
+        'assistant/v3/tools/run',
         { name: 'prepare_transaction', arguments: args },
         token,
       )

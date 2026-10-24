@@ -89,3 +89,12 @@ Consulted 20 October 2026; exact installed versions are recorded in the lockfile
   not be interpreted as empty server data. The remaining all-feature offline ledger
   is still in progress; see offline-first-plan.md. Current authorization is fixes and
   GitHub pushes only, with no Play action.
+
+- 24 October, expanded AI scope: owner-authorized v3 read tools and 38 confirmation-
+  protected financial/preference actions, conversational household planning using
+  minimized financial summaries, bounded private caches, 20 chat requests per UTC
+  day, and a server-protected usage admin page. The requested owner identity has no
+  daily cap but retains burst protections. New disclosure is versioned; installed
+  v2 clients retain the original data flow. Authentication/account deletion, billing,
+  external money movement and device-only controls retain dedicated flows. No Play
+  upload or billing activation. See assistant-plan.md for limits and verification.

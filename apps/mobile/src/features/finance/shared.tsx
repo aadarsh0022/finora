@@ -139,17 +139,25 @@ export function TransactionCard({
   const kind =
     item.type === 'TRANSFER' ? 'Transfer' : item.type === 'INCOME' ? 'Income' : 'Expense';
   const dateLabel =
-    showDate && day !== today
-      ? new Intl.DateTimeFormat(locale, {
-          day: 'numeric',
-          month: 'short',
-          timeZone: timezone,
-        }).format(new Date(item.date))
-      : new Intl.DateTimeFormat(locale, {
-          hour: 'numeric',
-          minute: '2-digit',
-          timeZone: timezone,
-        }).format(new Date(item.date));
+    item.datePrecision === 'DAY'
+      ? day === today
+        ? 'Today'
+        : new Intl.DateTimeFormat(locale, {
+            day: 'numeric',
+            month: 'short',
+            timeZone: timezone,
+          }).format(new Date(item.date))
+      : showDate && day !== today
+        ? new Intl.DateTimeFormat(locale, {
+            day: 'numeric',
+            month: 'short',
+            timeZone: timezone,
+          }).format(new Date(item.date))
+        : new Intl.DateTimeFormat(locale, {
+            hour: 'numeric',
+            minute: '2-digit',
+            timeZone: timezone,
+          }).format(new Date(item.date));
   const detail =
     item.type === 'TRANSFER'
       ? 'Transfer'

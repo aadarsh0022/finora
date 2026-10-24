@@ -73,6 +73,7 @@ const transactionFields = {
   categoryId: entityIdSchema.optional(),
   amountMinor: positiveMinorSchema,
   date: z.iso.datetime({ offset: true }),
+  datePrecision: z.enum(['DAY', 'INSTANT']).optional(),
   merchant: z.string().trim().max(120).default(''),
   note: z.string().trim().max(1000).default(''),
   tags: z.array(z.string().trim().min(1).max(30)).max(10).default([]),

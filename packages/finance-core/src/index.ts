@@ -179,3 +179,32 @@ export function nextOccurrence(
   return date.toISOString().slice(0, 10);
 }
 export * from './outlook';
+
+export function calendarInstant(value: string, timezone: string) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) throw new Error('Enter a date as YYYY-MM-DD.');
+  const base = new Date(`${value}T12:00:00Z`);
+  if (Number.isNaN(base.getTime()) || base.toISOString().slice(0, 10) !== value)
+    throw new Error('Choose a valid calendar date.');
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: timezone,
+    timeZoneName: 'longOffset',
+  }).formatToParts(base);
+  const offset = parts.find((part) => part.type === 'timeZoneName')?.value ?? 'GMT';
+  const match = /^GMT([+-])(\d{2}):(\d{2})$/.exec(offset);
+  if (offset !== 'GMT' && !match)
+    throw new Error('This timezone cannot be used. Update your timezone in Settings.');
+  const minutes = match
+    ? (Number(match[2]) * 60 + Number(match[3])) * (match[1] === '-' ? -1 : 1)
+    : 0;
+  const instant = new Date(base.getTime() - minutes * 60_000);
+  if (calendarDate(instant, timezone) !== value)
+    throw new Error('This date does not exist in your selected timezone.');
+  return instant.toISOString();
+}
+
+export function entryDate(value: string, timezone: string, now = new Date()) {
+  const date = calendarInstant(value, timezone); // Validate date and timezone even for today.
+  return value === calendarDate(now, timezone)
+    ? { date: now.toISOString(), datePrecision: 'INSTANT' as const }
+    : { date, datePrecision: 'DAY' as const };
+}

@@ -122,3 +122,7 @@ export const onboardingSyncResultSchema = z.object({
   account: accountSchema.optional(),
   settings: settingsSchema,
 });
+
+export * from './admin';
+
+export * from './assistant-operations';

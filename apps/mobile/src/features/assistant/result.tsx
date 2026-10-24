@@ -46,6 +46,27 @@ export function AssistantResult({
     formatMoney(value, result.currency, user?.preferences.locale ?? 'en-IN');
   let content;
   switch (result.name) {
+    case 'read_records':
+    case 'plan_finances':
+      content = (
+        <>
+          {result.data.facts.map((fact, index) => (
+            <AppText key={index}>{fact}</AppText>
+          ))}
+          {result.data.items.map((item, index) => (
+            <View key={item.id ?? index} style={{ gap: 3, paddingVertical: 5 }}>
+              <AppText style={{ fontFamily: 'DMSansBold' }}>
+                {item.title}
+                {item.amountMinor ? ` · ${money(item.amountMinor)}` : ''}
+              </AppText>
+              <AppText tone="muted" style={{ fontSize: 13 }}>
+                {item.detail}
+              </AppText>
+            </View>
+          ))}
+        </>
+      );
+      break;
     case 'get_balance':
       content = (
         <>
@@ -280,6 +301,9 @@ export function answerText(result: AssistantToolResult, locale = 'en-IN'): strin
       : '';
 
   switch (result.name) {
+    case 'read_records':
+    case 'plan_finances':
+      return result.data.summary;
     case 'get_balance':
       return `Your recorded balance is ${money(result.data.totalBalanceMinor)} across ${result.data.accounts.length} ${result.data.accounts.length === 1 ? 'account' : 'accounts'}.`;
     case 'get_cashflow':

@@ -49,22 +49,28 @@ export default function Privacy() {
       <h2>Optional AI chat</h2>
       <p>
         When AI chat is enabled, Finora AI asks for your agreement before sending a question. OpenAI
-        processes the question, up to three earlier questions from the current chat, your currency
-        and timezone, and the available tool descriptions to interpret your request. Avoid including
-        passwords, bank credentials or information you do not want sent to OpenAI. Finora AI does
-        not send your account records or financial tool results back to the model. Your question
-        itself may contain personal or financial information if you type it.
+        processes your question, up to three earlier questions and replies from the current chat,
+        your currency and timezone, and tool descriptions. After you agree to the expanded chat
+        disclosure, relevant financial summaries and explicit planning assumptions may also be sent
+        to compose a conversational answer. Avoid including passwords, bank credentials or
+        information you do not want sent to OpenAI. Finora AI excludes credentials, account
+        identifiers, individual merchants and notes from those tool summaries. Your question itself
+        may contain personal or financial information if you type it.
       </p>
       <p>
         Finora AI calculates the answer from your signed-in account and displays recorded figures
-        directly. The assistant can prepare a new transaction draft. A separate editable form
-        requires you to review and save it before any record is created. The assistant cannot change
-        existing records or move money. It excludes local entries that have not synced and does not
-        provide financial advice. Chat text remains in app memory and is not stored in Finora AI’s
-        database or application logs. Clear chat removes it from the current screen. Requests use
-        OpenAI’s Responses API with response storage disabled. This is not a promise of zero
-        retention: OpenAI may retain abuse-monitoring data for up to 30 days and apply separate
-        caching or legal/security retention. API data is not used for model training by default. See{' '}
+        directly. The assistant can prepare supported creates, edits, deletions and other changes.
+        An inline review requires your explicit confirmation before the authenticated service
+        changes a record. It cannot move money through a bank. It excludes local entries that have
+        not synced and does not provide financial advice. Chat text remains in app memory and is not
+        stored in Finora AI’s database or application logs. Bounded in-memory caches may temporarily
+        retain interpreted requests, sanitized replies and read results for up to five minutes to
+        reduce repeated processing. Clear chat removes the on-screen conversation; server caches
+        expire independently. Daily usage counters retain user ID, day, count and request
+        timestamps, not chat contents, and are deleted with your account. Requests use OpenAI’s
+        Responses API with response storage disabled. This is not a promise of zero retention:
+        OpenAI may retain abuse-monitoring data for up to 30 days and apply separate caching or
+        legal/security retention. API data is not used for model training by default. See{' '}
         <a href="https://developers.openai.com/api/docs/guides/your-data">OpenAI’s data controls</a>
         .
       </p>

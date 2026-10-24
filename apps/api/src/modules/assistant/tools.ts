@@ -1,5 +1,7 @@
 import { z } from 'zod';
 import {
+  assistantPlanArgsSchema,
+  assistantRecordsArgsSchema,
   assistantBalanceArgsSchema,
   assistantPeriodArgsSchema,
   assistantBudgetArgsSchema,
@@ -10,11 +12,14 @@ import {
   type AssistantToolResult,
 } from '@finora/contracts';
 import type { AuthContext } from '../auth/service';
+import { planFinances } from './planning';
+import { readRecords } from './records';
 import { ledgerSnapshot } from '../finance/ledger';
 import { listCategories } from '../finance/entities';
 import { reportSummary } from '../reports/service';
 import { listBudgets, totalLimit } from '../advanced/budgets';
 import { listDebts } from '../debts/service';
+import { PrivateCache, privateCacheKey } from './cache';
 import { ApiError } from '../../utils/http';
 
 function definition(name: AssistantToolCall['name'], description: string, schema: z.ZodType) {
@@ -25,6 +30,16 @@ function definition(name: AssistantToolCall['name'], description: string, schema
 
 // The model may choose a function and arguments. Identity is never an argument.
 export const readOnlyToolDefinitions = [
+  definition(
+    'plan_finances',
+    'Explore a personal household budget or savings plan without saving anything. Supply only explicit user-stated assumptions in major currency units; unspecified inputs are null. The server calculates exact scenarios. Discussing a plan is a read; saving it requires prepare_change and user confirmation.',
+    assistantPlanArgsSchema,
+  ),
+  definition(
+    'read_records',
+    'Read owned accounts, categories, filtered transactions, budgets, goals, contributions, debts, repayments, recurring items, due occurrences, preferences, Money Ahead, insights or AI usage. For a named account or specific item, use record with the name stated by the user. Does not change anything. Null means unspecified; never invent IDs.',
+    assistantRecordsArgsSchema,
+  ),
   definition(
     'get_balance',
     'Read recorded account balances. Use accountId null for all accounts, including archived accounts. This is not a bank balance or spendable forecast. Local unsynced changes are excluded.',
@@ -52,7 +67,7 @@ export const readOnlyToolDefinitions = [
   ),
 ] as const;
 
-export async function runReadOnlyTool(
+async function executeReadOnlyTool(
   context: AuthContext,
   value: unknown,
 ): Promise<AssistantToolResult> {
@@ -66,6 +81,10 @@ export async function runReadOnlyTool(
   };
   let data: unknown;
   switch (call.name) {
+    case 'plan_finances':
+      return planFinances(context, call.arguments);
+    case 'read_records':
+      return readRecords(context, call.arguments);
     case 'get_balance': {
       const snapshot = await ledgerSnapshot(context);
       const accounts = snapshot.accounts.filter(
@@ -168,4 +187,27 @@ export async function runReadOnlyTool(
     retrievedAt: new Date().toISOString(),
     data,
   });
+}
+
+const readCache = new PrivateCache<AssistantToolResult>();
+export async function runReadOnlyTool(
+  context: AuthContext,
+  value: unknown,
+): Promise<AssistantToolResult> {
+  const call = assistantToolCallSchema.parse(value);
+  const key = privateCacheKey([
+    'read-v3',
+    context.user.id,
+    context.user.authVersion,
+    context.user.settingsVersion,
+    context.user.financeVersion,
+    context.user.preferences,
+    call,
+    new Date().toISOString().slice(0, 10),
+  ]);
+  const cached = readCache.get(key);
+  if (cached) return assistantToolResultSchema.parse(cached);
+  const result = await executeReadOnlyTool(context, call);
+  readCache.put(key, result, 15000);
+  return result;
 }
