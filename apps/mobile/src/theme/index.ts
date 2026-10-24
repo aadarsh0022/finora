@@ -2,36 +2,36 @@ import { useColorScheme } from 'react-native';
 import { useApp } from '../providers/app-provider';
 
 const light = {
-  background: '#F7F9F8',
+  background: '#F7F9FA',
   surface: '#FFFFFF',
-  text: '#16231E',
-  muted: '#5C6D63',
-  accent: '#187A5A',
-  accentSoft: '#E5F4EC',
-  border: '#DFE8E2',
-  danger: '#B73838',
+  text: '#101322',
+  muted: '#757D87',
+  accent: '#087E62',
+  accentSoft: '#E5F7EE',
+  border: '#EDF0F2',
+  danger: '#D84F5C',
   dangerSoft: '#FCECEC',
-  hero: '#173F32',
-  onHero: '#F1FBF5',
+  hero: '#FFFFFF',
+  onHero: '#18212B',
   onAccent: '#FFFFFF',
 };
 const dark: typeof light = {
-  background: '#0E1512',
-  surface: '#17201B',
+  background: '#10151D',
+  surface: '#1A222D',
   text: '#EDF5EF',
   muted: '#A6B9AB',
   accent: '#5BD29C',
   accentSoft: '#203C2D',
-  border: '#34483A',
+  border: '#35404E',
   danger: '#FF9696',
   dangerSoft: '#3C2525',
-  hero: '#204C39',
+  hero: '#1A222D',
   onHero: '#F1FBF5',
   onAccent: '#10251A',
 };
 export function useTheme() {
   const system = useColorScheme();
   const { user } = useApp();
-  const preference = user?.preferences.preferredTheme ?? 'system';
+  const preference = user?.preferences.preferredTheme ?? 'light';
   return (preference === 'system' ? system : preference) === 'dark' ? dark : light;
 }

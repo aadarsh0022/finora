@@ -40,7 +40,7 @@ it('computes monthly category budget status with exact amounts, local boundary a
   expect(status.overBudget).toBe(false);
   expect((await call('POST', 'budgets', input, token, headers())).status).toBe(409);
   expect(
-    (await call('POST', 'budgets', { ...input, rollover: true }, token, headers())).status,
+    (await call('POST', 'budgets', { ...input, rollover: 'yes' }, token, headers())).status,
   ).toBe(400);
   expect(
     (await call('PATCH', `budgets/${budget.id}`, { ...input, version: 9 }, token, headers()))

@@ -1,3 +1,4 @@
+import { Icon } from '../../src/components/design';
 import { reportRangeSchema, reportSummarySchema, type ReportRange } from '@finora/contracts';
 import { calendarDate } from '@finora/finance-core';
 import { useMutation } from '@tanstack/react-query';
@@ -6,13 +7,23 @@ import { Pressable, View } from 'react-native';
 import { File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import * as Crypto from 'expo-crypto';
-import { AppButton, AppText, Card, Feedback, Loading, Screen } from '../../src/components/ui';
-import { DateField, FlowSheet, SelectField } from '../../src/components/flow';
+import {
+  AppButton,
+  AppText,
+  Card,
+  Choice,
+  Feedback,
+  Loading,
+  Screen,
+} from '../../src/components/ui';
+import { DateField, FlowSheet } from '../../src/components/flow';
 import { useMoney, useRead } from '../../src/features/finance/shared';
 import { AccountDistribution, ExpenseDonut, MonthlyChart } from '../../src/features/reports/charts';
 import { percentageFromBasisPoints, reportCsv } from '../../src/features/reports/values';
 import { useApp } from '../../src/providers/app-provider';
 import { useTheme } from '../../src/theme';
+import { SpendingInsights } from '../../src/features/reports/insights';
+import { InsightsOverview } from '../../src/features/reports/overview';
 
 const periods = [
   { value: 'current-month', label: 'This month' },
@@ -27,6 +38,8 @@ export default function Reports() {
   const theme = useTheme();
   const today = calendarDate(new Date(), user?.preferences.timezone ?? 'Asia/Kolkata');
   const money = useMoney();
+  const [periodOpen, setPeriodOpen] = useState(false);
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const [range, setRange] = useState<ReportRange['range']>('current-month');
   const [from, setFrom] = useState(`${today.slice(0, 7)}-01`);
   const [to, setTo] = useState(today);
@@ -55,6 +68,7 @@ export default function Reports() {
     const params = new URLSearchParams({ range: validated.data.range });
     if (validated.data.from) params.set('from', validated.data.from);
     if (validated.data.to) params.set('to', validated.data.to);
+    setPeriodOpen(false);
     setQueryString(params.toString());
     setRange(validated.data.range);
     setCustomOpen(false);
@@ -85,35 +99,36 @@ export default function Reports() {
   });
   return (
     <Screen
-      title="Reports"
-      subtitle="Understand where your money goes."
+      title="Insights"
+      showPendingStatus={false}
+      headerAction={
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Period"
+          accessibilityValue={{
+            text: periods.find((period) => period.value === range)?.label ?? 'Period',
+          }}
+          onPress={() => setPeriodOpen(true)}
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 6,
+            paddingHorizontal: 12,
+            minHeight: 38,
+            borderRadius: 20,
+            backgroundColor: theme.surface,
+          }}
+        >
+          <Icon name="calendar" size={17} color={theme.accent} />
+          <AppText style={{ fontSize: 11 }}>
+            {periods.find((period) => period.value === range)?.label ?? 'Period'}
+          </AppText>
+          <AppText style={{ fontSize: 12 }}>⌄</AppText>
+        </Pressable>
+      }
+      subtitle="Track · Plan · Stay on top"
       onRefresh={() => query.refetch()}
     >
-      <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 12 }}>
-        <View style={{ flex: 1 }}>
-          <SelectField
-            label="Period"
-            value={range}
-            onChange={(value) => {
-              if (value !== 'custom') apply(value);
-              else {
-                setFrom(data?.period.from ?? from);
-                setTo(data?.period.to ?? to);
-                setError('');
-                setCustomOpen(true);
-              }
-            }}
-            options={periods}
-          />
-        </View>
-        <AppButton
-          title="Export CSV"
-          variant="secondary"
-          loading={exportReport.isPending}
-          disabled={!data || query.isFetching}
-          onPress={() => exportReport.mutate()}
-        />
-      </View>
       {range === 'custom' && (
         <Pressable
           accessibilityRole="button"
@@ -137,7 +152,7 @@ export default function Reports() {
           {exportNotice}
         </AppText>
       ) : null}
-      {query.isPending && <Loading variant="dashboard" />}
+      {query.isPending && <Loading variant="reports" />}
       {query.isError && (
         <Feedback
           error={query.error}
@@ -146,152 +161,193 @@ export default function Reports() {
           }}
         />
       )}
+      {data && <InsightsOverview data={data} onDetails={() => setDetailsOpen(true)} />}
       {data && (
-        <>
-          <AppText tone="muted" style={{ fontSize: 13, lineHeight: 20 }}>
-            {dateLabel(
-              data.period.from,
-              data.period.from.slice(0, 4) !== data.period.to.slice(0, 4),
-            )}{' '}
-            – {dateLabel(data.period.to)} · {data.period.currency}
-          </AppText>
-          <Card>
-            <AppText tone="muted" style={{ fontSize: 14 }}>
-              Net cash flow
-            </AppText>
-            <AppText
-              tone={BigInt(data.cashflow.netMinor) < 0n ? 'danger' : 'accent'}
-              style={{
-                fontFamily: 'DMSansBold',
-                fontSize: 32,
-                lineHeight: 40,
-                fontVariant: ['tabular-nums'],
-              }}
-            >
-              {money(data.cashflow.netMinor)}
-            </AppText>
-            <View
-              style={{
-                flexDirection: 'row',
-                gap: 16,
-                borderTopWidth: 1,
-                borderTopColor: theme.border,
-                paddingTop: 14,
-              }}
-            >
-              <View style={{ flex: 1, gap: 4 }}>
-                <AppText tone="muted" style={{ fontSize: 13 }}>
-                  ↙ Income
-                </AppText>
-                <AppText
-                  tone="accent"
-                  style={{
-                    fontFamily: 'DMSansBold',
-                    fontSize: 20,
-                    lineHeight: 28,
-                    fontVariant: ['tabular-nums'],
-                  }}
-                >
-                  {money(data.cashflow.incomeMinor)}
-                </AppText>
-              </View>
-              <View style={{ flex: 1, gap: 4 }}>
-                <AppText tone="muted" style={{ fontSize: 13 }}>
-                  ↗ Expenses
-                </AppText>
-                <AppText
-                  tone="danger"
-                  style={{
-                    fontFamily: 'DMSansBold',
-                    fontSize: 20,
-                    lineHeight: 28,
-                    fontVariant: ['tabular-nums'],
-                  }}
-                >
-                  {money(data.cashflow.expensesMinor)}
-                </AppText>
-              </View>
-            </View>
+        <AppButton
+          title="Export CSV"
+          variant="secondary"
+          loading={exportReport.isPending}
+          onPress={() => exportReport.mutate()}
+        />
+      )}
+      <FlowSheet
+        title="Detailed report"
+        visible={detailsOpen}
+        onClose={() => setDetailsOpen(false)}
+      >
+        {data && (
+          <>
             <AppText tone="muted" style={{ fontSize: 13, lineHeight: 20 }}>
-              {data.cashflow.savingsRateBasisPoints === null
-                ? 'No income recorded in this period'
-                : BigInt(data.cashflow.savingsRateBasisPoints) < 0n
-                  ? 'Expenses exceeded income in this period'
-                  : `${percentageFromBasisPoints(data.cashflow.savingsRateBasisPoints)} of income saved`}
+              {dateLabel(
+                data.period.from,
+                data.period.from.slice(0, 4) !== data.period.to.slice(0, 4),
+              )}{' '}
+              to {dateLabel(data.period.to)} · {data.period.currency}
             </AppText>
-          </Card>
-          {data.cashflow.incomeMinor === '0' && data.cashflow.expensesMinor === '0' && (
             <Card>
-              <AppText style={{ fontFamily: 'DMSansBold' }}>
-                Your financial overview starts here.
+              <AppText tone="muted" style={{ fontSize: 14 }}>
+                Net cash flow
               </AppText>
-              <AppText tone="muted">
-                Add income or expenses in Transactions to see your patterns, or choose a different
-                period.
+              <AppText
+                tone={BigInt(data.cashflow.netMinor) < 0n ? 'danger' : 'accent'}
+                style={{
+                  fontFamily: 'DMSansBold',
+                  fontSize: 32,
+                  lineHeight: 40,
+                  fontVariant: ['tabular-nums'],
+                }}
+              >
+                {money(data.cashflow.netMinor)}
+              </AppText>
+              <View
+                style={{
+                  flexDirection: 'row',
+                  gap: 16,
+                  borderTopWidth: 1,
+                  borderTopColor: theme.border,
+                  paddingTop: 14,
+                }}
+              >
+                <View style={{ flex: 1, gap: 4 }}>
+                  <AppText tone="muted" style={{ fontSize: 13 }}>
+                    ↙ Income
+                  </AppText>
+                  <AppText
+                    tone="accent"
+                    style={{
+                      fontFamily: 'DMSansBold',
+                      fontSize: 20,
+                      lineHeight: 28,
+                      fontVariant: ['tabular-nums'],
+                    }}
+                  >
+                    {money(data.cashflow.incomeMinor)}
+                  </AppText>
+                </View>
+                <View style={{ flex: 1, gap: 4 }}>
+                  <AppText tone="muted" style={{ fontSize: 13 }}>
+                    ↗ Expenses
+                  </AppText>
+                  <AppText
+                    tone="danger"
+                    style={{
+                      fontFamily: 'DMSansBold',
+                      fontSize: 20,
+                      lineHeight: 28,
+                      fontVariant: ['tabular-nums'],
+                    }}
+                  >
+                    {money(data.cashflow.expensesMinor)}
+                  </AppText>
+                </View>
+              </View>
+              <AppText tone="muted" style={{ fontSize: 13, lineHeight: 20 }}>
+                {data.cashflow.savingsRateBasisPoints === null
+                  ? 'No income recorded in this period'
+                  : BigInt(data.cashflow.savingsRateBasisPoints) < 0n
+                    ? 'Expenses exceeded income in this period'
+                    : `${percentageFromBasisPoints(data.cashflow.savingsRateBasisPoints)} of income saved`}
               </AppText>
             </Card>
-          )}
-          <Card>
-            <AppText accessibilityRole="header" style={{ fontFamily: 'DMSansBold', fontSize: 20 }}>
-              Spending by category
-            </AppText>
-            <ExpenseDonut categories={data.categories} />
-          </Card>
-          {data.trends.length > 1 && (
+            {data.cashflow.incomeMinor === '0' && data.cashflow.expensesMinor === '0' && (
+              <Card>
+                <AppText style={{ fontFamily: 'DMSansBold' }}>
+                  Your financial overview starts here.
+                </AppText>
+                <AppText tone="muted">
+                  Add income or expenses in Transactions to see your patterns, or choose a different
+                  period.
+                </AppText>
+              </Card>
+            )}
             <Card>
               <AppText
                 accessibilityRole="header"
                 style={{ fontFamily: 'DMSansBold', fontSize: 20 }}
               >
-                Cash flow over time
+                Spending by category
               </AppText>
-              <MonthlyChart trends={data.trends} />
+              <ExpenseDonut categories={data.categories} />
             </Card>
-          )}
-          <Card>
-            <AppText accessibilityRole="header" style={{ fontFamily: 'DMSansBold', fontSize: 20 }}>
-              Income categories
-            </AppText>
-            {data.categories
-              .filter((category) => category.type === 'INCOME')
-              .map((category) => (
-                <View
-                  key={category.categoryId}
-                  style={{ flexDirection: 'row', gap: 12, alignItems: 'center' }}
+            {(range === 'current-month' || range === 'previous-month') && (
+              <SpendingInsights month={data.period.from.slice(0, 7)} />
+            )}
+            {data.trends.length > 1 && (
+              <Card>
+                <AppText
+                  accessibilityRole="header"
+                  style={{ fontFamily: 'DMSansBold', fontSize: 20 }}
                 >
-                  <View style={{ flex: 1, gap: 2 }}>
-                    <AppText style={{ fontSize: 14 }}>{category.name}</AppText>
-                    <AppText tone="muted" style={{ fontSize: 12 }}>
-                      {(category.shareBasisPoints / 100).toFixed(2)}% of income
+                  Cash flow over time
+                </AppText>
+                <MonthlyChart trends={data.trends} />
+              </Card>
+            )}
+            <Card>
+              <AppText
+                accessibilityRole="header"
+                style={{ fontFamily: 'DMSansBold', fontSize: 20 }}
+              >
+                Income categories
+              </AppText>
+              {data.categories
+                .filter((category) => category.type === 'INCOME')
+                .map((category) => (
+                  <View
+                    key={category.categoryId}
+                    style={{ flexDirection: 'row', gap: 12, alignItems: 'center' }}
+                  >
+                    <View style={{ flex: 1, gap: 2 }}>
+                      <AppText style={{ fontSize: 14 }}>{category.name}</AppText>
+                      <AppText tone="muted" style={{ fontSize: 12 }}>
+                        {(category.shareBasisPoints / 100).toFixed(2)}% of income
+                      </AppText>
+                    </View>
+                    <AppText tone="accent" style={{ fontFamily: 'DMSansBold' }}>
+                      {money(category.amountMinor)}
                     </AppText>
                   </View>
-                  <AppText tone="accent" style={{ fontFamily: 'DMSansBold' }}>
-                    {money(category.amountMinor)}
-                  </AppText>
-                </View>
-              ))}
-            {!data.categories.some((category) => category.type === 'INCOME') && (
-              <AppText tone="muted">No categorized income for this period.</AppText>
-            )}
-          </Card>
-          <Card>
-            <AppText accessibilityRole="header" style={{ fontFamily: 'DMSansBold', fontSize: 20 }}>
-              Account breakdown
-            </AppText>
-            <AccountDistribution accounts={data.accounts} />
-          </Card>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="About this report"
-            onPress={() => setAboutOpen(true)}
-            style={{ minHeight: 48, alignItems: 'center', justifyContent: 'center' }}
-          >
-            <AppText tone="accent" style={{ fontSize: 14 }}>
-              About this report ⓘ
-            </AppText>
-          </Pressable>
-        </>
-      )}
+                ))}
+              {!data.categories.some((category) => category.type === 'INCOME') && (
+                <AppText tone="muted">No categorized income for this period.</AppText>
+              )}
+            </Card>
+            <Card>
+              <AppText
+                accessibilityRole="header"
+                style={{ fontFamily: 'DMSansBold', fontSize: 20 }}
+              >
+                Account breakdown
+              </AppText>
+              <AccountDistribution accounts={data.accounts} />
+            </Card>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="About this report"
+              onPress={() => setAboutOpen(true)}
+              style={{ minHeight: 48, alignItems: 'center', justifyContent: 'center' }}
+            >
+              <AppText tone="accent" style={{ fontSize: 14 }}>
+                About this report ⓘ
+              </AppText>
+            </Pressable>
+          </>
+        )}
+      </FlowSheet>
+      <FlowSheet title="Report period" visible={periodOpen} onClose={() => setPeriodOpen(false)}>
+        <Choice
+          label="Period"
+          presentation="list"
+          value={range}
+          options={periods}
+          onChange={(value) => {
+            if (value === 'custom') {
+              setPeriodOpen(false);
+              setCustomOpen(true);
+            } else apply(value);
+          }}
+        />
+      </FlowSheet>
       <FlowSheet
         title="Custom period"
         visible={customOpen}

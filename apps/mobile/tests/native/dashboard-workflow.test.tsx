@@ -14,7 +14,10 @@ import Home from '../../app/(tabs)/index';
 import { ApiClient, type HttpTransport } from '../../src/api/client';
 import { useApp } from '../../src/providers/app-provider';
 import { useUi } from '../../src/stores/ui';
+import { testVault } from '../vault-fixture';
+import { calendarDate } from '@finora/finance-core';
 
+jest.mock('../../src/features/planning/outlook-summary', () => ({ OutlookSummary: () => null }));
 jest.mock('../../src/providers/app-provider', () => ({ useApp: jest.fn() }));
 jest.mock('expo-network', () => ({ useNetworkState: jest.fn(() => ({ isConnected: true })) }));
 jest.mock('expo-crypto', () => ({ randomUUID: () => '99999999-9999-4999-8999-999999999999' }));
@@ -26,6 +29,7 @@ const user = userSchema.parse({
   id: owner,
   email: 'native@example.com',
   name: 'Casey Tester',
+  onboardingCompletedAt: now,
   preferences: { locale: 'en-US' },
   createdAt: now,
   updatedAt: now,
@@ -105,10 +109,26 @@ beforeEach(() => {
 });
 
 async function mount(data: Overview, hold?: Promise<void>) {
+  const local = useNetworkState().isConnected === false ? testVault(owner) : undefined;
+  if (local) {
+    const month = calendarDate(new Date(), user.preferences.timezone).slice(0, 7);
+    await local.vault.write(`read:reports/overview?month=${month}`, { ...data, month });
+    await local.vault.write('read:categories?includeArchived=true', [category]);
+    for (const path of [
+      `budgets?month=${month}`,
+      'goals',
+      'recurring',
+      'recurring-occurrences?status=PENDING',
+    ])
+      await local.vault.write(`read:${path}`, []);
+  }
   const transport: HttpTransport = async (url) => {
     const parsed = new URL(url);
     const path = parsed.pathname.replace('/api/v1/', '');
     paths.push(`${path}${parsed.search}`);
+    if (['budgets', 'goals', 'recurring', 'recurring-occurrences'].includes(path))
+      return Response.json({ success: true, data: [] });
+    if (path === 'debts') return Response.json({ success: true, data: [] });
     if (path === 'reports/overview') {
       if (hold) await hold;
       if (holdOverview) await holdOverview;
@@ -152,12 +172,17 @@ async function mount(data: Overview, hold?: Promise<void>) {
   jest.mocked(useApp).mockReturnValue({
     api,
     user,
+    vault: local?.vault,
     phase: 'ready',
     error: '',
     acceptSession: async () => undefined,
     restore: async () => undefined,
     clearSession: async () => undefined,
+    saveOnboarding: async () => undefined,
     refreshUser: async () => undefined,
+    storageError: '',
+    syncing: false,
+    syncPending: async () => undefined,
   });
   const query = new QueryClient({
     defaultOptions: {
@@ -183,7 +208,6 @@ test('shows loading before data, then actionable empty states and account creati
   expect(screen.queryByText('Start with your first account')).not.toBeOnTheScreen();
   complete();
   expect(await screen.findByText('Start with your first account')).toBeOnTheScreen();
-  expect(screen.getByText('No expenses in this month.')).toBeOnTheScreen();
   expect(screen.getByText('Your transactions will appear here.')).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole('button', { name: 'Create account' }));
   expect(router.push).toHaveBeenCalledWith('/account');
@@ -237,12 +261,11 @@ test('renders exact balances and financial summaries, privacy toggle and transac
   expect(await screen.findByText('₹9,007,199,254,740,993.01')).toBeOnTheScreen();
   expect(screen.getByText('₹1,000.00')).toBeOnTheScreen();
   expect(screen.getByText('₹987.50')).toBeOnTheScreen();
-  expect(screen.getByText('98.8% of income saved')).toBeOnTheScreen();
   expect(screen.getByText('Groceries')).toBeOnTheScreen();
-  expect(screen.getByText('Food')).toBeOnTheScreen();
+  expect(screen.getByText(/^Food ·/)).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole('button', { name: 'Hide total balance' }));
   expect(screen.queryByText('₹9,007,199,254,740,993.01')).not.toBeOnTheScreen();
-  expect(screen.getByText('••••••')).toBeOnTheScreen();
+  expect(screen.getAllByText('••••••').length).toBeGreaterThanOrEqual(4);
   await fireEvent.press(screen.getByRole('button', { name: 'Show total balance' }));
   expect(screen.getByText('₹9,007,199,254,740,993.01')).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole('button', { name: 'Add a transaction' }));
@@ -260,30 +283,17 @@ test('renders exact balances and financial summaries, privacy toggle and transac
   });
 });
 
-test('selects a valid report month without typing and requests it immediately', async () => {
+test('opens profile settings from the dashboard', async () => {
   await mount(empty);
-  await screen.findByRole('button', { name: 'Choose report month' });
-  const first = paths.find((path) => path.startsWith('reports/overview'))!;
-  const year = Number(
-    new URL(`https://native.test/${first}`).searchParams.get('month')!.slice(0, 4),
-  );
-  const target = `${year - 1}-02`;
-  await fireEvent.press(screen.getByRole('button', { name: 'Choose report month' }));
-  await fireEvent.press(screen.getByRole('button', { name: 'Previous year' }));
-  expect(paths.filter((path) => path.startsWith('reports/overview'))).toHaveLength(1);
-  await fireEvent.press(screen.getByRole('radio', { name: target }));
-  await waitFor(() => expect(paths).toContain(`reports/overview?month=${target}`));
-  expect(
-    await screen.findByRole('button', { name: 'Choose report month' }),
-  ).toHaveAccessibilityValue({ text: `February ${year - 1}` });
+  await screen.findByText('Start with your first account');
+  await fireEvent.press(screen.getByRole('button', { name: 'Open settings' }));
+  expect(router.push).toHaveBeenCalledWith('/settings');
 });
 
 test('labels the offline state while displaying available data', async () => {
   jest.mocked(useNetworkState).mockReturnValue({ isConnected: false, isInternetReachable: false });
   await mount(empty);
-  expect(
-    screen.getByText('You’re offline. Cached views may be out of date. Reconnect before saving.'),
-  ).toBeOnTheScreen();
+  expect(screen.getByText('Offline · Showing saved records')).toBeOnTheScreen();
   expect(await screen.findByText('Start with your first account')).toBeOnTheScreen();
 });
 
@@ -295,6 +305,20 @@ test('exposes category errors and retries without discarding the loaded financia
   );
   expect(await screen.findByText('₹9,007,199,254,740,993.01')).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole('button', { name: 'Try again' }));
-  expect(await screen.findByText('Food')).toBeOnTheScreen();
+  expect(await screen.findByText(/^Food ·/)).toBeOnTheScreen();
   expect(paths.filter((path) => path.startsWith('categories'))).toHaveLength(2);
+});
+
+test('adds lower dashboard sections with working destinations', async () => {
+  await mount(populated);
+  await screen.findByText('Budget progress');
+  expect(await screen.findByText('No payments awaiting confirmation.')).toBeOnTheScreen();
+  expect(screen.getByText('Savings goals')).toBeOnTheScreen();
+  await fireEvent.press(screen.getByRole('button', { name: 'View budget progress' }));
+  expect(router.push).toHaveBeenCalledWith({
+    pathname: '/planning',
+    params: { section: 'budgets' },
+  });
+  await fireEvent.press(screen.getByRole('button', { name: 'Start weekly check-in' }));
+  expect(router.push).toHaveBeenCalledWith('/weekly-review');
 });

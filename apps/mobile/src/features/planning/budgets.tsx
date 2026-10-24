@@ -1,16 +1,21 @@
+import { Disclosure } from '../../components/design';
+import { PlanningProgress } from './progress';
 import {
   budgetInputSchema,
   budgetSchema,
   budgetStatusSchema,
   budgetUpdateSchema,
+  monthlyLimitSchema,
+  monthlyLimitStatusSchema,
   type Budget,
   type Category,
 } from '@finora/contracts';
-import { calendarDate, parseMoney } from '@finora/finance-core';
+import { calendarDate, parseMoney, previousMonth } from '@finora/finance-core';
 import { useState } from 'react';
+import { Alert } from 'react-native';
 import { z } from 'zod';
-import { AppButton, AppText, Card, Feedback, Field, Loading } from '../../components/ui';
-import { MonthPicker, SelectField } from '../../components/flow';
+import { AppButton, AppText, Card, Choice, Feedback, Field, Loading } from '../../components/ui';
+import { MonthPicker, SelectField, FlowSheet } from '../../components/flow';
 import { useFinanceMutation, useUnsavedChanges } from '../../hooks/finance';
 import { useApp } from '../../providers/app-provider';
 import { categoriesSchema, decimalAmount, useMoney, useRead } from '../finance/shared';
@@ -27,6 +32,11 @@ export function Budgets({ onEditing }: { onEditing: (editing: boolean) => void }
     z.array(budgetStatusSchema),
   );
   const categories = useRead('categories?includeArchived=true', categoriesSchema);
+  const copy = useFinanceMutation(
+    'budgets/copy',
+    z.object({ created: z.number().int(), skipped: z.number().int(), totalCopied: z.boolean() }),
+  );
+  const [copyNotice, setCopyNotice] = useState('');
   function edit(budget: Budget | 'new' | null) {
     setEditing(budget);
     onEditing(budget !== null);
@@ -43,12 +53,48 @@ export function Budgets({ onEditing }: { onEditing: (editing: boolean) => void }
   return (
     <>
       <MonthPicker value={activeMonth} onChange={setActiveMonth} label="budget month" />
+      <TotalBudget month={activeMonth} key={activeMonth} />
+      <Disclosure title="More budget options">
+        <AppButton
+          title="Copy previous month"
+          variant="secondary"
+          loading={copy.isPending}
+          onPress={() =>
+            Alert.alert(
+              'Copy previous month?',
+              `Copy limits from ${previousMonth(activeMonth)} to ${activeMonth}. Existing budgets will be kept. Rollover starts disabled on copied categories.`,
+              [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                  text: 'Copy budgets',
+                  onPress: () => {
+                    void copy
+                      .mutateAsync({
+                        fromMonth: previousMonth(activeMonth),
+                        toMonth: activeMonth,
+                        copyRollover: false,
+                      })
+                      .then((r) =>
+                        setCopyNotice(
+                          `${r.created} category budgets copied to ${activeMonth}; ${r.skipped} skipped.${r.totalCopied ? ' Monthly limit copied.' : ''}`,
+                        ),
+                      )
+                      .catch(() => undefined);
+                  },
+                },
+              ],
+            )
+          }
+        />
+        {copyNotice ? <AppText tone="accent">{copyNotice}</AppText> : null}
+        {copy.error && <Feedback error={copy.error} />}
+      </Disclosure>
       <AppButton
         title="Add monthly budget"
         disabled={!categories.data}
         onPress={() => edit('new')}
       />
-      {query.isPending && <Loading />}
+      {query.isPending && <Loading variant="budgets" />}
       {query.isError && (
         <Feedback
           error={query.error}
@@ -77,8 +123,14 @@ export function Budgets({ onEditing }: { onEditing: (editing: boolean) => void }
               'Expense category'}
           </AppText>
           <AppText>
-            {money(budget.spentMinor)} spent of {money(budget.amountMinor)}
+            {money(budget.spentMinor)} spent of{' '}
+            {money(budget.effectiveLimitMinor ?? budget.amountMinor)}
           </AppText>
+          <PlanningProgress
+            amount={budget.spentMinor}
+            target={budget.effectiveLimitMinor ?? budget.amountMinor}
+            label="Category budget used"
+          />
           <AppText
             tone={budget.overBudget ? 'danger' : budget.warningReached ? 'danger' : 'accent'}
           >
@@ -88,7 +140,10 @@ export function Budgets({ onEditing }: { onEditing: (editing: boolean) => void }
             {budget.warningReached && !budget.overBudget ? ' · Approaching your limit' : ''}
           </AppText>
           <AppText tone="muted">
-            {budget.month} · Alerts at {budget.warningThresholdBasisPoints / 100}% · No rollover
+            {budget.month} · Alerts at {budget.warningThresholdBasisPoints / 100}% ·{' '}
+            {budget.rollover
+              ? `${money(budget.carriedMinor ?? '0')} carried forward`
+              : 'No rollover'}
           </AppText>
           <AppButton title="Edit budget" variant="secondary" onPress={() => edit(budget)} />
         </Card>
@@ -114,6 +169,7 @@ function BudgetForm({
     month: budget?.month ?? month,
     amount: budget ? decimalAmount(budget.amountMinor, currency) : '',
     warning: String((budget?.warningThresholdBasisPoints ?? 8000) / 100),
+    rollover: budget?.rollover ?? false,
   };
   const [form, setForm] = useState(initial);
   const [error, setError] = useState('');
@@ -135,7 +191,7 @@ function BudgetForm({
         month: form.month,
         amountMinor: parseMoney(form.amount, currency),
         warningThresholdBasisPoints: Math.round(Number(form.warning) * 100),
-        rollover: false,
+        rollover: form.rollover,
       };
       await save.mutateAsync(
         budget
@@ -147,12 +203,25 @@ function BudgetForm({
       setError(failureMessage(failure));
     }
   }
-  const busy = save.isPending || remove.isPending;
   return (
-    <Card>
-      <AppText style={{ fontSize: 22, fontFamily: 'DMSansBold' }}>
-        {budget ? 'Edit budget' : 'New budget'}
-      </AppText>
+    <FlowSheet
+      title={budget ? 'Edit budget' : 'New budget'}
+      visible
+      busy={save.isPending || remove.isPending}
+      onClose={() => {
+        if (!save.isPending && !remove.isPending) confirmDiscard(dirty, done);
+      }}
+      footer={
+        <AppButton
+          title="Save budget"
+          loading={save.isPending}
+          disabled={remove.isPending}
+          onPress={() => {
+            void submit();
+          }}
+        />
+      }
+    >
       <SelectField
         label="Expense category"
         value={form.categoryId}
@@ -187,15 +256,21 @@ function BudgetForm({
         keyboardType="decimal-pad"
         maxLength={6}
       />
-      {(error || remove.error) && <Feedback error={error ? new Error(error) : remove.error} />}
-      <AppButton
-        title="Save budget"
-        loading={save.isPending}
-        disabled={remove.isPending}
-        onPress={() => {
-          void submit();
-        }}
+      <Choice
+        label="Unused budget"
+        value={form.rollover ? 'carry' : 'reset'}
+        onChange={(v) => setForm((f) => ({ ...f, rollover: v === 'carry' }))}
+        options={[
+          { value: 'reset', label: 'Reset each month' },
+          { value: 'carry', label: 'Carry from previous month' },
+        ]}
       />
+      <AppText tone="muted">
+        Carry adds only unused money from the immediately previous category budget. Overspending is
+        not carried forward. It recalculates if historical spending changes.
+      </AppText>
+      {(error || remove.error) && <Feedback error={error ? new Error(error) : remove.error} />}
+
       {budget && (
         <AppButton
           title="Delete budget"
@@ -212,12 +287,123 @@ function BudgetForm({
           }
         />
       )}
+    </FlowSheet>
+  );
+}
+
+function TotalBudget({ month }: { month: string }) {
+  const { user } = useApp();
+  const currency = user?.preferences.baseCurrency ?? 'INR';
+  const money = useMoney();
+  const query = useRead(`budgets/total?month=${month}`, monthlyLimitStatusSchema);
+  const [open, setOpen] = useState(false);
+  const [amount, setAmount] = useState('');
+  const [draftPlan, setDraftPlan] = useState<z.infer<typeof monthlyLimitSchema> | null>(null);
+  const [error, setError] = useState('');
+  const save = useFinanceMutation('budgets/total', monthlyLimitSchema);
+  const remove = useFinanceMutation('budgets/total', deletedSchema, 'DELETE');
+  async function submit() {
+    setError('');
+    try {
+      const value = parseMoney(amount, currency);
+      if (BigInt(value) <= 0n) throw new Error('Enter a positive monthly limit.');
+      await save.mutateAsync({
+        month,
+        amountMinor: value,
+        ...(draftPlan ? { version: draftPlan.version } : {}),
+      });
+      setOpen(false);
+    } catch (e) {
+      setError(failureMessage(e));
+    }
+  }
+  const data = query.data;
+  return (
+    <Card>
+      <AppText style={{ fontFamily: 'DMSansBold', fontSize: 19 }}>Monthly spending limit</AppText>
+      {data && (
+        <>
+          <AppText>
+            {money(data.spentMinor)} spent{data.plan ? ` of ${money(data.plan.amountMinor)}` : ''}
+          </AppText>
+          {data.remainingMinor !== null && (
+            <AppText tone={BigInt(data.remainingMinor) < 0n ? 'danger' : 'accent'}>
+              {BigInt(data.remainingMinor) < 0n
+                ? `${money((-BigInt(data.remainingMinor)).toString())} over limit`
+                : `${money(data.remainingMinor)} remaining`}
+            </AppText>
+          )}
+        </>
+      )}
+      {query.error && (
+        <Feedback
+          error={query.error}
+          retry={() => {
+            void query.refetch();
+          }}
+        />
+      )}
       <AppButton
-        title="Cancel"
+        title={data?.plan ? 'Edit monthly limit' : 'Set monthly limit'}
         variant="secondary"
-        disabled={busy}
-        onPress={() => confirmDiscard(dirty, done)}
+        disabled={query.isPending || query.isError}
+        onPress={() => {
+          setAmount(data?.plan ? decimalAmount(data.plan.amountMinor, currency) : '');
+          setDraftPlan(data?.plan ?? null);
+          setError('');
+          setOpen(true);
+        }}
       />
+      <AppText tone="muted" style={{ fontSize: 12 }}>
+        Covers all expenses, including categories without a budget. Borrowing, lending and transfers
+        are excluded.
+      </AppText>
+      <FlowSheet
+        title="Monthly spending limit"
+        visible={open}
+        busy={save.isPending || remove.isPending}
+        onClose={() => {
+          if (!save.isPending && !remove.isPending)
+            confirmDiscard(
+              amount !== (draftPlan ? decimalAmount(draftPlan.amountMinor, currency) : ''),
+              () => setOpen(false),
+            );
+        }}
+        footer={
+          <AppButton
+            title="Save monthly limit"
+            loading={save.isPending}
+            onPress={() => {
+              void submit();
+            }}
+          />
+        }
+      >
+        <Field
+          label={`Monthly limit (${currency})`}
+          value={amount}
+          onChangeText={setAmount}
+          keyboardType="decimal-pad"
+          maxLength={35}
+        />
+        <AppText tone="muted">
+          The overall limit is independent of category limits and resets each month.
+        </AppText>
+        {draftPlan && (
+          <AppButton
+            title="Remove monthly limit"
+            variant="danger"
+            loading={remove.isPending}
+            onPress={() => {
+              void remove
+                .mutateAsync({ month, version: draftPlan.version, confirmation: 'DELETE' })
+                .then(() => setOpen(false))
+                .catch(() => undefined);
+            }}
+          />
+        )}
+        {(error || remove.error) && <Feedback error={error ? new Error(error) : remove.error} />}
+      </FlowSheet>
     </Card>
   );
 }

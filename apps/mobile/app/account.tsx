@@ -1,3 +1,5 @@
+import { SelectField } from '../src/components/flow';
+import { Disclosure, ImpactNotice, ReviewSheet } from '../src/components/design';
 import {
   accountInputSchema,
   accountSchema,
@@ -10,17 +12,8 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { Alert } from 'react-native';
 import { z } from 'zod';
-import {
-  AppButton,
-  AppText,
-  Card,
-  Choice,
-  Feedback,
-  Field,
-  Loading,
-  Screen,
-} from '../src/components/ui';
-import { decimalAmount, useRead } from '../src/features/finance/shared';
+import { AppButton, AppText, Card, Feedback, Field, Loading, Screen } from '../src/components/ui';
+import { decimalAmount, useRead, useMoney } from '../src/features/finance/shared';
 import { useFinanceMutation, useUnsavedChanges } from '../src/hooks/finance';
 import { useApp } from '../src/providers/app-provider';
 
@@ -31,7 +24,7 @@ export default function AccountScreen() {
   if (id && query.isPending)
     return (
       <Screen>
-        <Loading />
+        <Loading variant="form" />
       </Screen>
     );
   if (id && query.isError)
@@ -47,7 +40,8 @@ export default function AccountScreen() {
     );
   return <AccountForm key={id ?? 'new'} account={query.data} />;
 }
-function AccountForm({ account }: { account?: AccountWithBalance }) {
+function AccountForm({ account: currentAccount }: { account?: AccountWithBalance }) {
+  const [account] = useState(currentAccount);
   const { user } = useApp();
   const currency = user?.preferences.baseCurrency ?? 'INR';
   const initial = {
@@ -59,6 +53,10 @@ function AccountForm({ account }: { account?: AccountWithBalance }) {
   const [type, setType] = useState(initial.type);
   const [amount, setAmount] = useState(initial.amount);
   const [error, setError] = useState('');
+  const [reviewed, setReviewed] = useState<
+    z.infer<typeof accountInputSchema> | z.infer<typeof accountUpdateSchema>
+  >();
+  const money = useMoney();
   const dirty = name !== initial.name || type !== initial.type || amount !== initial.amount;
   const allowLeave = useUnsavedChanges(dirty);
   const save = useFinanceMutation(
@@ -84,9 +82,7 @@ function AccountForm({ account }: { account?: AccountWithBalance }) {
             archived: restore ? false : account.archived,
           })
         : accountInputSchema.parse(body);
-      await save.mutateAsync(validated);
-      allowLeave();
-      router.back();
+      setReviewed(validated);
     } catch (failure) {
       setError(
         failure instanceof z.ZodError
@@ -123,6 +119,17 @@ function AccountForm({ account }: { account?: AccountWithBalance }) {
     <Screen
       title={account ? account.name : 'New account'}
       subtitle={`Track your money in ${currency}.`}
+      includeTopInset={false}
+      bottomAction={
+        <AppButton
+          title="Review account"
+          loading={save.isPending}
+          disabled={archive.isPending}
+          onPress={() => {
+            void submit(!!account?.archived);
+          }}
+        />
+      }
     >
       <Field
         label="Account name"
@@ -131,7 +138,7 @@ function AccountForm({ account }: { account?: AccountWithBalance }) {
         maxLength={80}
         autoCapitalize="words"
       />
-      <Choice
+      <SelectField
         label="Account type"
         value={type}
         onChange={setType}
@@ -150,10 +157,11 @@ function AccountForm({ account }: { account?: AccountWithBalance }) {
         keyboardType="numbers-and-punctuation"
         maxLength={35}
       />
-      <AppText tone="muted">
-        The opening balance is the amount before your tracked transactions. Changing it adjusts your
-        current balance.
-      </AppText>
+      <ImpactNotice title="Your balance before recorded transactions">
+        {account
+          ? 'Changing the opening balance also changes the current balance. Review the effect before saving.'
+          : 'This is your starting balance. It is not counted as income.'}
+      </ImpactNotice>
       {account?.archived && (
         <Card>
           <AppText>This account is archived. Restore it to use it in new transactions.</AppText>
@@ -162,29 +170,64 @@ function AccountForm({ account }: { account?: AccountWithBalance }) {
       {(error || save.error || archive.error) && (
         <Feedback error={error ? new Error(error) : (save.error ?? archive.error)} />
       )}
-      <AppButton
-        title={
+      {account && !account.archived && (
+        <Disclosure title="Manage account">
+          <AppButton
+            title="Archive account"
+            variant="danger"
+            loading={archive.isPending}
+            disabled={save.isPending || dirty}
+            onPress={confirmArchive}
+          />
+        </Disclosure>
+      )}
+      <ReviewSheet
+        title="Review account"
+        visible={!!reviewed}
+        rows={
+          reviewed
+            ? [
+                { label: 'Name', value: reviewed.name },
+                { label: 'Opening balance', value: money(reviewed.openingBalanceMinor) },
+                ...(account
+                  ? [
+                      {
+                        label: 'Resulting balance',
+                        value: money(
+                          (
+                            BigInt(account.balanceMinor) -
+                            BigInt(account.openingBalanceMinor) +
+                            BigInt(reviewed.openingBalanceMinor)
+                          ).toString(),
+                        ),
+                      },
+                    ]
+                  : []),
+              ]
+            : []
+        }
+        impact="Opening balances affect account totals, but do not count as income. Existing transactions stay unchanged."
+        confirmLabel={
           account?.archived
             ? 'Save and restore account'
             : account
               ? 'Save changes'
               : 'Create account'
         }
-        loading={save.isPending}
-        disabled={archive.isPending}
-        onPress={() => {
-          void submit(!!account?.archived);
+        busy={save.isPending}
+        error={save.error?.message}
+        onClose={() => setReviewed(undefined)}
+        onConfirm={() => {
+          if (!reviewed) return;
+          void save
+            .mutateAsync(reviewed)
+            .then(() => {
+              allowLeave();
+              router.back();
+            })
+            .catch(() => undefined);
         }}
       />
-      {account && !account.archived && (
-        <AppButton
-          title="Archive account"
-          variant="danger"
-          loading={archive.isPending}
-          disabled={save.isPending || dirty}
-          onPress={confirmArchive}
-        />
-      )}
     </Screen>
   );
 }

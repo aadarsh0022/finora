@@ -1,25 +1,107 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useEffect, useRef, useState } from 'react';
 import { accountWithBalanceSchema, categorySchema, type Transaction } from '@finora/contracts';
 import { calendarDate, formatMoney } from '@finora/finance-core';
 import { router } from 'expo-router';
 import { z, type ZodType } from 'zod';
 import { AppText } from '../../components/ui';
 import { Pressable, View } from 'react-native';
-import Svg, { Path } from 'react-native-svg';
+import { TransactionIcon } from './transaction-icon';
 import { useTheme } from '../../theme';
 import { useApp } from '../../providers/app-provider';
+import { canUseOffline } from '../../storage/outbox';
+import { readSetup, setupProjection } from '../../storage/setup';
+import { useNetworkState } from 'expo-network';
+import { ClientError } from '../../api/client';
 
 export const accountsSchema = z.array(accountWithBalanceSchema);
 export const categoriesSchema = z.array(categorySchema);
 export const messageSchema = z.object({ message: z.string() });
 export { dateInstant, decimalAmount } from './values';
 export function useRead<T>(path: string, schema: ZodType<T>, enabled = true) {
-  const { api, user } = useApp();
-  return useQuery({
+  const { api, user, vault: candidateVault } = useApp();
+  const vault = candidateVault?.ownerId === user?.id ? candidateVault : undefined;
+  const client = useQueryClient();
+  const network = useNetworkState();
+  const [hydrated, setHydrated] = useState('');
+  const schemaRef = useRef(schema);
+  schemaRef.current = schema;
+  const scope = `${user?.id}:${path}`;
+  const [snapshot, setSnapshot] = useState<{ scope: string; savedAt: number; cached: boolean }>();
+  useEffect(() => {
+    if (!vault || !enabled || path.startsWith('auth/')) return;
+    let current = true;
+    void vault
+      .read(`read:${path}`, schemaRef.current)
+      .then((cached) => {
+        if (
+          cached &&
+          current &&
+          (client.getQueryState([user?.id, path])?.dataUpdatedAt ?? 0) < cached.updated
+        ) {
+          client.setQueryData([user?.id, path], cached.value, { updatedAt: cached.updated });
+          setSnapshot({ scope, savedAt: cached.updated, cached: true });
+        }
+      })
+      .catch(() => undefined)
+      .finally(() => {
+        if (current) setHydrated(scope);
+      });
+    return () => {
+      current = false;
+    };
+  }, [vault, scope, enabled, path, client, user?.id]);
+  const query = useQuery({
     queryKey: [user?.id, path],
-    enabled: !!user && enabled,
-    queryFn: ({ signal }) => api.request(path, schema, { signal }),
+    enabled: !!user && enabled && (!vault || path.startsWith('auth/') || hydrated === scope),
+    queryFn: async ({ signal }) => {
+      try {
+        const setup = vault ? await readSetup(vault) : undefined;
+        const projection = setup ? setupProjection(setup, path) : undefined;
+        if (projection !== undefined) return schema.parse(projection);
+        if (network.isConnected === false || network.isInternetReachable === false)
+          throw new ClientError('NETWORK', 'Connect to load records not yet saved on this device.');
+        const value = await api.request(path, schema, { signal });
+        if (vault && !path.startsWith('auth/'))
+          await vault.write(`read:${path}`, value).catch(() => undefined);
+        if (!signal.aborted) setSnapshot({ scope, savedAt: Date.now(), cached: false });
+        return value;
+      } catch (error) {
+        if (
+          vault &&
+          (canUseOffline(error) ||
+            (error instanceof ClientError && (error.status >= 500 || error.status === 429)))
+        ) {
+          const cached = await vault.read(`read:${path}`, schema);
+          if (cached) {
+            if (!signal.aborted) setSnapshot({ scope, savedAt: cached.updated, cached: true });
+            return cached.value;
+          }
+        }
+        throw error;
+      }
+    },
   });
+  return {
+    ...query,
+    cachedAt: snapshot?.scope === scope && snapshot.cached ? snapshot.savedAt : undefined,
+  };
+}
+export function SavedDataNotice({ at }: { at?: number }) {
+  const { user } = useApp();
+  if (!at) return null;
+  const time = new Intl.DateTimeFormat(user?.preferences.locale ?? 'en-IN', {
+    day: 'numeric',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZone: user?.preferences.timezone ?? 'Asia/Kolkata',
+  }).format(new Date(at));
+  return (
+    <AppText tone="muted" style={{ fontSize: 12 }}>
+      Saved on this device · {time}. Refresh when connected for the latest records.
+    </AppText>
+  );
 }
 export function useMoney() {
   const { user } = useApp();
@@ -46,113 +128,82 @@ export function TransactionCard({
   const money = useMoney();
   const theme = useTheme();
   const { user } = useApp();
-  const date = calendarDate(new Date(item.date), user?.preferences.timezone ?? 'Asia/Kolkata');
-  const [year, month, day] = date.split('-');
-  const format = user?.preferences.preferredDateFormat;
-  const displayDate =
-    format === 'DD/MM/YYYY'
-      ? `${day}/${month}/${year}`
-      : format === 'MM/DD/YYYY'
-        ? `${month}/${day}/${year}`
-        : date;
+  const timezone = user?.preferences.timezone ?? 'Asia/Kolkata';
+  const locale = user?.preferences.locale ?? 'en-IN';
+  const day = calendarDate(new Date(item.date), timezone);
+  const today = calendarDate(new Date(), timezone);
   const title =
     item.merchant ||
     categoryName ||
     (item.type === 'TRANSFER' ? 'Account transfer' : item.type === 'INCOME' ? 'Income' : 'Expense');
-  const typeLabel =
-    item.type === 'INCOME' ? 'Income' : item.type === 'EXPENSE' ? 'Expense' : 'Transfer';
-  const tone = item.type === 'INCOME' ? 'accent' : item.type === 'EXPENSE' ? 'danger' : 'text';
+  const kind =
+    item.type === 'TRANSFER' ? 'Transfer' : item.type === 'INCOME' ? 'Income' : 'Expense';
+  const dateLabel =
+    showDate && day !== today
+      ? new Intl.DateTimeFormat(locale, {
+          day: 'numeric',
+          month: 'short',
+          timeZone: timezone,
+        }).format(new Date(item.date))
+      : new Intl.DateTimeFormat(locale, {
+          hour: 'numeric',
+          minute: '2-digit',
+          timeZone: timezone,
+        }).format(new Date(item.date));
+  const detail =
+    item.type === 'TRANSFER'
+      ? 'Transfer'
+      : (categoryName ?? (item.type === 'INCOME' ? 'Income' : (accountName ?? 'Expense')));
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={`View or edit ${title}`}
-      accessibilityHint="Opens transaction details"
+      accessibilityHint={
+        item.type === 'TRANSFER'
+          ? `Opens transfer from ${accountName ?? 'Account'} to ${destinationAccountName ?? 'Account'}`
+          : 'Opens transaction details'
+      }
       onPress={() => router.push({ pathname: '/transaction', params: { id: item.id } })}
       style={({ pressed }) => ({
-        padding: 16,
+        paddingVertical: 12,
+        paddingHorizontal: 12,
         backgroundColor: theme.surface,
-        borderRadius: 18,
-        borderWidth: 1,
-        borderColor: theme.border,
-        opacity: pressed ? 0.75 : 1,
+        borderBottomWidth: 1,
+        borderBottomColor: theme.background,
+        opacity: pressed ? 0.7 : 1,
         flexDirection: 'row',
-        gap: 12,
+        gap: 11,
         alignItems: 'center',
-        minHeight: 92,
+        minHeight: 66,
       })}
     >
-      <View
+      <TransactionIcon type={item.type} merchant={item.merchant} />
+      <View style={{ flex: 1, gap: 3 }}>
+        <AppText
+          numberOfLines={1}
+          style={{ fontFamily: 'DMSansBold', fontSize: 14, lineHeight: 20 }}
+        >
+          {title}
+        </AppText>
+        <AppText numberOfLines={1} tone="muted" style={{ fontSize: 11, lineHeight: 17 }}>
+          {detail} · {dateLabel}
+        </AppText>
+      </View>
+      <AppText
+        accessibilityLabel={`${kind} ${money(item.amountMinor)}`}
+        tone={item.type === 'INCOME' ? 'accent' : 'text'}
         style={{
-          width: 44,
-          height: 44,
-          borderRadius: 14,
-          backgroundColor:
-            item.type === 'EXPENSE'
-              ? theme.dangerSoft
-              : item.type === 'INCOME'
-                ? theme.accentSoft
-                : theme.background,
-          alignItems: 'center',
-          justifyContent: 'center',
+          fontSize: 14,
+          lineHeight: 21,
+          fontFamily: 'DMSansBold',
+          fontVariant: ['tabular-nums'],
+          flexShrink: 1,
+          textAlign: 'right',
         }}
       >
-        <Svg width={22} height={22} viewBox="0 0 24 24" accessible={false}>
-          <Path
-            d={
-              item.type === 'TRANSFER'
-                ? 'M4 8h16m-4-4 4 4-4 4M20 16H4m4-4-4 4 4 4'
-                : item.type === 'INCOME'
-                  ? 'M18 6 6 18M6 8v10h10'
-                  : 'M6 18 18 6M8 6h10v10'
-            }
-            stroke={theme[tone]}
-            strokeWidth={2}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            fill="none"
-          />
-        </Svg>
-      </View>
-      <View style={{ flex: 1, gap: 6 }}>
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', columnGap: 12, rowGap: 4 }}>
-          <AppText
-            numberOfLines={2}
-            style={{ fontFamily: 'DMSansBold', fontSize: 16, flexGrow: 1, flexBasis: '35%' }}
-          >
-            {title}
-          </AppText>
-          <AppText
-            tone={tone}
-            style={{
-              fontSize: 18,
-              fontFamily: 'DMSansBold',
-              fontVariant: ['tabular-nums'],
-              letterSpacing: -0.3,
-              flexShrink: 1,
-              textAlign: 'right',
-              marginLeft: 'auto',
-            }}
-          >
-            {item.type === 'EXPENSE' ? '−' : item.type === 'INCOME' ? '+' : ''}
-            {money(item.amountMinor)}
-          </AppText>
-        </View>
-        <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
-          <AppText numberOfLines={1} tone="muted" style={{ fontSize: 12, lineHeight: 18, flex: 1 }}>
-            {item.type === 'TRANSFER'
-              ? `${accountName ?? 'Account'} → ${destinationAccountName ?? 'Account'}`
-              : `${accountName ?? 'Account'}${categoryName && categoryName !== title ? ` · ${categoryName}` : ''}`}
-          </AppText>
-          <AppText tone="muted" style={{ fontSize: 11, lineHeight: 18 }}>
-            {typeLabel}
-          </AppText>
-        </View>
-        {showDate && (
-          <AppText tone="muted" style={{ fontSize: 11, lineHeight: 16 }}>
-            {displayDate}
-          </AppText>
-        )}
-      </View>
+        {item.type === 'EXPENSE' ? '−' : item.type === 'INCOME' ? '+' : ''}
+        {money(item.amountMinor)}
+      </AppText>
     </Pressable>
   );
 }

@@ -81,6 +81,36 @@ beforeEach(() => {
 async function mount() {
   const transport: HttpTransport = async (url) => {
     const parsed = new URL(url);
+    if (parsed.pathname.endsWith('/reports/insights')) {
+      const month = parsed.searchParams.get('month') ?? '2026-10';
+      return Response.json({
+        success: true,
+        data: {
+          month,
+          through: `${month}-23`,
+          previousFrom: '2026-09-01',
+          previousThrough: '2026-09-23',
+          days: 23,
+          previousDays: 23,
+          partial: true,
+          spentMinor: '0',
+          previousSpentMinor: '0',
+          dailyAverageMinor: '0',
+          changeMinor: '0',
+          changeBasisPoints: null,
+          currency: 'INR',
+          timezone: 'Asia/Kolkata',
+          categoryChanges: [],
+        },
+      });
+    }
+    if (!parsed.pathname.endsWith('/reports/summary'))
+      return Response.json({
+        success: true,
+        data: parsed.pathname.endsWith('/transactions')
+          ? { items: [], total: 0, page: 1, pageSize: 1 }
+          : [],
+      });
     paths.push(parsed.search);
     const range = parsed.searchParams.get('range');
     return Response.json({
@@ -123,6 +153,7 @@ async function mount() {
     </QueryClientProvider>,
   );
   await screen.findByText('Net cash flow');
+  await screen.findByText('Spending overview');
 }
 async function choosePeriod(name: string) {
   await fireEvent.press(screen.getByRole('button', { name: 'Period' }));
@@ -135,6 +166,9 @@ async function chooseDate(label: string, date: string) {
 
 test('shows totals with account details and calculation explanations collapsed', async () => {
   await mount();
+  expect(screen.queryByText('Opening balance')).toBeNull();
+  await fireEvent.press(screen.getByRole('button', { name: 'Monthly summary' }));
+  expect(await screen.findByText('Spending insights')).toBeOnTheScreen();
   expect(screen.getAllByText('-₹4,770.00').length).toBeGreaterThan(0);
   expect(screen.getByText('Expenses exceeded income in this period')).toBeOnTheScreen();
   expect(screen.queryByText('Opening balance')).toBeNull();

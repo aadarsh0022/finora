@@ -11,11 +11,17 @@ import {
   type TextInputProps,
   type TextProps,
   type ViewProps,
+  type ViewStyle,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNetworkState } from 'expo-network';
 import { useTheme } from '../theme';
-import { useState, type ReactNode } from 'react';
+import { useContext, useState, type ReactNode } from 'react';
+import { HeaderHeightContext } from 'expo-router/react-navigation';
+import { router } from 'expo-router';
+import { useApp } from '../providers/app-provider';
+import { usePendingTransactions } from '../storage/hooks';
+import Svg, { Path, Circle } from 'react-native-svg';
 
 export function AppText({
   tone = 'text',
@@ -37,6 +43,11 @@ export function Screen({
   onRefresh,
   bottomAction,
   floatingAction,
+  headerAction,
+  topContent,
+  titleSize = 30,
+  contentStyle,
+  showPendingStatus = true,
   includeTopInset = true,
 }: {
   title?: string;
@@ -45,11 +56,18 @@ export function Screen({
   onRefresh?: () => Promise<unknown>;
   bottomAction?: ReactNode;
   floatingAction?: ReactNode;
+  headerAction?: ReactNode;
+  topContent?: ReactNode;
+  titleSize?: number;
+  contentStyle?: ViewStyle;
+  showPendingStatus?: boolean;
   includeTopInset?: boolean;
 }) {
   const theme = useTheme();
   const network = useNetworkState();
+  const headerHeight = useContext(HeaderHeightContext) ?? 0;
   const [refreshing, setRefreshing] = useState(false);
+  const { user, vault, storageError } = useApp();
   async function refresh() {
     if (!onRefresh || refreshing) return;
     setRefreshing(true);
@@ -66,7 +84,8 @@ export function Screen({
     >
       <KeyboardAvoidingView
         style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={headerHeight}
       >
         <ScrollView
           testID="screen-content"
@@ -85,35 +104,64 @@ export function Screen({
             ) : undefined
           }
           contentContainerStyle={{
-            padding: 20,
+            padding: 18,
             paddingBottom: floatingAction ? 104 : bottomAction ? 24 : 40,
-            gap: 20,
+            gap: 16,
             maxWidth: 720,
             width: '100%',
             alignSelf: 'center',
+            ...contentStyle,
           }}
         >
           {network.isConnected === false && (
-            <Card>
-              <AppText tone="danger">
-                You’re offline. Cached views may be out of date. Reconnect before saving.
+            <View
+              style={{
+                padding: 12,
+                backgroundColor: theme.surface,
+                borderRadius: 12,
+                borderWidth: 1,
+                borderColor: theme.border,
+              }}
+            >
+              <AppText style={{ fontSize: 13, fontFamily: 'DMSansBold' }}>
+                Offline · Showing saved records
               </AppText>
-            </Card>
+              <AppText tone="muted" style={{ fontSize: 12, lineHeight: 18 }}>
+                {vault
+                  ? 'New entries wait for sync. Other changes need a connection.'
+                  : 'Reconnect before saving. Records may be out of date.'}
+              </AppText>
+            </View>
           )}
+          {user && storageError ? (
+            <AppText tone="danger" style={{ fontSize: 13 }}>
+              {storageError}
+            </AppText>
+          ) : null}
+          {showPendingStatus && user && vault && <PendingStatus />}
+          {topContent}
           {title && (
-            <View style={{ gap: 8 }}>
-              <AppText
-                accessibilityRole="header"
-                style={{
-                  fontFamily: 'DMSansBold',
-                  fontSize: 30,
-                  lineHeight: 38,
-                  letterSpacing: -1,
-                }}
-              >
-                {title}
-              </AppText>
-              {subtitle && <AppText tone="muted">{subtitle}</AppText>}
+            <View style={{ gap: 6 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                <AppText
+                  accessibilityRole="header"
+                  style={{
+                    fontFamily: 'DMSansBold',
+                    fontSize: titleSize,
+                    lineHeight: 38,
+                    letterSpacing: -1,
+                    flex: 1,
+                  }}
+                >
+                  {title}
+                </AppText>
+                {headerAction}
+              </View>
+              {subtitle && (
+                <AppText tone="muted" style={{ fontSize: 14, lineHeight: 21 }}>
+                  {subtitle}
+                </AppText>
+              )}
             </View>
           )}
           {children}
@@ -141,6 +189,38 @@ export function Screen({
     </SafeAreaView>
   );
 }
+function PendingStatus() {
+  const pending = usePendingTransactions();
+  const theme = useTheme();
+  if (pending.error)
+    return (
+      <AppText tone="danger">
+        Pending entries could not be read. Keep this device and contact support.
+      </AppText>
+    );
+  if (!pending.data?.length) return null;
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel="View pending sync"
+      onPress={() => router.push('/sync')}
+      style={{
+        paddingVertical: 10,
+        paddingHorizontal: 12,
+        backgroundColor: theme.accentSoft,
+        borderRadius: 12,
+        minHeight: 48,
+        justifyContent: 'center',
+      }}
+    >
+      <AppText style={{ fontSize: 13 }}>
+        {pending.data.filter((item) => item.value.state === 'PENDING').length} pending ·{' '}
+        {pending.data.filter((item) => item.value.state === 'ATTENTION').length} need review · View
+        sync
+      </AppText>
+    </Pressable>
+  );
+}
 export function Card({ style, ...props }: ViewProps) {
   const theme = useTheme();
   return (
@@ -151,9 +231,9 @@ export function Card({ style, ...props }: ViewProps) {
           backgroundColor: theme.surface,
           borderColor: theme.border,
           borderWidth: 1,
-          borderRadius: 18,
-          padding: 18,
-          gap: 12,
+          borderRadius: 14,
+          padding: 16,
+          gap: 14,
         },
         style,
       ]}
@@ -166,12 +246,14 @@ export function AppButton({
   loading = false,
   disabled = false,
   variant = 'primary',
+  trailingIcon,
 }: {
   title: string;
   onPress: () => void;
   loading?: boolean;
   disabled?: boolean;
   variant?: 'primary' | 'secondary' | 'danger';
+  trailingIcon?: ReactNode;
 }) {
   const theme = useTheme();
   const background = variant === 'primary' ? theme.accent : theme.surface;
@@ -201,6 +283,7 @@ export function AppButton({
     >
       {loading && <ActivityIndicator color={color} />}
       <AppText style={{ color, fontFamily: 'DMSansBold', textAlign: 'center' }}>{title}</AppText>
+      {trailingIcon && <View style={{ position: 'absolute', right: 18 }}>{trailingIcon}</View>}
     </Pressable>
   );
 }
@@ -209,26 +292,68 @@ export function Field({
   error,
   hint,
   trailingAction,
+  leadingAction,
+  hideLabel = false,
   ...props
-}: TextInputProps & { label: string; error?: string; hint?: string; trailingAction?: ReactNode }) {
+}: TextInputProps & {
+  label: string;
+  error?: string;
+  hint?: string;
+  trailingAction?: ReactNode;
+  leadingAction?: ReactNode;
+  hideLabel?: boolean;
+}) {
   const theme = useTheme();
+  const [focused, setFocused] = useState(false);
+  const [revealed, setRevealed] = useState(false);
+  const endAction =
+    trailingAction ??
+    (props.secureTextEntry ? (
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`${revealed ? 'Hide' : 'Show'} ${label.toLowerCase()}`}
+        onPress={() => setRevealed(!revealed)}
+        style={{ minWidth: 48, minHeight: 48, alignItems: 'center', justifyContent: 'center' }}
+      >
+        <Svg width={21} height={21} viewBox="0 0 24 24" accessible={false}>
+          <Path
+            d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12Z"
+            stroke={theme.muted}
+            strokeWidth={1.6}
+            fill="none"
+          />
+          <Circle cx={12} cy={12} r={3} stroke={theme.muted} strokeWidth={1.6} fill="none" />
+          {revealed && <Path d="m4 3 16 18" stroke={theme.muted} strokeWidth={1.6} />}
+        </Svg>
+      </Pressable>
+    ) : undefined);
   return (
     <View style={{ gap: 7 }}>
-      <AppText style={{ fontSize: 14, fontFamily: 'DMSansBold' }}>{label}</AppText>
+      {!hideLabel && <AppText style={{ fontSize: 14, fontFamily: 'DMSansBold' }}>{label}</AppText>}
       <View>
         <TextInput
           {...props}
           accessibilityLabel={label}
+          secureTextEntry={props.secureTextEntry && !revealed}
+          onFocus={(event) => {
+            setFocused(true);
+            props.onFocus?.(event);
+          }}
+          onBlur={(event) => {
+            setFocused(false);
+            props.onBlur?.(event);
+          }}
           placeholderTextColor={theme.muted}
           style={[
             {
               minHeight: 54,
               color: theme.text,
               backgroundColor: theme.surface,
-              borderColor: error ? theme.danger : theme.border,
+              borderColor: error ? theme.danger : focused ? theme.accent : theme.border,
               borderWidth: 1,
               padding: 14,
-              paddingRight: trailingAction ? 54 : 14,
+              paddingLeft: leadingAction ? 44 : 14,
+              paddingRight: endAction ? 62 : 14,
               borderRadius: 12,
               fontSize: 16,
               fontFamily: 'DMSans',
@@ -236,11 +361,19 @@ export function Field({
             props.style,
           ]}
         />
-        {trailingAction && (
+        {leadingAction && (
+          <View
+            pointerEvents="none"
+            style={{ position: 'absolute', left: 14, top: 0, bottom: 0, justifyContent: 'center' }}
+          >
+            {leadingAction}
+          </View>
+        )}
+        {endAction && (
           <View
             style={{ position: 'absolute', right: 5, top: 0, bottom: 0, justifyContent: 'center' }}
           >
-            {trailingAction}
+            {endAction}
           </View>
         )}
       </View>
@@ -262,35 +395,81 @@ export function Choice<T extends string>({
   value,
   options,
   onChange,
+  presentation,
+  disabled = false,
+  hideLabel = false,
 }: {
   label: string;
   value: T;
-  options: readonly { value: T; label: string }[];
+  presentation?: 'segmented' | 'list';
+  disabled?: boolean;
+  hideLabel?: boolean;
+  options: readonly { value: T; label: string; description?: string }[];
   onChange: (value: T) => void;
 }) {
   const theme = useTheme();
+  const segmented =
+    presentation === 'segmented' ||
+    (presentation !== 'list' && options.length <= 4 && options.every((o) => o.label.length <= 20));
   return (
     <View style={{ gap: 10 }}>
-      <AppText>{label}</AppText>
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+      {!hideLabel && <AppText style={{ fontSize: 14, fontFamily: 'DMSansBold' }}>{label}</AppText>}
+      <View
+        style={
+          segmented
+            ? {
+                flexDirection: 'row',
+                flexWrap: 'wrap',
+                gap: 4,
+                padding: 4,
+                borderRadius: 14,
+                backgroundColor: theme.border,
+              }
+            : { gap: 8 }
+        }
+      >
         {options.map((option) => (
           <Pressable
             key={option.value}
             accessibilityRole="radio"
-            accessibilityState={{ checked: option.value === value }}
+            accessibilityLabel={option.label}
+            accessibilityHint={option.description}
+            accessibilityState={{ checked: option.value === value, disabled }}
+            disabled={disabled}
             onPress={() => onChange(option.value)}
             style={{
-              padding: 12,
+              paddingVertical: 12,
+              paddingHorizontal: 10,
               minHeight: 48,
+              flexGrow: segmented ? 1 : 0,
+              flexBasis: segmented ? 'auto' : undefined,
               borderRadius: 12,
-              borderWidth: 1,
+              borderWidth: segmented ? 0 : 1,
               borderColor: option.value === value ? theme.accent : theme.border,
-              backgroundColor: option.value === value ? theme.accentSoft : theme.surface,
+              backgroundColor:
+                option.value === value
+                  ? theme.accentSoft
+                  : segmented
+                    ? 'transparent'
+                    : theme.surface,
+              justifyContent: 'center',
+              gap: 3,
             }}
           >
-            <AppText style={{ fontFamily: option.value === value ? 'DMSansBold' : 'DMSans' }}>
+            <AppText
+              style={{
+                fontSize: 14,
+                textAlign: segmented ? 'center' : 'left',
+                fontFamily: option.value === value ? 'DMSansBold' : 'DMSans',
+              }}
+            >
               {option.label}
             </AppText>
+            {option.description && (
+              <AppText tone="muted" style={{ fontSize: 13, lineHeight: 19 }}>
+                {option.description}
+              </AppText>
+            )}
           </Pressable>
         ))}
       </View>
@@ -307,50 +486,4 @@ export function Feedback({ error, retry }: { error: unknown; retry?: () => void 
     </Card>
   );
 }
-export function Loading({ variant = 'list' }: { variant?: 'list' | 'dashboard' | 'form' }) {
-  const theme = useTheme();
-  const block = { backgroundColor: theme.border, borderRadius: 6 };
-  return (
-    <View
-      accessible
-      accessibilityRole="progressbar"
-      accessibilityLabel="Loading your records"
-      accessibilityState={{ busy: true }}
-      style={{ width: '100%', gap: 12 }}
-    >
-      <View
-        accessibilityElementsHidden
-        importantForAccessibility="no-hide-descendants"
-        style={{ gap: 12 }}
-      >
-        {variant === 'dashboard' && (
-          <Card style={{ minHeight: 164, justifyContent: 'center', gap: 18 }}>
-            <View style={[block, { width: '38%', height: 14 }]} />
-            <View style={[block, { width: '65%', height: 36 }]} />
-            <View style={[block, { width: '48%', height: 12 }]} />
-          </Card>
-        )}
-        {Array.from({ length: 3 }, (_, index) => (
-          <Card
-            key={index}
-            style={{
-              flexDirection: variant === 'form' ? 'column' : 'row',
-              alignItems: variant === 'form' ? 'stretch' : 'center',
-              gap: 14,
-              minHeight: 92,
-            }}
-          >
-            {variant !== 'form' && (
-              <View style={[block, { width: 44, height: 44, borderRadius: 14 }]} />
-            )}
-            <View style={{ flex: 1, gap: 12 }}>
-              <View style={[block, { width: '58%', height: 16 }]} />
-              <View style={[block, { width: '38%', height: variant === 'form' ? 32 : 12 }]} />
-            </View>
-            {variant !== 'form' && <View style={[block, { width: 68, height: 18 }]} />}
-          </Card>
-        ))}
-      </View>
-    </View>
-  );
-}
+export { Loading } from './skeleton';

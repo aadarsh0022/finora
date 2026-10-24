@@ -1,8 +1,1 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1080 1080">
-  <title>Finora dark splash mark</title>
-  <g transform="translate(540 540) scale(1.25) translate(-540 -540)">
-    <rect x="360" y="316" width="105" height="470" rx="28" fill="#EDF5EF"/>
-    <rect x="420" y="500" width="230" height="96" rx="28" fill="#EDF5EF"/>
-    <path d="M435 403C447 305 576 272 731 304C708 401 586 439 435 403Z" fill="#5BD29C"/>
-  </g>
-</svg>
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1080 1080"><title>Finora leaf mark</title><defs><linearGradient id="leaf" x1="0" y1="1" x2="1" y2="0"><stop stop-color="#009368"/><stop offset="1" stop-color="#79DCAE"/></linearGradient></defs><g transform="translate(540 540) scale(14) translate(-18 -18)"><path d="M12 3H34V18C34 27 28 33 19 33H3V18C3 9 7 3 12 3Z" fill="url(#leaf)"/><path d="M3 19C3 12 8 9 15 9H25V20C25 28 19 33 11 33H3Z" fill="#00835F" opacity=".8"/><path d="M15 3H34V12H24C17 12 13 17 13 24V33H3V19C3 10 7 3 15 3Z" fill="#B1EBCB" opacity=".3"/></g></svg>

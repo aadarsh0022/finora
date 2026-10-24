@@ -1,21 +1,21 @@
 import type { ExpoConfig } from 'expo/config';
 
 const config: ExpoConfig = {
-  name: 'Finora',
+  name: 'Finora AI Money Manager',
   slug: 'finora',
   scheme: 'finora',
-  version: '0.1.2',
+  version: '0.2.1',
   orientation: 'portrait',
   userInterfaceStyle: 'automatic',
   icon: './assets/brand/icon.png',
   android: {
     package: 'app.finora.money',
-    versionCode: 3,
+    versionCode: 5,
     allowBackup: false,
     adaptiveIcon: {
       foregroundImage: './assets/brand/adaptive-foreground.png',
       monochromeImage: './assets/brand/adaptive-monochrome.png',
-      backgroundColor: '#173F32',
+      backgroundColor: '#E8F8EF',
     },
     blockedPermissions: [
       'android.permission.READ_EXTERNAL_STORAGE',
@@ -28,6 +28,8 @@ const config: ExpoConfig = {
   plugins: [
     'expo-router',
     'expo-secure-store',
+    ['expo-sqlite', { useSQLCipher: true, enableFTS: false }],
+    ['expo-notifications', { defaultChannel: 'finora-reminders' }],
     'expo-status-bar',
     [
       'expo-splash-screen',
@@ -43,9 +45,10 @@ const config: ExpoConfig = {
     'expo-sharing',
     [
       'expo-local-authentication',
-      { faceIDPermission: 'Use Face ID to unlock your Finora financial details.' },
+      { faceIDPermission: 'Use Face ID to unlock your Finora AI financial details.' },
     ],
     './plugins/with-release-signing.cjs',
+    './plugins/with-development-isolation.cjs',
   ],
 };
 export default config;

@@ -31,3 +31,14 @@ certification or legal opinion. Public policy: https://finora-api-olive.vercel.a
 
 Revisit every declaration if SDKs, providers, payment/bank features or data use change.
 Reference: https://support.google.com/googleplay/android-developer/answer/10787469.
+
+## Local assistant development — not submitted to Play
+
+Read-only Ask Finora introduces optional prompt processing by OpenAI and bounded
+answer-report metadata. No store declaration was edited and chat is disabled by
+default. Before any release or real-user activation, reassess collected chat/search
+content, financial information voluntarily included in prompts, optional use,
+retention and the service-provider sharing classification against the actual
+OpenAI account configuration. Deploy the revised hosted privacy page first. The
+in-app disclosure and report flow are implemented; they do not replace the Play
+forms or guarantee policy approval. See assistant-plan.md for data flow and gates.

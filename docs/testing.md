@@ -140,3 +140,64 @@ hosted API using only the synthetic review account. Home, transaction types,
 budgets, reports and goal balances were visually inspected during release QA.
 The fixed build returned from confirmed sign-out to the login form without an
 app restart. No full physical-device or accessibility certification is claimed.
+
+## Signup and loading update — 22 October 2026
+
+Version 0.1.2/code 3 opens signup for signed-out entry and protected deep links,
+with an explicit route to sign in. Actual Router tests cover first launch,
+switching to sign-in, sign-out and subsequent authentication. Dashboard tests
+hold a request pending to verify the skeleton on initial load, then verify that
+background invalidation keeps content visible without a skeleton or refresh
+spinner. An explicit pull gesture displays its refresh indicator until completion.
+
+After aligning the recommended Expo SDK 58 patches, `pnpm check` passed all 97
+Vitest and 41 native tests, with typecheck, lint and format checks. Expo dependency
+validation and the full GitHub CI passed for `be8e326`. The repeated dependency
+audit still reports the same three tooling advisories in dependency-review.md.
+The signed AAB/APK passed bundletool, signer, manifest and known-local-secret
+comparisons. On Pixel 8 Pro, signup remained the first screen after a signed-out
+cold launch; the sign-in link, hosted demo login, sign-out and finance reads worked.
+These are scoped emulator checks, not complete physical-device QA or offline sync.
+The current Finora process remained alive with no captured AndroidRuntime fatal
+exception or ReactNativeJS error lines during the final emulator check.
+
+On 23 October, another `pnpm check` attempt could not start because Windows Device
+Guard blocked the installed pnpm executable. No security policy was changed or
+bypassed. The earlier 138-test result and green CI apply to the built source
+revision; pending release-document updates remain uncommitted until the required
+check can run through an authorized runtime.
+
+## Assistant and onboarding push verification, 23 October 2026
+
+The current `pnpm check` passed TypeScript and ESLint. Vitest ran 55 tests
+successfully, but 22 API suites could not load because Windows Application Control
+blocked the installed argon2 native module. These suites did not execute; this is
+not a passing financial/authentication integration result. The Next.js production
+build was blocked by the same native module. No security policy was bypassed.
+
+After fixing the Android-platform notification mock, all 20 native suites and
+90 tests passed. Jest reported an open-handle warning after completion. The
+Android JavaScript export succeeded. Formatting was corrected before the push.
+The current development Android APK was rebuilt and installed with the native
+notification module; this is not a signed testing release artifact.
+
+The hosted health endpoint returns 200, and login validates requests, but the
+hosted deployment does not yet contain these new assistant/onboarding endpoints.
+Linux CI and a verified compatible API deployment remain release gates. There
+has been no new Play upload or publication from these changes.
+
+GitHub Actions run 39998745702 subsequently completed successfully on Linux for
+19404f7: all 146 Vitest tests and 90 native tests passed, followed by formatting,
+Next.js production build, Expo dependency validation and Android export. This
+resolves the code-verification gate for that revision without changing Windows
+security policy. The native Jest process exited after its cache timers elapsed.
+
+## 24 October refinement verification
+
+The latest full check passed 147 core/API tests against disposable MongoDB and
+101 native tests, plus strict typechecking, lint and formatting. API production
+build and Android JavaScript export passed. Added cases cover inline transaction
+clarifications/retry, cached hydration, missing native date-range formatting,
+reduced-motion startup, lower Home navigation and account-isolated privacy consent.
+These component/export results do not certify a signed build or full offline-first
+behavior. Native clipboard/launcher/splash assets require an updated binary.

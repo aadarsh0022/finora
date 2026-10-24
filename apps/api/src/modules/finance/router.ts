@@ -1,4 +1,5 @@
 import {
+  onboardingSyncSchema,
   accountInputSchema,
   accountUpdateSchema,
   archiveSchema,
@@ -18,6 +19,7 @@ import { ApiError, readBody, success } from '../../utils/http';
 import * as entities from './entities';
 import * as ledger from './ledger';
 import { getSettings, updateSettings } from './settings';
+import { completeOnboarding, syncOnboarding } from './onboarding';
 
 export async function financeRoute(request: Request, requestId: string): Promise<Response | null> {
   const path = new URL(request.url).pathname.replace(/\/$/, '').split('/').slice(3);
@@ -178,9 +180,24 @@ export async function onboardingRoute(
   request: Request,
   requestId: string,
 ): Promise<Response | null> {
-  if (new URL(request.url).pathname !== '/api/v1/onboarding/categories') return null;
+  const path = new URL(request.url).pathname;
+  if (
+    ![
+      '/api/v1/onboarding/categories',
+      '/api/v1/onboarding/complete',
+      '/api/v1/onboarding/sync',
+    ].includes(path)
+  )
+    return null;
   if (request.method !== 'POST') throw new ApiError(405, 'METHOD_NOT_ALLOWED', 'Use POST.');
   const context = await authenticate(request);
+  if (path.endsWith('/sync'))
+    return success(
+      await syncOnboarding(context, request, await readBody(request, onboardingSyncSchema)),
+      requestId,
+    );
   await readBody(request, z.object({}).strict());
+  if (path.endsWith('/complete'))
+    return success(await completeOnboarding(context, request), requestId);
   return success(await entities.seedCategories(context, request), requestId);
 }

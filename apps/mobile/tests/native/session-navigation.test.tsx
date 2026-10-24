@@ -41,7 +41,13 @@ function DemoHome() {
   return (
     <>
       <Text>Private dashboard</Text>
-      <Pressable accessibilityRole="button" accessibilityLabel="Sign out" onPress={clearSession}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Sign out"
+        onPress={() => {
+          void clearSession();
+        }}
+      >
         <Text>Sign out</Text>
       </Pressable>
     </>
@@ -72,7 +78,11 @@ async function mount(initialUser: User | null, initialUrl: string) {
       clearSession: async () => selectSession(null),
       acceptSession: async (tokens) => selectSession(tokens.user),
       restore: async () => undefined,
+      saveOnboarding: async () => undefined,
       refreshUser: async () => undefined,
+      storageError: '',
+      syncing: false,
+      syncPending: async () => undefined,
     };
   });
   await renderRouter(

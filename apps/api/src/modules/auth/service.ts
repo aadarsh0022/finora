@@ -279,7 +279,10 @@ export async function deleteAccount(context: AuthContext, password: string) {
     'accounts',
     'categories',
     'transactions',
+    'debts',
+    'debt_events',
     'budgets',
+    'monthly_budget_limits',
     'savings_goals',
     'savings_contributions',
     'recurring_rules',
@@ -289,6 +292,7 @@ export async function deleteAccount(context: AuthContext, password: string) {
     'audit_events',
     'idempotency_records',
     'import_previews',
+    'assistant_feedback',
   ];
   try {
     await transaction.withTransaction(async () => {

@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import {
   Keyboard,
   KeyboardAvoidingView,
@@ -21,21 +21,33 @@ export function FlowSheet({
   onClose,
   children,
   footer,
+  busy = false,
 }: {
   title: string;
   visible: boolean;
   onClose: () => void;
   children: ReactNode;
   footer?: ReactNode;
+  busy?: boolean;
 }) {
   const theme = useTheme();
+  useEffect(() => {
+    if (visible || busy) Keyboard.dismiss();
+  }, [visible, busy]);
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+    <Modal
+      visible={visible}
+      transparent
+      animationType="slide"
+      onRequestClose={() => {
+        if (!busy) onClose();
+      }}
+    >
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: '#00000066' }}
       >
-        <Pressable accessible={false} style={{ flex: 1 }} onPress={onClose} />
+        <Pressable accessible={false} disabled={busy} style={{ flex: 1 }} onPress={onClose} />
         <View
           accessibilityViewIsModal
           style={{
@@ -64,6 +76,8 @@ export function FlowSheet({
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={`Close ${title}`}
+              accessibilityState={{ disabled: busy }}
+              disabled={busy}
               onPress={onClose}
               style={{
                 minHeight: 48,
@@ -76,6 +90,7 @@ export function FlowSheet({
             </Pressable>
           </View>
           <ScrollView
+            pointerEvents={busy ? 'none' : 'auto'}
             keyboardShouldPersistTaps="handled"
             keyboardDismissMode="on-drag"
             style={{ flexGrow: 0, flexShrink: 1 }}
@@ -344,12 +359,14 @@ export function DateField({
   onChange,
   error,
   allowClear = false,
+  disabled = false,
 }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
   error?: string;
   allowClear?: boolean;
+  disabled?: boolean;
 }) {
   const { user } = useApp();
   const theme = useTheme();
@@ -384,6 +401,8 @@ export function DateField({
         accessibilityRole="button"
         accessibilityLabel={label}
         accessibilityValue={{ text: valid ? labelDate(value) : 'Choose date' }}
+        accessibilityState={{ disabled }}
+        disabled={disabled}
         onPress={() => {
           Keyboard.dismiss();
           setMonth((valid ? value : today).slice(0, 7));

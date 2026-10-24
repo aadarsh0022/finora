@@ -237,6 +237,8 @@ function AccountRow({
     ['Expenses', account.expensesMinor],
     ['Transfers in', account.transferInMinor],
     ['Transfers out', account.transferOutMinor],
+    ['Debt money in', account.debtInMinor],
+    ['Debt money out', account.debtOutMinor],
   ] as const;
   return (
     <View style={{ gap: 12 }}>

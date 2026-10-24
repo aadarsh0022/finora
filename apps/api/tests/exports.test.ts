@@ -236,7 +236,7 @@ it('rejects malicious schemas, duplicated IDs, incompatible references and curre
   await fixture(user.accessToken);
   const backup = await backupFor(user.accessToken);
   for (const changed of [
-    { ...backup, version: 2 },
+    { ...backup, version: 999 },
     { ...backup, accounts: [{ ...backup.accounts[0], userId: randomUUID() }] },
     { ...backup, accounts: [backup.accounts[0], backup.accounts[0]] },
     { ...backup, categories: [] },

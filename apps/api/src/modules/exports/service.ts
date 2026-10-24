@@ -10,6 +10,9 @@ import {
   contributionSchema,
   recurringRuleSchema,
   recurringOccurrenceSchema,
+  debtSchema,
+  debtEventSchema,
+  monthlyLimitSchema,
   backupSchema,
   type Backup,
   type TransactionFilters,
@@ -37,6 +40,19 @@ const tables: {
   max: number;
   parse: (value: unknown) => Portable;
 }[] = [
+  {
+    key: 'monthlyLimits',
+    collection: 'monthly_budget_limits',
+    max: 1200,
+    parse: (v) => portable(monthlyLimitSchema, v),
+  },
+  { key: 'debts', collection: 'debts', max: 200, parse: (v) => portable(debtSchema, v) },
+  {
+    key: 'debtEvents',
+    collection: 'debt_events',
+    max: 10000,
+    parse: (v) => portable(debtEventSchema, v),
+  },
   { key: 'accounts', collection: 'accounts', max: 200, parse: (v) => portable(accountSchema, v) },
   {
     key: 'categories',
@@ -168,6 +184,7 @@ function plan(backup: Backup, current: Snapshot) {
   };
   if (
     natural(backup.budgets, current.budgets, (row) => `${row.month}:${row.categoryId}`) ||
+    natural(backup.monthlyLimits, current.monthlyLimits, (row) => row.month) ||
     natural(
       backup.recurringOccurrences,
       current.recurringOccurrences,
@@ -184,6 +201,26 @@ function plan(backup: Backup, current: Snapshot) {
     if (ids.size > 1000)
       throw new ApiError(409, 'RECORD_LIMIT', 'A goal would exceed 1000 contributions.');
   }
+  // Independent valid backups can still overpay a debt when merged together.
+  const merged = {} as Snapshot;
+  for (const table of tables)
+    merged[table.key] = [
+      ...new Map(
+        [...current[table.key], ...backup[table.key]].map((row) => [row.id, row]),
+      ).values(),
+    ];
+  if (
+    !backupSchema.safeParse({
+      ...backup,
+      ...merged,
+      version: merged.debts.length
+        ? 4
+        : merged.monthlyLimits.length || merged.budgets.some((b) => b.rollover)
+          ? 3
+          : backup.version,
+    }).success
+  )
+    conflicts++;
   return { counts, conflicts, canImport: conflicts === 0 };
 }
 
@@ -216,14 +253,20 @@ export async function exportBackup(context: AuthContext): Promise<Backup> {
   const session = client.startSession();
   try {
     const backup = await session.withTransaction(
-      async () =>
-        backupSchema.parse({
+      async () => {
+        const records = await snapshot(db, session, context.user.id);
+        return backupSchema.parse({
           format: 'finora-backup',
-          version: 1,
+          version: records.debts.length
+            ? 4
+            : records.monthlyLimits.length || records.budgets.some((b) => b.rollover)
+              ? 3
+              : 1,
           exportedAt: new Date().toISOString(),
           currency: await currentCurrency(db, session, context),
-          ...(await snapshot(db, session, context.user.id)),
-        }),
+          ...records,
+        });
+      },
       { readConcern: { level: 'snapshot' } },
     );
     if (Buffer.byteLength(JSON.stringify(backup)) > backupBodyLimit - 2048)

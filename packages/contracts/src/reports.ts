@@ -72,6 +72,8 @@ export const reportAccountSchema = z.object({
   expensesMinor: nonnegativeInteger,
   transferInMinor: nonnegativeInteger,
   transferOutMinor: nonnegativeInteger,
+  debtInMinor: nonnegativeInteger.default('0'),
+  debtOutMinor: nonnegativeInteger.default('0'),
   netMinor: signedInteger,
 });
 export const reportTrendSchema = z.object({
@@ -106,3 +108,30 @@ export const reportTrendsResponseSchema = z.object({
 export type ReportRange = z.infer<typeof reportRangeSchema>;
 export type ReportPeriod = z.infer<typeof reportPeriodSchema>;
 export type ReportSummary = z.infer<typeof reportSummarySchema>;
+export const spendingInsightsSchema = z.object({
+  month: monthSchema,
+  through: calendarDaySchema,
+  previousFrom: calendarDaySchema,
+  previousThrough: calendarDaySchema,
+  days: z.number().int().min(1).max(31),
+  previousDays: z.number().int().min(1).max(31),
+  partial: z.boolean(),
+  spentMinor: nonnegativeInteger,
+  previousSpentMinor: nonnegativeInteger,
+  dailyAverageMinor: nonnegativeInteger,
+  changeMinor: signedInteger,
+  changeBasisPoints: signedInteger.nullable(),
+  currency: currencySchema,
+  timezone: z.string(),
+  categoryChanges: z
+    .array(
+      z.object({
+        categoryId: entityIdSchema,
+        name: z.string(),
+        currentMinor: nonnegativeInteger,
+        previousMinor: nonnegativeInteger,
+        changeMinor: signedInteger,
+      }),
+    )
+    .max(3),
+});

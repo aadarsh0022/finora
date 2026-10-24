@@ -39,6 +39,8 @@ export function reportCsv(report: ReportSummary) {
       'closing_balance',
       'transfer_in',
       'transfer_out',
+      'debt_in',
+      'debt_out',
     ],
   ];
   const row = (section: string, name: string, values: string[]) => [
@@ -48,6 +50,7 @@ export function reportCsv(report: ReportSummary) {
     report.period.to,
     report.period.currency,
     ...values,
+    ...Array<string>(Math.max(0, 10 - values.length)).fill(''),
   ];
   rows.push(
     row('cashflow', 'All accounts', [
@@ -85,6 +88,8 @@ export function reportCsv(report: ReportSummary) {
         money(account.closingBalanceMinor),
         money(account.transferInMinor),
         money(account.transferOutMinor),
+        money(account.debtInMinor),
+        money(account.debtOutMinor),
       ]),
     );
   for (const month of report.trends)

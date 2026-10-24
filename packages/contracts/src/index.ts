@@ -1,10 +1,12 @@
 import { z } from 'zod';
 import { currencySchema } from './primitives';
+import { accountInputSchema, accountSchema } from './finance';
 
 export * from './finance';
 export * from './primitives';
 export * from './advanced';
 export * from './backup';
+export * from './debts';
 
 export const emailSchema = z.string().trim().toLowerCase().pipe(z.email().max(254));
 export const passwordSchema = z.string().min(12, 'Use at least 12 characters').max(128);
@@ -36,7 +38,7 @@ export const preferencesSchema = z
     timezone: timezoneSchema.default('Asia/Kolkata'),
     preferredDateFormat: z.enum(['DD/MM/YYYY', 'MM/DD/YYYY', 'YYYY-MM-DD']).default('DD/MM/YYYY'),
     firstDayOfWeek: z.union([z.literal(0), z.literal(1)]).default(1),
-    preferredTheme: z.enum(['system', 'light', 'dark']).default('system'),
+    preferredTheme: z.enum(['system', 'light', 'dark']).default('light'),
   })
   .strict();
 export const registerSchema = z
@@ -81,6 +83,7 @@ export const userSchema = z.object({
   preferences: preferencesSchema,
   createdAt: z.iso.datetime(),
   updatedAt: z.iso.datetime(),
+  onboardingCompletedAt: z.iso.datetime().optional(),
 });
 export const sessionTokensSchema = z.object({
   accessToken: tokenSchema,
@@ -103,3 +106,19 @@ export type ApiResponse<T> =
     };
 export * from './reports';
 export * from './entitlements';
+export * from './outlook';
+export * from './assistant';
+
+// One durable setup operation. Identity is always derived from the authenticated session.
+export const onboardingSyncSchema = z
+  .object({
+    baseline: preferencesSchema,
+    preferences: preferencesSchema,
+    account: accountInputSchema.extend({ id: z.uuid() }).strict().optional(),
+  })
+  .strict();
+export const onboardingSyncResultSchema = z.object({
+  user: userSchema,
+  account: accountSchema.optional(),
+  settings: settingsSchema,
+});

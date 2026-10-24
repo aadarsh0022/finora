@@ -61,7 +61,11 @@ async function mount(mode: 'login' | 'register') {
     acceptSession,
     restore: async () => undefined,
     clearSession: async () => undefined,
+    saveOnboarding: async () => undefined,
     refreshUser: async () => undefined,
+    storageError: '',
+    syncing: false,
+    syncPending: async () => undefined,
   });
   await render(<AuthForm mode={mode} />);
 }
@@ -79,9 +83,10 @@ test('validates registration before sending and passes the chosen base currency 
     screen.getByLabelText('Password · at least 12 characters'),
     'synthetic-test-password',
   );
+  await fireEvent.press(screen.getByRole('button', { name: 'Base currency' }));
   await fireEvent.press(screen.getByRole('radio', { name: 'USD' }));
   await fireEvent.press(screen.getByRole('button', { name: 'Create account' }));
-  await waitFor(() => expect(acceptSession).toHaveBeenCalledWith(tokens));
+  await waitFor(() => expect(acceptSession).toHaveBeenCalledWith(tokens, { registration: true }));
   expect(calls).toHaveLength(1);
   expect(calls[0]).toMatchObject({
     path: '/api/v1/auth/register',
@@ -106,4 +111,16 @@ test('shows rejected credentials and allows a successful retry without accepting
   await fireEvent.press(screen.getByRole('button', { name: 'Sign in' }));
   await waitFor(() => expect(acceptSession).toHaveBeenCalledTimes(1));
   expect(calls.map((call) => call.path)).toEqual(['/api/v1/auth/login', '/api/v1/auth/login']);
+});
+
+test('password visibility preserves the entered password without sending a request', async () => {
+  await mount('login');
+  await fireEvent.changeText(screen.getByLabelText('Password'), 'synthetic-test-password');
+  expect(screen.getByLabelText('Password').props.secureTextEntry).toBe(true);
+  await fireEvent.press(screen.getByRole('button', { name: 'Show password' }));
+  expect(screen.getByLabelText('Password').props.secureTextEntry).toBe(false);
+  expect(screen.getByLabelText('Password')).toHaveDisplayValue('synthetic-test-password');
+  await fireEvent.press(screen.getByRole('button', { name: 'Hide password' }));
+  expect(screen.getByLabelText('Password').props.secureTextEntry).toBe(true);
+  expect(calls).toHaveLength(0);
 });

@@ -89,7 +89,17 @@ test('chooses a budget month and year without typing and uses it in the exact cr
     }
     return Response.json({
       success: true,
-      data: parsed.pathname.endsWith('categories') ? [category] : [],
+      data: parsed.pathname.endsWith('categories')
+        ? [category]
+        : parsed.pathname.endsWith('/budgets/total')
+          ? {
+              month: parsed.searchParams.get('month'),
+              plan: null,
+              spentMinor: '0',
+              remainingMinor: null,
+              warningReached: false,
+            }
+          : [],
     });
   });
   await waitFor(() =>
@@ -299,7 +309,8 @@ test('opens goal progress and records calendar-selected saved money without ledg
     <Goals onEditing={jest.fn()} />,
   );
   await fireEvent.press(await screen.findByRole('button', { name: 'Open Rainy day goal' }));
-  await screen.findByText('Add saved money');
+  expect(screen.queryByLabelText('Contribution (INR)')).toBeNull();
+  await fireEvent.press(screen.getByRole('button', { name: 'Record saved money' }));
   expect(screen.getByRole('button', { name: 'Record contribution' })).toBeDisabled();
   await fireEvent.changeText(screen.getByLabelText('Contribution (INR)'), '1250.50');
   await fireEvent.press(screen.getByRole('button', { name: 'Saved on' }));

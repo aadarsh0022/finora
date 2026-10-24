@@ -45,3 +45,9 @@ server URI/password and secret values against nonignored source files and the
 generated mobile export. It reports paths only on a match. A clean comparison
 does not prove the absence of unknown, encoded or historical secrets; review Git
 history and hosting secrets independently before distribution.
+
+On 24 October, Expo compatibility advanced to 58.0.19 and the matching dev-client,
+file-system, font, router and SQLite patches. The workspace records exact-version
+release-age exceptions for the resolved Expo patch dependency set; the general
+release-age policy and strict peer validation remain enabled. The same install
+policy must be committed for clean CI to reproduce the verified local build.

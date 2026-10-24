@@ -2,11 +2,12 @@ import {
   accountSchema,
   categorySchema,
   transactionSchema,
+  debtEventSchema,
   reportSummarySchema,
   type ReportRange,
   type ReportPeriod,
 } from '@finora/contracts';
-import { accountBalance, calendarDate } from '@finora/finance-core';
+import { accountBalance, calendarDate, debtLedgerEntries } from '@finora/finance-core';
 import { database } from '../../database/client';
 import { ApiError } from '../../utils/http';
 import type { AuthContext } from '../auth/service';
@@ -74,6 +75,14 @@ export async function reportSummary(context: AuthContext, input: ReportRange) {
             'This dataset exceeds the supported reporting limit.',
           );
         const accounts = accountDocuments.map((record) => accountSchema.parse(record));
+        const debtDocuments = await db
+          .collection('debt_events')
+          .find(owned, { session })
+          .limit(10001)
+          .toArray();
+        if (debtDocuments.length > 10000)
+          throw new ApiError(422, 'REPORT_LIMIT', 'Debt history exceeds the reporting limit.');
+        const debtEvents = debtDocuments.map((e) => debtEventSchema.parse(e));
         const categories = new Map(
           categoryDocuments.map((record) => {
             const value = categorySchema.parse(record);
@@ -118,6 +127,11 @@ export async function reportSummary(context: AuthContext, input: ReportRange) {
         const before = entries
           .filter((entry) => entry.day < period.from)
           .map((entry) => entry.transaction);
+        const debtBefore = debtLedgerEntries(debtEvents.filter((e) => e.date < period.from));
+        const debtThrough = debtLedgerEntries(debtEvents.filter((e) => e.date <= period.to));
+        const debtSelected = debtLedgerEntries(
+          debtEvents.filter((e) => e.date >= period.from && e.date <= period.to),
+        );
         const through = entries
           .filter((entry) => entry.day <= period.to)
           .map((entry) => entry.transaction);
@@ -127,6 +141,13 @@ export async function reportSummary(context: AuthContext, input: ReportRange) {
             let accountExpenses = 0n;
             let transferIn = 0n;
             let transferOut = 0n;
+            let debtIn = 0n;
+            let debtOut = 0n;
+            for (const event of debtSelected)
+              if (event.accountId === account.id) {
+                if (event.type === 'INCOME') debtIn += BigInt(event.amountMinor);
+                else debtOut += BigInt(event.amountMinor);
+              }
             for (const { transaction } of selected) {
               const amount = BigInt(transaction.amountMinor);
               if (transaction.accountId === account.id) {
@@ -148,19 +169,28 @@ export async function reportSummary(context: AuthContext, input: ReportRange) {
                 account.openingBalanceMinor,
                 account.id,
                 account.currency,
-                before,
+                [...before, ...debtBefore],
               ),
               closingBalanceMinor: accountBalance(
                 account.openingBalanceMinor,
                 account.id,
                 account.currency,
-                through,
+                [...through, ...debtThrough],
               ),
               incomeMinor: accountIncome.toString(),
               expensesMinor: accountExpenses.toString(),
               transferInMinor: transferIn.toString(),
               transferOutMinor: transferOut.toString(),
-              netMinor: (accountIncome - accountExpenses + transferIn - transferOut).toString(),
+              debtInMinor: debtIn.toString(),
+              debtOutMinor: debtOut.toString(),
+              netMinor: (
+                accountIncome -
+                accountExpenses +
+                transferIn -
+                transferOut +
+                debtIn -
+                debtOut
+              ).toString(),
             };
           })
           .sort((a, b) => a.name.localeCompare(b.name) || a.accountId.localeCompare(b.accountId));

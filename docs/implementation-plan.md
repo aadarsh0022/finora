@@ -48,6 +48,11 @@ Source: the user's Finora product brief, 20 October 2026.
 Implementation in progress. See docs/testing.md for commands actually executed and
 docs/known-limitations.md for outstanding requirements. No release readiness claimed.
 
+- Owner-approved scope update, 23 October: optional read-only AI chat in the existing
+  Next.js API and mobile app. Follow [assistant-plan.md](assistant-plan.md) for the
+  tool boundary, consent, verification and external activation/release gates. Keep
+  this work local as requested; no Play publication or billing activation.
+
 - Phase 0/1: workspace, actual Atlas connection and tested identity backend verified.
 - Phase 2: accounts/categories/ledger, budgets/goals/recurrence, range reports,
   entitlement adapter and previewed merge restore implemented with MongoDB tests.

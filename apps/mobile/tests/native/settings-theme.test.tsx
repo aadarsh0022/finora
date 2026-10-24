@@ -3,7 +3,7 @@ import { act, fireEvent, render, renderHook, screen, waitFor } from '@testing-li
 import { settingsUpdateSchema, userSchema, type Preferences } from '@finora/contracts';
 import { Alert, useColorScheme } from 'react-native';
 import { router } from 'expo-router';
-import Settings from '../../app/(tabs)/settings';
+import Settings from '../../app/settings';
 import { ApiClient, type HttpTransport } from '../../src/api/client';
 import { useApp } from '../../src/providers/app-provider';
 import { useTheme } from '../../src/theme';
@@ -70,7 +70,11 @@ async function mount() {
     acceptSession: async () => undefined,
     restore: async () => undefined,
     clearSession: async () => undefined,
+    saveOnboarding: async () => undefined,
     refreshUser,
+    storageError: '',
+    syncing: false,
+    syncPending: async () => undefined,
   }));
   const query = new QueryClient({
     defaultOptions: {
@@ -107,7 +111,7 @@ test('saves the selected theme through the real versioned mutation before refres
 test('uses the system scheme when selected and explicit theme preferences override it', async () => {
   await mount();
   const theme = await renderHook(() => useTheme());
-  expect(theme.result.current.text).toBe('#16231E');
+  expect(theme.result.current.text).toBe('#101322');
   currentUser = {
     ...currentUser,
     preferences: { ...currentUser.preferences, preferredTheme: 'system' },
@@ -120,7 +124,7 @@ test('uses the system scheme when selected and explicit theme preferences overri
     preferences: { ...currentUser.preferences, preferredTheme: 'light' },
   };
   await theme.rerender(undefined);
-  expect(theme.result.current.text).toBe('#16231E');
+  expect(theme.result.current.text).toBe('#101322');
 });
 
 test('settings navigation opens connected management, planning, backup and security destinations', async () => {
@@ -134,15 +138,7 @@ test('settings navigation opens connected management, planning, backup and secur
     await fireEvent.press(screen.getByRole('button', { name: title }));
     expect(router.push).toHaveBeenCalledWith(destination);
   }
-  await fireEvent.press(screen.getByRole('button', { name: 'Savings goals' }));
-  await waitFor(() =>
-    expect(router.push).toHaveBeenCalledWith({ pathname: '/planning', params: { mode: 'goals' } }),
-  );
-  await fireEvent.press(screen.getByRole('button', { name: 'Recurring transactions' }));
-  expect(router.push).toHaveBeenCalledWith({
-    pathname: '/planning',
-    params: { mode: 'recurring' },
-  });
+  expect(screen.queryByRole('button', { name: 'Savings goals' })).toBeNull();
 });
 
 test('closing preferences confirms unsaved edits and discarding never writes settings', async () => {
