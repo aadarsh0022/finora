@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto';
 import path from 'node:path';
 import { getEnv } from '../config/env';
 import { ApiError } from '../utils/http';
+import { passwordResetEmail } from './reset-email';
 
 export function requirePasswordRecovery() {
   const env = getEnv();
@@ -17,8 +18,7 @@ export async function sendPasswordReset(email: string, token: string) {
   link.hash = `token=${token}`;
   const message = {
     to: email,
-    subject: 'Reset your Finora password',
-    text: `Reset your password: ${link.toString()}\nThis link expires in 30 minutes. If you did not request it, ignore this message.`,
+    ...passwordResetEmail(link.toString()),
   };
   if (env.EMAIL_TRANSPORT === 'local') {
     if (env.NODE_ENV === 'production') throw new Error('Local outbox is prohibited in production');
