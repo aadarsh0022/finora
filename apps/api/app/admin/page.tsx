@@ -2,6 +2,7 @@
 import { useRef, useState, type FormEvent } from 'react';
 import { adminOverviewSchema, sessionTokensSchema, loginSchema } from '@finora/contracts';
 import type { z } from 'zod';
+import './admin.css';
 type Overview = z.infer<typeof adminOverviewSchema>;
 export default function AdminPage() {
   const token = useRef('');
@@ -10,6 +11,11 @@ export default function AdminPage() {
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [search, setSearch] = useState('');
+  const visibleUsers =
+    overview?.users.filter((user) =>
+      `${user.name} ${user.email}`.toLowerCase().includes(search.toLowerCase().trim()),
+    ) ?? [];
   async function load(accessToken: string, page = 1) {
     const response = await fetch(`/api/v1/admin/users?page=${page}`, {
       headers: { Authorization: `Bearer ${accessToken}` },
@@ -75,12 +81,24 @@ export default function AdminPage() {
     }
   }
   return (
-    <section>
-      <h1>Finora administration</h1>
-      <p>User access and AI message usage.</p>
-      {error && <p role="alert">{error}</p>}
+    <section className="admin-shell">
+      <header className="admin-header">
+        <div>
+          <span className="admin-kicker">FINORA / ADMINISTRATION</span>
+          <h1>User overview</h1>
+          <p>Manage visibility into user access and daily AI usage.</p>
+        </div>
+        <span className="admin-private">Private workspace</span>
+      </header>
+      {error && (
+        <p className="admin-error" role="alert">
+          {error}
+        </p>
+      )}
       {!overview ? (
         <form onSubmit={signIn} className="account-form" aria-busy={busy}>
+          <h2>Welcome back</h2>
+          <p>Sign in with your administrator account.</p>
           <label htmlFor="admin-email">Email</label>
           <input
             id="admin-email"
@@ -103,44 +121,126 @@ export default function AdminPage() {
         </form>
       ) : (
         <>
-          <p>
-            {overview.totalUsers} users · {overview.signedInUsers} with a valid signed-in session
-          </p>
-          <p>
-            Usage for {overview.day}. Daily allowances reset at 00:00 UTC. Valid sessions do not
-            mean a person is online right now.
-          </p>
-          <div style={{ overflowX: 'auto' }}>
-            <table>
-              <thead>
-                <tr>
-                  <th>User</th>
-                  <th>AI messages</th>
-                  <th>Valid sessions</th>
-                  <th>Last session activity</th>
-                </tr>
-              </thead>
-              <tbody>
-                {overview.users.map((user) => (
-                  <tr key={user.id}>
-                    <td>
-                      {user.name}
-                      <br />
-                      {user.email}
-                    </td>
-                    <td>
-                      {user.used} / {user.limit ?? 'Unlimited'}
-                    </td>
-                    <td>{user.activeSessions}</td>
-                    <td>
-                      {user.lastSessionAt ? new Date(user.lastSessionAt).toLocaleString() : 'None'}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="admin-stats">
+            <article>
+              <span>Total users</span>
+              <strong>{overview.totalUsers}</strong>
+              <small>Registered accounts</small>
+            </article>
+            <article>
+              <span>Signed-in users</span>
+              <strong>{overview.signedInUsers}</strong>
+              <small>With a valid session</small>
+            </article>
+            <article>
+              <span>Daily allowance</span>
+              <strong>
+                20 <em>/ user</em>
+              </strong>
+              <small>Administrator has unlimited messages</small>
+            </article>
           </div>
-          <div style={{ display: 'flex', gap: 12, marginTop: 20 }}>
+          <div className="admin-table-card">
+            <div className="admin-toolbar">
+              <div>
+                <h2>Users</h2>
+                <p>Daily message usage · {overview.day}</p>
+              </div>
+              <label className="admin-search">
+                <span className="admin-sr-only">Search users on this page</span>
+                <input
+                  type="search"
+                  placeholder="Search this page by name or email"
+                  value={search}
+                  onChange={(event) => setSearch(event.target.value)}
+                />
+              </label>
+            </div>
+            <div
+              className="admin-table-scroll"
+              tabIndex={0}
+              role="region"
+              aria-label="User access and usage table"
+            >
+              <table>
+                <thead>
+                  <tr>
+                    <th scope="col">User</th>
+                    <th scope="col">AI usage today</th>
+                    <th scope="col">Access</th>
+                    <th scope="col">Valid sessions</th>
+                    <th scope="col">Last session activity</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {visibleUsers.map((user) => (
+                    <tr key={user.id}>
+                      <td>
+                        <div className="admin-person">
+                          <span className="admin-avatar" aria-hidden="true">
+                            {(user.name || user.email).slice(0, 1).toUpperCase()}
+                          </span>
+                          <div>
+                            <strong>{user.name || 'Unnamed user'}</strong>
+                            <span>{user.email}</span>
+                          </div>
+                        </div>
+                      </td>
+                      <td>
+                        <div className="admin-usage">
+                          <span>
+                            <strong>{user.used}</strong> / {user.limit ?? 'Unlimited'}
+                          </span>
+                          {user.limit !== null && (
+                            <progress
+                              aria-label={`${user.name || 'User'} daily messages used`}
+                              value={Math.min(user.used, user.limit)}
+                              max={user.limit}
+                            />
+                          )}
+                        </div>
+                      </td>
+                      <td>
+                        <span
+                          className={`admin-badge ${user.limit === null ? 'admin-badge-dark' : ''}`}
+                        >
+                          {user.limit === null ? 'Administrator' : 'Standard'}
+                        </span>
+                      </td>
+                      <td>
+                        <span className="admin-session-dot" />
+                        {user.activeSessions}
+                      </td>
+                      <td className="admin-date">
+                        {user.lastSessionAt
+                          ? new Date(user.lastSessionAt).toLocaleString(undefined, {
+                              dateStyle: 'medium',
+                              timeStyle: 'short',
+                            })
+                          : 'No session activity'}
+                      </td>
+                    </tr>
+                  ))}
+                  {visibleUsers.length === 0 && (
+                    <tr>
+                      <td colSpan={5} className="admin-empty">
+                        No users match your search on this page.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+            <div className="admin-table-note">
+              Allowances reset at 00:00 UTC. A valid session does not indicate that someone is
+              online.
+            </div>
+          </div>
+          <div className="admin-pagination">
+            <span>
+              Page {overview.page} of{' '}
+              {Math.max(1, Math.ceil(overview.totalUsers / overview.pageSize))}
+            </span>
             <button
               disabled={busy || overview.page === 1}
               onClick={() => void refresh(overview.page - 1)}
@@ -148,10 +248,10 @@ export default function AdminPage() {
               Previous
             </button>
             <button disabled={busy} onClick={() => void refresh(overview.page)}>
-              Refresh
+              {busy ? 'Refreshing…' : 'Refresh'}
             </button>
             <button
-              disabled={busy || overview.page * 50 >= overview.totalUsers}
+              disabled={busy || overview.page * overview.pageSize >= overview.totalUsers}
               onClick={() => void refresh(overview.page + 1)}
             >
               Next
