@@ -25,6 +25,7 @@ import { Icon } from '../../components/design';
 import { ChatThinking, UserBubble } from './chrome';
 import { FlowSheet } from '../../components/flow';
 import { AssistantResult, answerText } from './result';
+import { ChangeConversation } from './change-conversation';
 import { AnswerActions } from './answer-actions';
 import { TransactionConversation, type DraftReply } from './transaction-conversation';
 import { useApp } from '../../providers/app-provider';
@@ -98,7 +99,7 @@ function AssistantSession() {
     gcTime: 0,
     retry: false,
     queryFn: ({ signal }) =>
-      api.request('assistant/capabilities', assistantCapabilitiesSchema, { signal }),
+      api.request('assistant/v3/capabilities', assistantCapabilitiesSchema, { signal }),
   });
   useEffect(() => {
     if (consentReady && capabilities.data?.consentAccepted) setConsent(true);
@@ -114,7 +115,7 @@ function AssistantSession() {
       return;
     consentRecorded.current = true;
     void api
-      .request('assistant/consent', z.object({ message: z.string() }), {
+      .request('assistant/v3/consent', z.object({ message: z.string() }), {
         method: 'POST',
         body: { policyVersion: assistantPolicyVersion },
       })
@@ -134,7 +135,7 @@ function AssistantSession() {
     setError(undefined);
     try {
       if (capabilities.data?.remembersConsent)
-        await api.request('assistant/consent', z.object({ message: z.string() }), {
+        await api.request('assistant/v3/consent', z.object({ message: z.string() }), {
           method: 'POST',
           body: { policyVersion: assistantPolicyVersion },
         });
@@ -200,16 +201,17 @@ function AssistantSession() {
         const recent = await vault.list('pending:', queuedTransactionSchema);
         if (recent.length)
           throw new Error(
-            'Some recent changes need attention before AI can give an up-to-date answer. Check your transactions and try again.',
+            'Your latest entries are saved on this device. Connect again before asking AI about them.',
           );
         if (flight.current !== controller) return;
       }
-      const answer = await api.request('assistant/chat', assistantChatResponseSchema, {
+      const answer = await api.request('assistant/v3/chat', assistantChatResponseSchema, {
         method: 'POST',
         signal: controller.signal,
         body: {
           question,
           previousQuestions: turns.slice(-3).map((t) => t.question),
+          previousReplies: turns.slice(-3).map((t) => t.answer.message.slice(0, 1000)),
           acceptedPolicyVersion: assistantPolicyVersion,
         },
       });
@@ -245,7 +247,7 @@ function AssistantSession() {
     setReporting(true);
     setReportError(undefined);
     try {
-      await api.request('assistant/feedback', z.object({ message: z.string() }), {
+      await api.request('assistant/v3/feedback', z.object({ message: z.string() }), {
         method: 'POST',
         signal: controller.signal,
         body: { answerId, reason },
@@ -378,13 +380,14 @@ function AssistantSession() {
                 Understand your money. Review every change.
               </AppText>
               <AppText>
-                Ask about balances, spending, budgets or debts. You can also prepare a transaction
-                draft to review and save yourself.
+                Ask about your money, explore a plan or prepare changes across accounts, budgets,
+                goals, debts and recurring items. Every saved change needs your confirmation.
               </AppText>
               <AppText tone="muted">
                 To understand your request, OpenAI receives your question, up to three earlier
-                questions in this chat, your currency and timezone. Finora AI keeps financial tool
-                results out of the model request.
+                questions and replies in this chat, your currency and timezone, and relevant
+                financial summaries. Individual merchants, notes, credentials and record IDs are
+                excluded from tool summaries.
               </AppText>
               <AppText tone="muted">
                 Do not type passwords or bank credentials. Your questions may contain financial
@@ -485,7 +488,7 @@ function AssistantSession() {
                       <AppText accessibilityLiveRegion="polite" style={{ fontSize: 15 }}>
                         {answer.draft?.missingFields.length
                           ? 'Let’s fill in a detail first.'
-                          : answer.result
+                          : answer.result && !answer.conversational
                             ? answerText(answer.result, user?.preferences.locale)
                             : answer.message}
                       </AppText>
@@ -506,6 +509,9 @@ function AssistantSession() {
                         />
                       }
                     />
+                  )}
+                  {answer.change && (
+                    <ChangeConversation change={answer.change} register={registerDraftReply} />
                   )}
                   {answer.draft && (
                     <TransactionConversation

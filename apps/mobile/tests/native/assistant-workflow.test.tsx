@@ -71,11 +71,11 @@ async function mount(
       const path = new URL(url).pathname.replace('/api/v1/', '');
       if (init?.body)
         requests.push({ path, body: JSON.parse(String(init.body)) as Record<string, unknown> });
-      if (path === 'assistant/chat' && options.chat) return options.chat(url, init);
+      if (path === 'assistant/v3/chat' && options.chat) return options.chat(url, init);
       return Response.json({
         success: true,
         data:
-          path === 'assistant/capabilities'
+          path === 'assistant/v3/capabilities'
             ? {
                 enabled: options.enabled ?? true,
                 provider: 'OpenAI',
@@ -83,7 +83,7 @@ async function mount(
                 readOnly: true,
                 policyVersion: assistantPolicyVersion,
               }
-            : path === 'assistant/feedback'
+            : path === 'assistant/v3/feedback'
               ? { message: 'Report received.' }
               : answer,
       });
@@ -149,10 +149,11 @@ test('consents explicitly, sends only bounded question context and renders exact
   expect(screen.queryByText('View accounts')).toBeNull();
   expect(requests).toEqual([
     {
-      path: 'assistant/chat',
+      path: 'assistant/v3/chat',
       body: {
         question: 'What is my current balance?',
         previousQuestions: [],
+        previousReplies: [],
         acceptedPolicyVersion: assistantPolicyVersion,
       },
     },
@@ -234,7 +235,7 @@ test('reports an answer inside the app without attaching conversation text', asy
   await fireEvent.press(screen.getByRole('button', { name: 'Send report' }));
   await screen.findByText('Report received. Thank you.');
   expect(requests[1]).toEqual({
-    path: 'assistant/feedback',
+    path: 'assistant/v3/feedback',
     body: { answerId: answer.answerId, reason: 'unsafe' },
   });
 });

@@ -5,7 +5,12 @@ Scope approved on 23 October 2026. Existing mobile work was pushed first as
 push or Play release. The owner subsequently authorized a Git push and requested
 closed-test preparation. Publication remains a separate external release gate.
 
-## Transaction drafts and onboarding
+## Original v2 behavior (retained for installed clients)
+
+The following architecture describes the original v2 API. The v3 additions and
+material data-flow changes are documented in the final sections below.
+
+### Transaction drafts and onboarding
 
 The assistant can select `prepare_transaction` as well as the five read tools.
 It prepares an expense, income or transfer without writing financial records.
@@ -182,3 +187,60 @@ other devices. An older hosted API continues with device-local acceptance until
 that API update is deployed. Stored local acceptance migrates when supported.
 User deletion removes the server preference with the user record. Changing policy
 version requires fresh acceptance; accepting for another user is not permitted.
+
+## Expanded tools and administration, 24 October 2026
+
+Owner-authorized scope: feature-wide read tools without confirmation; supported
+create/update/delete and lifecycle operations require an explicit inline review
+and confirmation. Never invent a successful action or bypass domain rules. Resolve
+missing fields and ambiguous records before preparing a confirmable operation.
+Authentication, password/account deletion, billing, device-only settings and external
+bank transfers retain their dedicated flows rather than accepting model credentials.
+
+Ordinary users have 20 chat requests per UTC day. The requested existing owner email
+is a server-only admin allowlist with no daily cap; security burst limits still apply.
+A protected Next.js admin page shows bounded user/session and daily usage metadata.
+It never displays passwords, tokens, financial notes, merchants or chat contents.
+
+Cost controls: bounded ephemeral per-user routing cache, finance-version-keyed
+short-lived read results, stable provider instructions/tool prefix, and at most two bounded
+provider requests per turn. V3 can send minimized financial facts for conversational
+replies; credentials, merchants, notes, account identifiers and individual record
+titles are excluded from those summaries. User-provided messages can still include
+private information. V3 policy acceptance is separate from legacy v2 consent. Cache hits
+still require current authentication and obey daily limits. Confirmation tokens
+are user/auth-version bound, expire, and execute through existing validated,
+idempotent domain services only after the user presses Confirm. No Play release.
+
+V3 endpoints use `/api/v1/assistant/v3/*`. Existing unversioned v2 capabilities,
+consent and chat behavior remain compatible for installed clients. V3 supports
+`read_records` across 15 feature resources, `plan_finances`, the five original reads,
+transaction drafts, and `prepare_change` across the 38 operation-catalog actions.
+Missing or ambiguous required fields are resolved inline before a signed review
+is issued. Money stays in exact integer minor units; server-verified versions and
+all existing domain restrictions remain authoritative. Deleting an account/category
+through financial tools means archiving it, not deleting the authenticated user.
+
+Conversational replies use a second bounded request with minimized server facts,
+up to three prior questions/replies and explicit user planning assumptions. Repeated
+replies can be reused for two minutes. Server financial-result snapshots expire in
+15 seconds and financial writes change their cache key. Routing caches expire in
+five minutes and never store raw prompts as keys. Monetary currency tokens in prose
+must match supplied facts; unsupported prose falls back to the exact result. This
+is not a comprehensive semantic proof of model correctness. Plans are hypothetical
+until a separate confirmation saves a supported budget/goal or other record.
+
+Daily usage counts accepted chat requests (including cache hits and upstream
+failures after admission); disabled/invalid/unauthenticated requests are not charged.
+The counter uses atomic bounded updates, resets on UTC date changes, expires after
+90 days, and is removed on account deletion. Admin sessions stay subject to burst
+controls despite having no daily cap. `/admin` retains its login token only in page
+memory; `/api/v1/admin/users` independently enforces server-derived administrator
+identity, returns 50 users per page and only aggregate session/usage metadata.
+A valid signed-in session is not proof that a user is online right now.
+
+Chat dates now preserve the actual confirmation-attempt instant for today's entries,
+including retry stability. Past date-only entries retain a valid timezone anchor
+but explicitly carry DAY precision, so Activity does not display an invented time.
+Existing historic records are not rewritten because a real noon entry cannot be
+reliably distinguished from an old placeholder.

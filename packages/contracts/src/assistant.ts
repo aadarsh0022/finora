@@ -1,3 +1,9 @@
+import {
+  assistantPlanArgsSchema,
+  assistantRecordsArgsSchema,
+  assistantChangeArgsSchema,
+  assistantChangeSchema,
+} from './assistant-operations';
 import { z } from 'zod';
 import { calendarDaySchema, monthSchema } from './advanced';
 import { entityIdSchema } from './finance';
@@ -22,6 +28,8 @@ export const assistantBudgetArgsSchema = z.object({ month: monthSchema }).strict
 export const assistantDebtArgsSchema = z.object({}).strict();
 
 export const assistantToolCallSchema = z.discriminatedUnion('name', [
+  z.object({ name: z.literal('plan_finances'), arguments: assistantPlanArgsSchema }).strict(),
+  z.object({ name: z.literal('read_records'), arguments: assistantRecordsArgsSchema }).strict(),
   z.object({ name: z.literal('get_balance'), arguments: assistantBalanceArgsSchema }).strict(),
   z.object({ name: z.literal('get_cashflow'), arguments: assistantPeriodArgsSchema }).strict(),
   z
@@ -117,7 +125,32 @@ export const assistantDebtResultSchema = z.object({
     excludesArchivedAndCancelled: z.literal(true),
   }),
 });
+export const assistantRecordsResultSchema = z.object({
+  name: z.literal('read_records'),
+  ...metadata,
+  data: z.object({
+    facts: z.array(z.string().max(300)).max(30).default([]),
+    title: z.string(),
+    summary: z.string().max(1200),
+    total: z.number().int().nonnegative(),
+    items: z
+      .array(
+        z.object({
+          id: z.string().optional(),
+          title: z.string(),
+          detail: z.string().max(1600),
+          amountMinor: integer.optional(),
+        }),
+      )
+      .max(100),
+  }),
+});
+export const assistantPlanResultSchema = assistantRecordsResultSchema.extend({
+  name: z.literal('plan_finances'),
+});
 export const assistantToolResultSchema = z.discriminatedUnion('name', [
+  assistantPlanResultSchema,
+  assistantRecordsResultSchema,
   assistantBalanceResultSchema,
   assistantCashflowResultSchema,
   assistantSpendingResultSchema,
@@ -163,7 +196,7 @@ export const assistantTransactionDraftSchema = z
   })
   .strict();
 export type AssistantTransactionDraft = z.infer<typeof assistantTransactionDraftSchema>;
-export const assistantPolicyVersion = '2026-10-23-v2' as const;
+export const assistantPolicyVersion = '2026-10-24-v3' as const;
 export const assistantConsentInputSchema = z
   .object({ policyVersion: z.literal(assistantPolicyVersion) })
   .strict();
@@ -171,7 +204,7 @@ export const assistantCapabilitiesSchema = z.object({
   remembersConsent: z.boolean().default(false),
   consentAccepted: z.boolean().default(false),
   enabled: z.boolean(),
-  readOnly: z.literal(true),
+  readOnly: z.boolean(),
   provider: z.literal('OpenAI'),
   model: z.literal('gpt-6-luna'),
   policyVersion: z.literal(assistantPolicyVersion),
@@ -181,8 +214,12 @@ export const assistantChatInputSchema = z
     question: z.string().trim().min(1).max(1000),
     previousQuestions: z.array(z.string().trim().min(1).max(1000)).max(3),
     acceptedPolicyVersion: z.literal(assistantPolicyVersion),
+    previousReplies: z.array(z.string().max(1200)).max(3).default([]),
   })
   .strict();
+export const legacyAssistantChatInputSchema = assistantChatInputSchema.extend({
+  acceptedPolicyVersion: z.literal('2026-10-23-v2'),
+});
 export const assistantFollowUpArgsSchema = z
   .object({
     reason: z.enum(['date_range', 'account_selection', 'unsupported', 'one_question']),
@@ -190,6 +227,7 @@ export const assistantFollowUpArgsSchema = z
   .strict();
 export const assistantSelectionSchema = z.union([
   assistantToolCallSchema,
+  z.object({ name: z.literal('prepare_change'), arguments: assistantChangeArgsSchema }).strict(),
   z
     .object({ name: z.literal('prepare_transaction'), arguments: assistantTransactionArgsSchema })
     .strict(),
@@ -197,10 +235,12 @@ export const assistantSelectionSchema = z.union([
 ]);
 export const assistantChatResponseSchema = z.object({
   answerId: z.uuid(),
-  kind: z.enum(['answer', 'clarification', 'unsupported', 'draft']),
-  message: z.string().max(500),
+  kind: z.enum(['answer', 'clarification', 'unsupported', 'draft', 'change']),
+  message: z.string().max(4000),
+  conversational: z.boolean().default(false),
   result: assistantToolResultSchema.nullable(),
   draft: assistantTransactionDraftSchema.nullable().default(null),
+  change: assistantChangeSchema.nullable().default(null),
 });
 export type AssistantChatResponse = z.infer<typeof assistantChatResponseSchema>;
 export const assistantFeedbackInputSchema = z

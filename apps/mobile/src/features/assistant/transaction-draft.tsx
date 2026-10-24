@@ -5,13 +5,13 @@ import {
   transactionInputSchema,
   transactionSchema,
 } from '@finora/contracts';
-import { formatMoney, parseMoney } from '@finora/finance-core';
+import { formatMoney, parseMoney, entryDate } from '@finora/finance-core';
 import { AppButton, AppText, Card, Feedback, Field } from '../../components/ui';
 import { useApp } from '../../providers/app-provider';
 import { useTransactionDrafts } from '../../stores/transaction-drafts';
 import { useFinanceMutation } from '../../hooks/finance';
 import { accountsSchema, categoriesSchema, useRead } from '../finance/shared';
-import { dateInstant, decimalAmount } from '../finance/values';
+import { decimalAmount } from '../finance/values';
 import { useTheme } from '../../theme';
 
 function InlineSelect({
@@ -122,6 +122,7 @@ export function TransactionDraftCard({
   const [categoryId, setCategoryId] = useState(draft.categoryId ?? '');
   const [date, setDate] = useState(draft.date);
   const [error, setError] = useState<unknown>();
+  const recordedDate = useRef<{ day: string; value: ReturnType<typeof entryDate> } | null>(null);
   const lock = useRef(false);
   const save = useFinanceMutation('transactions', transactionSchema, 'POST', true);
   const activeAccounts = (accounts.data ?? []).filter((account) => !account.archived);
@@ -163,12 +164,14 @@ export function TransactionDraftCard({
             ? 'Choose a different destination account.'
             : 'Choose a category.',
         );
+      if (!recordedDate.current || recordedDate.current.day !== date)
+        recordedDate.current = { day: date, value: entryDate(date, draft.timezone) };
       const input = transactionInputSchema.parse({
         type: draft.type,
         amountMinor: parseMoney(amount, draft.currency),
         accountId,
         ...(draft.type === 'TRANSFER' ? { destinationAccountId: destinationId } : { categoryId }),
-        date: dateInstant(date, draft.timezone),
+        ...recordedDate.current.value,
         merchant: draft.merchant,
         note: draft.note,
         tags: [],

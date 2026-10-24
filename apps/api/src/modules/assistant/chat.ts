@@ -1,10 +1,17 @@
 import { randomUUID } from 'node:crypto';
-import { assistantChatInputSchema, assistantChatResponseSchema } from '@finora/contracts';
-import type { z } from 'zod';
+import {
+  assistantChatInputSchema,
+  legacyAssistantChatInputSchema,
+  assistantPolicyVersion,
+  assistantChatResponseSchema,
+} from '@finora/contracts';
+import { z } from 'zod';
 import { authenticate, type AuthContext } from '../auth/service';
 import { ApiError } from '../../utils/http';
 import { selectAssistantTool } from './provider';
 import { runReadOnlyTool } from './tools';
+import { writeNarrative } from './narrative';
+import { prepareChange } from './changes';
 import { prepareTransaction } from './transaction-draft';
 
 const followUps = {
@@ -13,7 +20,7 @@ const followUps = {
   account_selection:
     'I can show your total balance here. For an individual account, open Accounts and choose it there.',
   unsupported:
-    'I can read your recorded money and prepare new transaction drafts for review. I cannot change existing records, move money or provide financial advice.',
+    'I can help with recorded accounts, transactions, budgets, goals, debts, recurring items and financial planning. Tell me what you want to explore or change. Real bank payments, credentials and account security use their dedicated flows.',
   one_question:
     'Please ask about one thing at a time, such as your balance or this month’s spending.',
 };
@@ -26,15 +33,17 @@ const answerMessages = {
 };
 export async function answerQuestion(
   context: AuthContext,
-  value: z.infer<typeof assistantChatInputSchema>,
+  value: z.infer<typeof assistantChatInputSchema> | z.infer<typeof legacyAssistantChatInputSchema>,
   request: Request,
 ) {
-  const input = assistantChatInputSchema.parse(value);
+  const input = z.union([assistantChatInputSchema, legacyAssistantChatInputSchema]).parse(value);
+  const expanded = input.acceptedPolicyVersion === assistantPolicyVersion;
   const selection = await selectAssistantTool(
     input.question,
     input.previousQuestions,
     context.user.preferences,
     request.signal,
+    { userId: context.user.id, authVersion: context.user.authVersion, expanded },
   );
   const answerId = randomUUID();
   if (selection.name === 'ask_follow_up')
@@ -44,7 +53,7 @@ export async function answerQuestion(
       message: followUps[selection.arguments.reason],
       result: null,
     });
-  // Financial values stay in Finora. There is no second model request containing tool results.
+  // Refresh authentication before every read or prepared change, including cache hits.
   const current = await authenticate(request);
   if (
     current.user.preferences.baseCurrency !== context.user.preferences.baseCurrency ||
@@ -55,6 +64,14 @@ export async function answerQuestion(
       'ASSISTANT_CONTEXT_CHANGED',
       'Your preferences changed. Please ask again.',
     );
+  if (selection.name === 'prepare_change')
+    return assistantChatResponseSchema.parse({
+      answerId,
+      kind: 'change',
+      message: 'Let’s review the details.',
+      result: null,
+      change: await prepareChange(current, selection.arguments),
+    });
   if (selection.name === 'prepare_transaction')
     return assistantChatResponseSchema.parse({
       answerId,
@@ -65,10 +82,26 @@ export async function answerQuestion(
       draft: await prepareTransaction(current, selection.arguments),
     });
   const result = await runReadOnlyTool(current, selection);
+  const narrative = expanded
+    ? await writeNarrative(
+        current,
+        { ...input, acceptedPolicyVersion: assistantPolicyVersion },
+        result,
+        request.signal,
+      )
+    : null;
+  await authenticate(request);
   return assistantChatResponseSchema.parse({
     answerId,
     kind: 'answer',
-    message: answerMessages[selection.name],
+    conversational: !!narrative,
+    message:
+      narrative ??
+      (selection.name === 'read_records' || selection.name === 'plan_finances'
+        ? result.name === selection.name
+          ? result.data.summary
+          : 'Here are your records.'
+        : answerMessages[selection.name]),
     result,
   });
 }

@@ -26,17 +26,19 @@ export function AnswerActions({
     result ? formatMoney(value, result.currency, user?.preferences.locale ?? 'en-IN') : value;
   const details = !result
     ? ''
-    : result.name === 'get_balance'
-      ? `Recorded balance: ${money(result.data.totalBalanceMinor)}\n${result.data.accounts.map((account) => `${account.name}: ${money(account.balanceMinor)}`).join('\n')}`
-      : result.name === 'get_cashflow'
-        ? `Income: ${money(result.data.incomeMinor)}\nExpenses: ${money(result.data.expensesMinor)}\nNet: ${money(result.data.netMinor)}`
-        : result.name === 'get_category_spending'
-          ? result.data.categories
-              .map((category) => `${category.name}: ${money(category.amountMinor)}`)
-              .join('\n')
-          : result.name === 'get_debt_summary'
-            ? `You owe: ${money(result.data.owedByYouMinor)}\nPersonal loans owed to you: ${money(result.data.personalLoansOwedToYouMinor)}`
-            : `Spent: ${money(result.data.total.spentMinor)}`;
+    : result.name === 'read_records' || result.name === 'plan_finances'
+      ? result.data.summary
+      : result.name === 'get_balance'
+        ? `Recorded balance: ${money(result.data.totalBalanceMinor)}\n${result.data.accounts.map((account) => `${account.name}: ${money(account.balanceMinor)}`).join('\n')}`
+        : result.name === 'get_cashflow'
+          ? `Income: ${money(result.data.incomeMinor)}\nExpenses: ${money(result.data.expensesMinor)}\nNet: ${money(result.data.netMinor)}`
+          : result.name === 'get_category_spending'
+            ? result.data.categories
+                .map((category) => `${category.name}: ${money(category.amountMinor)}`)
+                .join('\n')
+            : result.name === 'get_debt_summary'
+              ? `You owe: ${money(result.data.owedByYouMinor)}\nPersonal loans owed to you: ${money(result.data.personalLoansOwedToYouMinor)}`
+              : `Spent: ${money(result.data.total.spentMinor)}`;
   const text = `${answer.message}${details ? `\n${details}\nRecorded on ${result?.retrievedAt}.` : ''}`;
   async function copy() {
     try {
