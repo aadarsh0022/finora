@@ -1,4 +1,10 @@
-import { settingsSchema, settingsUpdateSchema, type Preferences } from '@finora/contracts';
+import {
+  profileUpdateSchema,
+  userSchema,
+  settingsSchema,
+  settingsUpdateSchema,
+  type Preferences,
+} from '@finora/contracts';
 import { useMutation } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import { openURL } from 'expo-linking';
@@ -25,7 +31,22 @@ import { confirmDiscard } from '../src/features/planning/common';
 import { publicPageUrl } from '../src/public-site';
 
 export default function Settings() {
-  const { api, user, clearSession } = useApp();
+  const { api, user, clearSession, refreshUser } = useApp();
+  const [editName, setEditName] = useState(false);
+  const [name, setName] = useState(user?.name ?? '');
+  const [nameError, setNameError] = useState('');
+  const profile = useMutation({
+    mutationFn: async () => {
+      const parsed = profileUpdateSchema.safeParse({ name });
+      if (!parsed.success) {
+        setNameError(parsed.error.issues[0]?.message ?? 'Enter your name');
+        return;
+      }
+      await api.request('auth/profile', userSchema, { method: 'PATCH', body: parsed.data });
+      await refreshUser();
+      setEditName(false);
+    },
+  });
   const theme = useTheme();
   const settings = useRead('settings', settingsSchema);
   const legal = useMutation({
@@ -41,28 +62,56 @@ export default function Settings() {
   });
   return (
     <Screen title="Settings" includeTopInset={false}>
-      <Card style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
-        <View
-          style={{
-            width: 48,
-            height: 48,
-            borderRadius: 24,
-            backgroundColor: theme.accentSoft,
-            alignItems: 'center',
-            justifyContent: 'center',
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Edit your name"
+        onPress={() => {
+          setName(user?.name ?? '');
+          setNameError('');
+          setEditName(true);
+        }}
+      >
+        <Card style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
+          <View
+            style={{
+              width: 48,
+              height: 48,
+              borderRadius: 24,
+              backgroundColor: theme.accentSoft,
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <AppText tone="accent" style={{ fontFamily: 'DMSansBold', fontSize: 22 }}>
+              {user?.name.trim().slice(0, 1).toUpperCase() ?? 'F'}
+            </AppText>
+          </View>
+          <View style={{ flex: 1, gap: 2 }}>
+            <AppText style={{ fontFamily: 'DMSansBold', fontSize: 18 }}>{user?.name}</AppText>
+            <AppText tone="muted" style={{ fontSize: 13 }}>
+              {user?.email}
+            </AppText>
+          </View>
+          <AppText tone="accent" style={{ fontSize: 13 }}>
+            Edit
+          </AppText>
+        </Card>
+      </Pressable>
+      <FlowSheet visible={editName} title="Your profile" onClose={() => setEditName(false)}>
+        <Field
+          label="Your name"
+          value={name}
+          onChangeText={(value) => {
+            setName(value);
+            setNameError('');
           }}
-        >
-          <AppText tone="accent" style={{ fontFamily: 'DMSansBold', fontSize: 22 }}>
-            {user?.name.trim().slice(0, 1).toUpperCase() ?? 'F'}
-          </AppText>
-        </View>
-        <View style={{ flex: 1, gap: 2 }}>
-          <AppText style={{ fontFamily: 'DMSansBold', fontSize: 18 }}>{user?.name}</AppText>
-          <AppText tone="muted" style={{ fontSize: 13 }}>
-            {user?.email}
-          </AppText>
-        </View>
-      </Card>
+          error={nameError}
+          autoCapitalize="words"
+          maxLength={80}
+        />
+        {profile.error && <Feedback error={profile.error} />}
+        <AppButton title="Save name" loading={profile.isPending} onPress={() => profile.mutate()} />
+      </FlowSheet>
       {settings.isPending && <Loading variant="form" />}
       {settings.isError && (
         <Feedback
@@ -98,12 +147,6 @@ export default function Settings() {
           subtitle="Favourite transaction drafts"
           icon="document"
           onPress={() => router.push('/favourites')}
-        />
-        <SettingsRow
-          title="Sync status"
-          subtitle="Pending offline transactions"
-          icon="repeat"
-          onPress={() => router.push('/sync')}
         />
         <SettingsRow
           title="Backup and restore"

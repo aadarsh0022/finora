@@ -13,7 +13,6 @@ export const assistantReadFeatureSchema = z.enum([
   'recurring',
   'occurrences',
   'preferences',
-  'money_ahead',
   'insights',
   'ai_usage',
 ]);

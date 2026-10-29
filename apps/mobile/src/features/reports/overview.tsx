@@ -153,7 +153,7 @@ export function InsightsOverview({
   }
   return (
     <>
-      <Card style={{ backgroundColor: theme.accentSoft, borderWidth: 0, padding: 12, gap: 12 }}>
+      <Card style={{ backgroundColor: theme.surface, padding: 18, gap: 20 }}>
         <Heading
           title={singleMonth ? 'Monthly summary' : 'Period summary'}
           subtitle={`${dateLabel(data.period.from)} to ${dateLabel(data.period.to)}`}
@@ -171,10 +171,10 @@ export function InsightsOverview({
               key={title}
               style={{
                 flex: 1,
-                flexDirection: 'row',
-                gap: 10,
+                flexDirection: 'column',
+                gap: 8,
                 borderLeftWidth: expense ? 1 : 0,
-                borderColor: '#CBE4D7',
+                borderColor: theme.border,
                 paddingLeft: expense ? 12 : 0,
               }}
             >
@@ -198,7 +198,9 @@ export function InsightsOverview({
                 </AppText>
                 <AppText
                   tone={expense ? 'danger' : 'accent'}
-                  style={{ fontSize: 21, lineHeight: 29, fontFamily: 'DMSansBold' }}
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                  style={{ fontSize: 24, lineHeight: 32, fontFamily: 'DMSansBold' }}
                 >
                   {money(value)}
                 </AppText>
@@ -219,7 +221,7 @@ export function InsightsOverview({
             flexDirection: 'row',
             alignItems: 'center',
             gap: 12,
-            backgroundColor: theme.surface,
+            backgroundColor: theme.background,
             borderRadius: 13,
             padding: 14,
           }}
@@ -235,7 +237,7 @@ export function InsightsOverview({
           <Icon name="chevron" size={16} />
         </Pressable>
       </Card>
-      <Card style={{ padding: 14, gap: 12 }}>
+      <Card style={{ padding: 18, gap: 16 }}>
         <Heading
           title="Spending overview"
           subtitle="Where your money went"
@@ -243,13 +245,14 @@ export function InsightsOverview({
           onPress={onDetails}
         />
         {displayed.length ? (
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+          <View style={{ gap: 16 }}>
             <View
+              style={{ alignItems: 'center' }}
               accessible
               accessibilityRole="image"
               accessibilityLabel={`Total spent ${money(total)}`}
             >
-              <Svg width={130} height={145} viewBox="0 0 160 160" accessible={false}>
+              <Svg width={180} height={180} viewBox="0 0 160 160" accessible={false}>
                 <Circle cx={80} cy={80} r={62} fill="none" stroke={theme.border} strokeWidth={23} />
                 {displayed.map((item, index) => {
                   const length = chartRatio(item.amountMinor, total) * 2 * Math.PI * 62;
@@ -298,13 +301,13 @@ export function InsightsOverview({
                   <View
                     style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: colors[index] }}
                   />
-                  <AppText numberOfLines={1} style={{ fontSize: 10, lineHeight: 15, flex: 1 }}>
+                  <AppText numberOfLines={1} style={{ fontSize: 13, lineHeight: 20, flex: 1 }}>
                     {item.name}
                   </AppText>
-                  <AppText style={{ fontSize: 10, lineHeight: 15, fontFamily: 'DMSansBold' }}>
+                  <AppText style={{ fontSize: 13, lineHeight: 20, fontFamily: 'DMSansBold' }}>
                     {money(item.amountMinor)}
                   </AppText>
-                  <AppText tone="muted" style={{ fontSize: 10, lineHeight: 15 }}>
+                  <AppText tone="muted" style={{ fontSize: 13, lineHeight: 20 }}>
                     {Math.round(item.shareBasisPoints / 100)}%
                   </AppText>
                 </View>

@@ -13,7 +13,7 @@ export default function TabsLayout() {
         tabBarInactiveTintColor: theme.muted,
         tabBarStyle: { backgroundColor: theme.surface, borderTopColor: theme.border },
         tabBarLabelStyle: { fontFamily: 'DMSans', fontSize: 11 },
-        tabBarHideOnKeyboard: true,
+        tabBarHideOnKeyboard: false,
       }}
     >
       <Tabs.Screen

@@ -2,12 +2,10 @@ import { router } from 'expo-router';
 import { View } from 'react-native';
 import { Screen } from '../../src/components/ui';
 import { ActionRow, ProfileAction, SectionHeading } from '../../src/components/design';
-import { OutlookSummary } from '../../src/features/planning/outlook-summary';
 
 export default function Plan() {
   return (
     <Screen title="Plan" subtitle="Make room for what comes next." headerAction={<ProfileAction />}>
-      <OutlookSummary />
       <View>
         <SectionHeading title="Your plans" />
         <ActionRow

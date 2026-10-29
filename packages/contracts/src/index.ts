@@ -106,7 +106,6 @@ export type ApiResponse<T> =
     };
 export * from './reports';
 export * from './entitlements';
-export * from './outlook';
 export * from './assistant';
 
 // One durable setup operation. Identity is always derived from the authenticated session.
@@ -126,3 +125,11 @@ export const onboardingSyncResultSchema = z.object({
 export * from './admin';
 
 export * from './assistant-operations';
+export * from './assistant-conversations';
+export * from './device-ledger';
+
+export const profileUpdateSchema = z
+  .object({
+    name: z.string().trim().min(1, 'Enter your name').max(80, 'Use 80 characters or fewer'),
+  })
+  .strict();

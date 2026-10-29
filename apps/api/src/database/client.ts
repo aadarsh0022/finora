@@ -69,6 +69,15 @@ async function ensureIndexes(db: Db) {
       { key: { userId: 1, answerId: 1 }, unique: true },
       { key: { expiresAt: 1 }, expireAfterSeconds: 0 },
     ],
+    assistant_threads: [{ key: { id: 1 }, unique: true }, { key: { userId: 1, updatedAt: -1 } }],
+    assistant_messages: [
+      { key: { userId: 1, chatId: 1, id: 1 }, unique: true },
+      { key: { userId: 1, chatId: 1, sequence: -1 } },
+    ],
+    assistant_proposals: [
+      { key: { userId: 1, id: 1 }, unique: true },
+      { key: { userId: 1, chatId: 1, status: 1 } },
+    ],
   };
   const ownedCollections = [
     'accounts',

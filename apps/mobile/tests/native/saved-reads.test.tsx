@@ -58,7 +58,7 @@ async function mount(owner = user.id, transport?: HttpTransport) {
 test('hydrates persisted records in a new query client and labels the saved timestamp', async () => {
   await mount();
   await screen.findByText('Synthetic saved record');
-  await screen.findByText(/Saved on this device ·/);
+  expect(screen.queryByText(/Saved on this device/)).toBeNull();
 });
 
 test('shows persisted data while a slow connection is still unresolved, then updates quietly', async () => {

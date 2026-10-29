@@ -1,4 +1,5 @@
 import {
+  profileUpdateSchema,
   changePasswordSchema,
   deleteAccountSchema,
   forgotPasswordSchema,
@@ -16,11 +17,11 @@ import { exportsRoute } from './modules/exports/router';
 import { reportsRoute } from './modules/reports/router';
 import { entitlementsRoute } from './modules/entitlements/router';
 import { debtsRoute } from './modules/debts/router';
-import { outlookRoute } from './modules/outlook/router';
 import { adminRoute } from './modules/assistant/admin';
 import { assistantRoute } from './modules/assistant/router';
 import { ApiError, handle, readBody, success } from './utils/http';
 import { sendWelcomeEmail } from './services/email';
+import { deviceLedgerRoute } from './modules/finance/device-ledger';
 
 export function dispatch(
   request: Request,
@@ -30,9 +31,9 @@ export function dispatch(
     const path = new URL(request.url).pathname.replace(/\/$/, '');
     const key = `${request.method} ${path}`;
     const financial =
+      (await deviceLedgerRoute(request, requestId)) ??
       (await adminRoute(request, requestId)) ??
       (await assistantRoute(request, requestId)) ??
-      (await outlookRoute(request, requestId)) ??
       (await debtsRoute(request, requestId)) ??
       (await reportsRoute(request, requestId)) ??
       (await entitlementsRoute(request, requestId)) ??
@@ -48,6 +49,7 @@ export function dispatch(
       'forgot-password',
       'reset-password',
       'me',
+      'profile',
       'logout',
       'logout-other-sessions',
       'change-password',
@@ -98,6 +100,11 @@ export function dispatch(
         await auth.resetPassword(input.token, input.password);
         return success({ message: 'Password reset. Sign in with your new password.' }, requestId);
       }
+      case 'PATCH /api/v1/auth/profile': {
+        const context = await auth.authenticate(request);
+        const input = await readBody(request, profileUpdateSchema);
+        return success(await auth.updateProfile(context, input.name), requestId);
+      }
       case 'GET /api/v1/auth/me':
         return success(publicUser((await auth.authenticate(request)).user), requestId);
       case 'POST /api/v1/auth/logout': {
@@ -129,6 +136,7 @@ export function dispatch(
         'forgot-password',
         'reset-password',
         'me',
+        'profile',
         'logout',
         'logout-other-sessions',
         'change-password',

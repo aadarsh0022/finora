@@ -20,7 +20,7 @@ export const transactionDraftToolDefinition = (() => {
     strict: true as const,
     parameters,
     description:
-      'Prepare one expense, income or transfer draft for a separate user-reviewed transaction form. Never saves or moves money. Amount is an exact decimal in major currency units, not minor units. Use null for missing details. Names must come from the user, never invent IDs, accounts or categories.',
+      'Prepare one expense, income or transfer draft for a compact inline confirmation card. Never saves or moves money. Amount is an exact decimal in major currency units, not minor units. Use null for missing details. Infer a common category from a clear purpose when appropriate. The server only accepts an existing category. Never invent IDs or accounts.',
   };
 })();
 

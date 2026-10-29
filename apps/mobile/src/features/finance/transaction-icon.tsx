@@ -1,5 +1,5 @@
 import { View } from 'react-native';
-import Svg, { Path, Circle } from 'react-native-svg';
+import Svg, { Path } from 'react-native-svg';
 import { AppText } from '../../components/ui';
 import { useTheme } from '../../theme';
 
@@ -69,7 +69,7 @@ export function TransactionIcon({ type, merchant }: { type: string; merchant: st
       </Svg>
     );
   } else {
-    background = type === 'TRANSFER' ? theme.border : '#FFF1E8';
+    background = type === 'TRANSFER' ? theme.border : theme.dangerSoft;
     mark = (
       <Svg width={22} height={22} viewBox="0 0 24 24" accessible={false}>
         {type === 'TRANSFER' ? (
@@ -82,10 +82,14 @@ export function TransactionIcon({ type, merchant }: { type: string; merchant: st
             strokeLinejoin="round"
           />
         ) : (
-          <>
-            <Circle cx={12} cy={12} r={7} stroke="#E89551" strokeWidth={1.5} fill="none" />
-            <Path d="M12 7v10m-3-8h5m-5 4h5" stroke="#E89551" strokeWidth={1.4} />
-          </>
+          <Path
+            d="m7 17 10-10M7 7h10v10"
+            stroke={theme.danger}
+            strokeWidth={1.8}
+            fill="none"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
         )}
       </Svg>
     );

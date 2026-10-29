@@ -164,7 +164,8 @@ test('asks for the missing category before showing confirmation, then saves inli
   const save = await screen.findByRole('button', { name: 'Confirm and save' });
   expect(writes).toHaveLength(0);
   await fireEvent.press(save);
-  await screen.findByRole('button', { name: 'Saved', disabled: true });
+  await screen.findByText(/^Saved ·/);
+  expect(screen.queryByRole('button', { name: 'Confirm and save' })).toBeNull();
   expect(writes).toHaveLength(1);
   expect(writes[0]?.body).toMatchObject({
     amountMinor: '10000',
@@ -204,7 +205,8 @@ test('retrying a failed confirmed save reuses its operation key', async () => {
   await fireEvent.press(await screen.findByRole('button', { name: 'Confirm and save' }));
   await screen.findByText('Please retry saving.');
   await fireEvent.press(screen.getByRole('button', { name: 'Confirm and save' }));
-  await screen.findByRole('button', { name: 'Saved', disabled: true });
+  await screen.findByText(/^Saved ·/);
+  expect(screen.queryByRole('button', { name: 'Confirm and save' })).toBeNull();
   expect(writes).toHaveLength(2);
   expect(writes[0]?.key).toBe(writes[1]?.key);
   expect(writes[0]?.body).toEqual(writes[1]?.body);

@@ -6,7 +6,6 @@ import {
   debtDetailSchema,
   accountWithBalanceSchema,
   reportSummarySchema,
-  outlookSchema,
 } from '@finora/contracts';
 import { call, clearDatabase, createUser, setupDatabase, teardownDatabase } from './setup';
 import { data, fixture, headers } from './advanced-fixtures';
@@ -76,13 +75,6 @@ it('tracks a refund without duplicating its original expense, supports partial r
     ),
   );
   expect(report.cashflow).toMatchObject({ incomeMinor: '0', expensesMinor: '1000' });
-  const outlook = outlookSchema.parse(
-    data(await call('GET', 'planning/outlook', undefined, token)),
-  );
-  expect(outlook.flows.find((flow) => flow.id === `debt:${claim.id}`)).toMatchObject({
-    amountMinor: '600',
-    direction: 'EXPECTED_IN',
-  });
   expect(
     (
       await call(

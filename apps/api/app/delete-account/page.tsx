@@ -48,9 +48,10 @@ export default function DeleteAccount() {
             <h2>Permanent deletion</h2>
             <p>
               This removes your profile, accounts, transactions, categories, budgets, goals,
-              contributions, recurring items and sessions from Finora’s application database.
-              Deletion cannot be undone. Files you previously exported or shared remain under your
-              control; export anything you want to keep before continuing.
+              contributions, debts, repayments, recurring items, AI chat history and sessions from
+              Finora’s application database. Deletion cannot be undone. Files you previously
+              exported or shared remain under your control; export anything you want to keep before
+              continuing.
             </p>
           </div>
           <form onSubmit={submit} className="account-form" aria-busy={busy}>

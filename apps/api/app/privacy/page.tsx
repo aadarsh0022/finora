@@ -5,7 +5,7 @@ export default function Privacy() {
     <>
       <h1>Finora AI Money Manager privacy policy</h1>
       <p>
-        Last updated: 23 October 2026. This policy describes Finora AI’s Android application and its
+        Last updated: 29 October 2026. This policy describes Finora AI’s Android application and its
         hosted account services. For privacy questions or requests, contact{' '}
         <a href={`mailto:${supportEmail}`}>{supportEmail}</a>.
       </p>
@@ -25,10 +25,10 @@ export default function Privacy() {
       <h2>Providers and retention</h2>
       <p>
         Vercel hosts the API and these pages. MongoDB Atlas stores account and financial records.
-        Resend delivers password recovery emails and hosts the support inbox. Recovery emails
-        contain your email address and a single-use reset link; they do not contain your financial
-        records. Providers may process data outside your country. Hosting providers may process
-        network metadata, including IP addresses, for delivery, security and operations.
+        Resend delivers welcome and password recovery emails and hosts the support inbox. Recovery
+        emails contain your email address and a single-use reset link; they do not contain your
+        financial records. Providers may process data outside your country. Hosting providers may
+        process network metadata, including IP addresses, for delivery, security and operations.
       </p>
       <p>
         Account and financial records are retained while you use Finora AI, until you delete them or
@@ -44,13 +44,16 @@ export default function Privacy() {
         lock uses the device’s authentication prompt; Finora AI does not collect biometric
         templates. Files you export or share are unencrypted and remain under your control. Finora
         AI accesses import files only when you select them. Android automatic application backup is
-        disabled.
+        disabled. Supported records and pending entries are stored in an encrypted local SQLite
+        database when secure device storage is available. New transactions can appear locally before
+        they reach the server, and the app retries delivery when a connection returns. Removing app
+        data or uninstalling can remove records that have not reached your account.
       </p>
       <h2>Optional AI chat</h2>
       <p>
         When AI chat is enabled, Finora AI asks for your agreement before sending a question. OpenAI
-        processes your question, up to three earlier questions and replies from the current chat,
-        your currency and timezone, and tool descriptions. After you agree to the expanded chat
+        processes at most the latest 10 messages in the current chat, selected by our server, your
+        currency and timezone, and tool descriptions. After you agree to the expanded chat
         disclosure, relevant financial summaries and explicit planning assumptions may also be sent
         to compose a conversational answer. Avoid including passwords, bank credentials or
         information you do not want sent to OpenAI. Finora AI excludes credentials, account
@@ -62,10 +65,15 @@ export default function Privacy() {
         directly. The assistant can prepare supported creates, edits, deletions and other changes.
         An inline review requires your explicit confirmation before the authenticated service
         changes a record. It cannot move money through a bank. It excludes local entries that have
-        not synced and does not provide financial advice. Chat text remains in app memory and is not
-        stored in Finora AI’s database or application logs. Bounded in-memory caches may temporarily
-        retain interpreted requests, sanitized replies and read results for up to five minutes to
-        reduce repeated processing. Clear chat removes the on-screen conversation; server caches
+        not reached the server and does not provide professional financial advice. Chat questions
+        and replies are stored privately in your Finora account, with up to 40 exchanges per chat.
+        They are not written to operational application logs. A local encrypted copy may be kept for
+        displaying recent chats. Deleting a chat removes its account history and the local copy on
+        the requesting device, without deleting your financial entries. Other devices may retain
+        previously cached copies until they refresh or you remove their app data. Bounded in-memory
+        caches may temporarily retain interpreted requests, sanitized replies and read results for
+        up to five minutes to reduce repeated processing. Starting a new chat does not delete an
+        earlier chat. You can delete saved chats from the chat sidebar; temporary server caches
         expire independently. Daily usage counters retain user ID, day, count and request
         timestamps, not chat contents, and are deleted with your account. Requests use OpenAI’s
         Responses API with response storage disabled. This is not a promise of zero retention:

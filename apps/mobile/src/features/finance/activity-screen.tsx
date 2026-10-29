@@ -103,7 +103,7 @@ export default function Transactions() {
   return (
     <Screen
       title="Activity"
-      titleSize={36}
+      titleSize={30}
       showPendingStatus={false}
       headerAction={<ProfileAction />}
       subtitle="Your money, one entry at a time."
@@ -140,7 +140,7 @@ export default function Transactions() {
             hideLabel
             leadingAction={<Icon name="search" size={19} />}
             style={{ minHeight: 48, fontSize: 14 }}
-            placeholder="Merchant or note"
+            placeholder="Search transactions"
             value={search}
             onChangeText={setSearch}
             maxLength={80}

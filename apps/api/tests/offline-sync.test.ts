@@ -7,6 +7,7 @@ import { call, clearDatabase, setupDatabase, teardownDatabase } from './setup';
 import { fixture } from './advanced-fixtures';
 import { ApiClient, ClientError } from '../../mobile/src/api/client';
 import { drainOutbox, enqueue, queuedTransactionSchema } from '../../mobile/src/storage/outbox';
+import { refreshDeviceLedger } from '../../mobile/src/storage/ledger';
 import { testVault } from '../../mobile/tests/vault-fixture';
 
 beforeAll(setupDatabase);
@@ -51,6 +52,10 @@ it('reconciles a save whose response was lost without recording it twice', async
   await vault.close();
   const restored = testVault(user.id, rows).vault;
   expect(await drainOutbox(restored, api, () => true)).toBe(1);
+  expect((await restored.list('pending:', queuedTransactionSchema))[0]?.value.state).toBe(
+    'ACKNOWLEDGED',
+  );
+  await refreshDeviceLedger(restored, api, () => true);
   expect(await restored.list('pending:', queuedTransactionSchema)).toHaveLength(0);
   const { db } = await database();
   expect(await db.collection('transactions').countDocuments({ userId: user.id })).toBe(1);

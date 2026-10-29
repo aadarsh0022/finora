@@ -53,6 +53,7 @@ function AccountForm({ account: currentAccount }: { account?: AccountWithBalance
   const [type, setType] = useState(initial.type);
   const [amount, setAmount] = useState(initial.amount);
   const [error, setError] = useState('');
+  const [nameError, setNameError] = useState('');
   const [reviewed, setReviewed] = useState<
     z.infer<typeof accountInputSchema> | z.infer<typeof accountUpdateSchema>
   >();
@@ -67,6 +68,11 @@ function AccountForm({ account: currentAccount }: { account?: AccountWithBalance
   const archive = useFinanceMutation(`accounts/${account?.id ?? ''}`, accountSchema, 'DELETE');
   async function submit(restore = false) {
     setError('');
+    setNameError('');
+    if (!name.trim()) {
+      setNameError('Enter an account name');
+      return;
+    }
     try {
       const body = {
         name,
@@ -86,7 +92,7 @@ function AccountForm({ account: currentAccount }: { account?: AccountWithBalance
     } catch (failure) {
       setError(
         failure instanceof z.ZodError
-          ? failure.issues.map((issue) => issue.message).join('\n')
+          ? 'Check the account details and try again.'
           : failure instanceof Error
             ? failure.message
             : 'Could not save this account.',
@@ -134,7 +140,11 @@ function AccountForm({ account: currentAccount }: { account?: AccountWithBalance
       <Field
         label="Account name"
         value={name}
-        onChangeText={setName}
+        onChangeText={(value) => {
+          setName(value);
+          setNameError('');
+        }}
+        error={nameError}
         maxLength={80}
         autoCapitalize="words"
       />

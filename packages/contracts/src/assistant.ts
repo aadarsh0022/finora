@@ -211,10 +211,10 @@ export const assistantCapabilitiesSchema = z.object({
 });
 export const assistantChatInputSchema = z
   .object({
-    question: z.string().trim().min(1).max(1000),
-    previousQuestions: z.array(z.string().trim().min(1).max(1000)).max(3),
+    question: z.string().trim().min(1).max(4000),
+    previousQuestions: z.array(z.string().trim().min(1).max(4000)).max(5),
     acceptedPolicyVersion: z.literal(assistantPolicyVersion),
-    previousReplies: z.array(z.string().max(1200)).max(3).default([]),
+    previousReplies: z.array(z.string().max(4000)).max(5).default([]),
   })
   .strict();
 export const legacyAssistantChatInputSchema = assistantChatInputSchema.extend({
@@ -223,10 +223,46 @@ export const legacyAssistantChatInputSchema = assistantChatInputSchema.extend({
 export const assistantFollowUpArgsSchema = z
   .object({
     reason: z.enum(['date_range', 'account_selection', 'unsupported', 'one_question']),
+    message: z.string().trim().min(1).max(600).nullable().default(null),
   })
   .strict();
 export const assistantSelectionSchema = z.union([
   assistantToolCallSchema,
+  z.object({ name: z.literal('finish_answer'), arguments: z.object({}).strict() }).strict(),
+  z
+    .object({
+      name: z.literal('prepare_multiple'),
+      arguments: z
+        .object({
+          calls: z
+            .array(
+              z.union([
+                z
+                  .object({
+                    name: z.literal('prepare_transaction'),
+                    arguments: assistantTransactionArgsSchema,
+                  })
+                  .strict(),
+                z
+                  .object({
+                    name: z.literal('prepare_change'),
+                    arguments: assistantChangeArgsSchema,
+                  })
+                  .strict(),
+              ]),
+            )
+            .min(2)
+            .max(4),
+        })
+        .strict(),
+    })
+    .strict(),
+  z
+    .object({
+      name: z.literal('read_multiple'),
+      arguments: z.object({ calls: z.array(assistantToolCallSchema).min(2).max(4) }).strict(),
+    })
+    .strict(),
   z.object({ name: z.literal('prepare_change'), arguments: assistantChangeArgsSchema }).strict(),
   z
     .object({ name: z.literal('prepare_transaction'), arguments: assistantTransactionArgsSchema })
@@ -239,9 +275,41 @@ export const assistantChatResponseSchema = z.object({
   message: z.string().max(4000),
   conversational: z.boolean().default(false),
   result: assistantToolResultSchema.nullable(),
+  additionalResults: z.array(assistantToolResultSchema).max(3).default([]),
   draft: assistantTransactionDraftSchema.nullable().default(null),
   change: assistantChangeSchema.nullable().default(null),
+  prepared: z
+    .array(
+      z
+        .object({
+          id: z.uuid(),
+          draft: assistantTransactionDraftSchema.nullable(),
+          change: assistantChangeSchema.nullable(),
+        })
+        .strict(),
+    )
+    .max(4)
+    .default([]),
 });
+export const assistantProgressSchema = z
+  .object({
+    id: z.string().max(80),
+    state: z.enum(['thinking', 'checking', 'checked']),
+    label: z.string().max(100),
+  })
+  .strict();
+export const assistantStreamEventSchema = z.discriminatedUnion('type', [
+  z.object({ type: z.literal('progress'), progress: assistantProgressSchema }).strict(),
+  z.object({ type: z.literal('answer'), answer: assistantChatResponseSchema }).strict(),
+  z
+    .object({
+      type: z.literal('error'),
+      code: z.string().max(80),
+      message: z.string().max(300),
+      status: z.number().int(),
+    })
+    .strict(),
+]);
 export type AssistantChatResponse = z.infer<typeof assistantChatResponseSchema>;
 export const assistantFeedbackInputSchema = z
   .object({

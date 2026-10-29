@@ -8,6 +8,10 @@ import { FlowSheet } from './flow';
 import { useTheme } from '../theme';
 
 const paths = {
+  eye: 'M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12Zm13 0a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z',
+  eyeOff:
+    'M3 3l18 18M9 5.5A11 11 0 0 1 12 5c6 0 10 7 10 7a18 18 0 0 1-3 4M6 6a22 22 0 0 0-4 6s4 7 10 7a13 13 0 0 0 5-1M10 10a3 3 0 0 0 4 4',
+  check: 'M5 12l4 4L19 6',
   profile: 'M12 3a4 4 0 1 0 0 8 4 4 0 0 0 0-8ZM4 21v-2a8 8 0 0 1 16 0v2',
   wallet: 'M3 6h17v14H3V6Zm0 0V4h14v2M16 11h4v5h-4z',
   activity: 'M5 6h14M5 12h14M5 18h14',

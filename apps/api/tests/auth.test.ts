@@ -377,3 +377,26 @@ describe('API hardening', () => {
     expect((await response.json()).data).toEqual({ status: 'ok' });
   });
 });
+
+it('updates only the signed-in profile name and rejects blank or extra fields', async () => {
+  const first = await createUser('profile-one@example.com');
+  const other = await createUser('profile-two@example.com');
+  expect(
+    (await call('PATCH', 'auth/profile', { name: '  New name  ' }, first.accessToken)).status,
+  ).toBe(200);
+  const { users } = await database();
+  expect((await users.findOne({ id: first.user.id }))?.name).toBe('New name');
+  expect((await users.findOne({ id: other.user.id }))?.name).toBe(other.user.name);
+  expect((await call('PATCH', 'auth/profile', { name: '' }, first.accessToken)).status).toBe(400);
+  expect(
+    (
+      await call(
+        'PATCH',
+        'auth/profile',
+        { name: 'Other', userId: other.user.id },
+        first.accessToken,
+      )
+    ).status,
+  ).toBe(400);
+  expect((await call('PATCH', 'auth/profile', { name: 'Other' })).status).toBe(401);
+});

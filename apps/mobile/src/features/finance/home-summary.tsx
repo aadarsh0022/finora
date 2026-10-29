@@ -1,12 +1,9 @@
 import { Pressable, useWindowDimensions, View } from 'react-native';
 import { router } from 'expo-router';
 import type { Overview } from '@finora/contracts';
-import { AppText, Card } from '../../components/ui';
-import { BalanceArtwork, HeroGradient } from '../../components/brand';
+import { AppText } from '../../components/ui';
 import { Icon } from '../../components/design';
 import { useTheme } from '../../theme';
-import Svg, { Path, Circle } from 'react-native-svg';
-
 export function HomeSummary({
   data,
   hidden,
@@ -19,178 +16,198 @@ export function HomeSummary({
   amount: (value: string) => string;
 }) {
   const theme = useTheme();
-  const balance = amount(data.totalBalanceMinor);
   const { width, fontScale } = useWindowDimensions();
-  const stackMetrics =
-    width < 360 ||
-    fontScale > 1.2 ||
-    [data.incomeMinor, data.expensesMinor].some((value) => amount(value).length > 11);
+  const stacked = width < 320 || fontScale > 1.4;
   return (
     <View style={{ gap: 12 }}>
       <View
         style={{
-          borderRadius: 16,
-          overflow: 'hidden',
-          minHeight: 168,
+          backgroundColor: theme.surface,
+          borderWidth: 1,
+          borderColor: theme.border,
           padding: 18,
-          gap: 6,
-          flexShrink: 0,
-          backgroundColor: '#087E62',
+          borderRadius: 22,
+          gap: 10,
+          overflow: 'hidden',
         }}
       >
-        <HeroGradient />
-        <View style={{ position: 'absolute', right: 4, top: 6, opacity: 0.35 }}>
-          <BalanceArtwork />
-        </View>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-          <AppText style={{ color: '#E5F7ED', fontSize: 13 }}>
-            Total balance · {data.currency}
+        <View
+          style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}
+        >
+          <AppText style={{ color: theme.muted, fontSize: 13, lineHeight: 20 }}>
+            Total balance
           </AppText>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={hidden ? 'Show total balance' : 'Hide total balance'}
-            onPress={toggle}
-            hitSlop={12}
-            style={{ minWidth: 28, minHeight: 28, justifyContent: 'center' }}
-          >
-            <Svg width={16} height={16} viewBox="0 0 24 24" accessible={false}>
-              <Path
-                d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12Z"
-                fill="none"
-                stroke="#E5F7ED"
-                strokeWidth={1.6}
-              />
-              <Circle cx={12} cy={12} r={3} stroke="#E5F7ED" fill="none" strokeWidth={1.6} />
-              {hidden && <Path d="m3 3 18 18" stroke="#E5F7ED" strokeWidth={1.6} />}
-            </Svg>
-          </Pressable>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <View
+              style={{
+                borderWidth: 1,
+                borderColor: theme.border,
+                borderRadius: 7,
+                paddingHorizontal: 8,
+                paddingVertical: 2,
+              }}
+            >
+              <AppText
+                style={{
+                  color: theme.muted,
+                  fontSize: 10,
+                  lineHeight: 16,
+                  fontFamily: 'DMSansBold',
+                }}
+              >
+                {data.currency}
+              </AppText>
+            </View>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={hidden ? 'Show total balance' : 'Hide total balance'}
+              onPress={toggle}
+              hitSlop={8}
+              style={{
+                minWidth: 36,
+                minHeight: 36,
+                alignItems: 'center',
+                justifyContent: 'center',
+                borderRadius: 18,
+                backgroundColor: theme.background,
+              }}
+            >
+              <Icon name={hidden ? 'eyeOff' : 'eye'} size={17} color={theme.muted} />
+            </Pressable>
+          </View>
         </View>
         <AppText
+          numberOfLines={1}
+          adjustsFontSizeToFit
+          minimumFontScale={0.6}
           style={{
-            color: '#FFFFFF',
-            fontSize: balance.length > 14 ? 25 : balance.length > 11 ? 29 : 36,
-            lineHeight: 44,
+            fontSize: 36,
+            lineHeight: 46,
             fontFamily: 'DMSansBold',
             letterSpacing: -1,
-            width: '100%',
+            color: theme.text,
             fontVariant: ['tabular-nums'],
           }}
         >
-          {balance}
+          {amount(data.totalBalanceMinor)}
         </AppText>
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Accounts"
           onPress={() => router.push('/accounts')}
           style={{
-            minHeight: 40,
-            justifyContent: 'center',
-            alignSelf: 'stretch',
-            paddingVertical: 4,
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            paddingTop: 10,
+            borderTopWidth: 1,
+            borderTopColor: theme.border,
+            minHeight: 38,
           }}
         >
-          <AppText style={{ color: '#E4F7EC', fontSize: 12, lineHeight: 20 }}>
-            Across {data.accounts.length} {data.accounts.length === 1 ? 'account' : 'accounts'} ·
-            Manage →
+          <AppText style={{ color: theme.muted, fontSize: 12, lineHeight: 18 }}>
+            {data.accounts.length} {data.accounts.length === 1 ? 'account' : 'accounts'}
           </AppText>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <AppText style={{ color: theme.text, fontSize: 12, fontFamily: 'DMSansBold' }}>
+              View accounts
+            </AppText>
+            <Icon name="arrowRight" color={theme.accent} size={15} />
+          </View>
         </Pressable>
       </View>
-      <Card style={{ padding: 0, gap: 0, overflow: 'hidden', borderWidth: 0 }}>
-        <View style={{ flexDirection: stackMetrics ? 'column' : 'row' }}>
-          {(
-            [
-              ['Income', data.incomeMinor, false],
-              ['Spent', data.expensesMinor, true],
-            ] as const
-          ).map(([label, value, expense]) => (
-            <View
-              key={label}
-              style={{
-                flex: 1,
-                flexDirection: 'row',
-                gap: 10,
-                padding: 14,
-                borderRightWidth: !stackMetrics && !expense ? 1 : 0,
-                borderBottomWidth: stackMetrics && !expense ? 1 : 0,
-                borderColor: theme.border,
-              }}
-            >
+      <View style={{ flexDirection: stacked ? 'column' : 'row', gap: 12 }}>
+        {(
+          [
+            ['Income', data.incomeMinor, false],
+            ['Spent', data.expensesMinor, true],
+          ] as const
+        ).map(([label, value, expense]) => (
+          <View
+            key={label}
+            style={{
+              flex: 1,
+              backgroundColor: theme.surface,
+              borderWidth: 1,
+              borderColor: theme.border,
+              borderRadius: 18,
+              padding: 15,
+              gap: 9,
+            }}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
               <View
                 style={{
-                  width: 34,
-                  height: 34,
-                  borderRadius: 17,
+                  width: 27,
+                  height: 27,
+                  borderRadius: 14,
                   alignItems: 'center',
                   justifyContent: 'center',
                   backgroundColor: expense ? theme.dangerSoft : theme.accentSoft,
                 }}
               >
-                <AppText style={{ color: expense ? theme.danger : theme.accent, fontSize: 23 }}>
-                  {expense ? '↓' : '↑'}
-                </AppText>
-              </View>
-              <View style={{ flex: 1, gap: 2 }}>
-                <AppText tone="muted" style={{ fontSize: 12, lineHeight: 17 }}>
-                  {label}
-                </AppText>
-                <AppText tone="muted" style={{ fontSize: 11, lineHeight: 17 }}>
-                  This month
-                </AppText>
                 <AppText
-                  tone={expense ? 'danger' : 'accent'}
                   style={{
-                    fontFamily: 'DMSansBold',
-                    fontSize: 17,
-                    lineHeight: 24,
-                    fontVariant: ['tabular-nums'],
+                    fontSize: 18,
+                    lineHeight: 22,
+                    color: expense ? theme.danger : theme.accent,
                   }}
                 >
-                  {amount(value)}
+                  {expense ? '↗' : '↙'}
                 </AppText>
               </View>
+              <AppText tone="muted" style={{ fontSize: 12, lineHeight: 18 }}>
+                {label}
+              </AppText>
             </View>
-          ))}
-        </View>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="View spending reports"
-          onPress={() => router.push('/(tabs)/reports')}
-          style={{
-            borderTopWidth: 1,
-            borderColor: theme.border,
-            flexDirection: 'row',
-            alignItems: 'center',
-            gap: 9,
-            minHeight: 45,
-            paddingHorizontal: 16,
-          }}
-        >
-          <View style={{ flexDirection: 'row', gap: 2, alignItems: 'flex-end', height: 17 }}>
-            {[8, 15, 11, 5].map((height, index) => (
-              <View
-                key={index}
-                style={{
-                  width: 3,
-                  height,
-                  backgroundColor: index < 2 ? theme.accent : theme.muted,
-                  opacity: 0.65,
-                  borderRadius: 1,
-                }}
-              />
-            ))}
+            <AppText
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.6}
+              tone={expense ? 'danger' : 'accent'}
+              style={{
+                fontSize: 20,
+                lineHeight: 28,
+                fontFamily: 'DMSansBold',
+                fontVariant: ['tabular-nums'],
+              }}
+            >
+              {amount(value)}
+            </AppText>
+            <AppText tone="muted" style={{ fontSize: 11, lineHeight: 16 }}>
+              This month
+            </AppText>
           </View>
-          <AppText tone="muted" style={{ fontSize: 12, flex: 1 }}>
-            Net cash flow
-          </AppText>
-          <AppText
-            tone={BigInt(data.netMinor) < 0n ? 'danger' : 'accent'}
-            style={{ fontSize: 16, fontFamily: 'DMSansBold' }}
-          >
-            {amount(data.netMinor)}
-          </AppText>
-          <Icon name="chevron" size={16} />
-        </Pressable>
-      </Card>
+        ))}
+      </View>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="View spending reports"
+        onPress={() => router.push('/(tabs)/reports')}
+        style={{
+          minHeight: 48,
+          paddingHorizontal: 15,
+          borderRadius: 16,
+          backgroundColor: theme.surface,
+          borderWidth: 1,
+          borderColor: theme.border,
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: 8,
+        }}
+      >
+        <Icon name="activity" size={17} />
+        <AppText tone="muted" style={{ flex: 1, fontSize: 12 }}>
+          Net cash flow
+        </AppText>
+        <AppText
+          tone={BigInt(data.netMinor) < 0n ? 'danger' : 'accent'}
+          style={{ fontFamily: 'DMSansBold', fontSize: 14 }}
+        >
+          {amount(data.netMinor)}
+        </AppText>
+        <Icon name="chevron" size={15} />
+      </Pressable>
     </View>
   );
 }

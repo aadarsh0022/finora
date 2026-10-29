@@ -5,7 +5,6 @@ import { useEffect } from 'react';
 import { View } from 'react-native';
 import { AppButton, AppText, Card, Feedback, Loading, Screen } from '../../src/components/ui';
 import { AddTransactionAction, ProfileAction, SectionHeading } from '../../src/components/design';
-import { OutlookSummary } from '../../src/features/planning/outlook-summary';
 import {
   useRead,
   useMoney,
@@ -43,7 +42,7 @@ export default function Home() {
   return (
     <Screen
       title={firstName ? `Hi, ${firstName}` : 'Your money'}
-      subtitle="Make room for what matters."
+      subtitle="Your money at a glance."
       titleSize={28}
       showPendingStatus={false}
       topContent={
@@ -88,7 +87,6 @@ export default function Home() {
               <AppButton title="Create account" onPress={() => router.push('/account')} />
             </Card>
           )}
-          <OutlookSummary />
           <View>
             <SectionHeading
               title="Recent activity"

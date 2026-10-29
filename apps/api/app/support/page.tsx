@@ -24,6 +24,13 @@ export default function Support() {
         the type of data to remove. Do not include transaction details, passwords or backup files.
         We may need to verify ownership before processing a request.
       </p>
+      <h2>Profile and AI chat</h2>
+      <p>
+        Tap your profile card in Settings to change your display name. In Finora AI, use the chat
+        sidebar to reopen or delete a conversation. Starting a new chat keeps earlier conversations.
+        AI chat needs an internet connection. Manual transaction entries are saved on your device
+        when encrypted local storage is available.
+      </p>
       <h2>Delete in the application</h2>
       <p>
         Open Settings → Password and security → Delete Finora AI account. Enter your current

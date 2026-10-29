@@ -16,6 +16,7 @@ import { cachedOwner, openVault, rememberOwner, type DeviceVault } from '../stor
 import { canUseOffline, drainOutbox } from '../storage/outbox';
 import { drainSetup, readSetup, saveSetup } from '../storage/setup';
 import { retryDelay, shouldRetrySync } from '../storage/sync-retry';
+import { refreshDeviceLedger } from '../storage/ledger';
 import * as Crypto from 'expo-crypto';
 import { cancelLocalReminders, refreshLocalReminders } from '../notifications/reminders';
 
@@ -160,6 +161,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
           () => vaultRef.current === current && verified.current,
         );
         if (setupUser && vaultRef.current === current) setUser(setupUser);
+        try {
+          await refreshDeviceLedger(
+            current,
+            api,
+            () => vaultRef.current === current && verified.current,
+          );
+        } catch (failure) {
+          if (!(failure instanceof ClientError && failure.status === 404)) throw failure;
+        }
         const count = await drainOutbox(
           current,
           api,
@@ -167,7 +177,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
           scheduleRetry,
         );
         if (!retryTimer.current) retryAttempt.current = 0;
-        if ((count || setupUser) && vaultRef.current === current)
+        if (count && vaultRef.current === current)
+          await refreshDeviceLedger(
+            current,
+            api,
+            () => vaultRef.current === current && verified.current,
+          );
+        if (vaultRef.current === current)
           await queryClient.invalidateQueries({ queryKey: [current.ownerId] });
         if (count && user && vaultRef.current === current)
           void refreshLocalReminders(current, api, user).catch(() => undefined);

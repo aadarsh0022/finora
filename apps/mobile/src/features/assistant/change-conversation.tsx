@@ -10,13 +10,16 @@ import {
 import { AppButton, AppText, Card, Feedback, Field } from '../../components/ui';
 import { useApp } from '../../providers/app-provider';
 import { useTheme } from '../../theme';
+import { ChatConfirmActions } from './confirmation';
 import type { RegisterDraftReply } from './transaction-conversation';
 export function ChangeConversation({
   change: initial,
   register,
+  onOutcome,
 }: {
   change: AssistantChange;
   register: RegisterDraftReply;
+  onOutcome?: (text: string) => void;
 }) {
   const { api, user, refreshUser } = useApp();
   const client = useQueryClient();
@@ -95,6 +98,7 @@ export function ChangeConversation({
       });
       if (flight.current !== controller) return;
       setSaved(true);
+      onOutcome?.(`Saved: ${change.title}.`);
       void client.invalidateQueries({ queryKey: [user?.id] }).catch(() => undefined);
       if (change.input.operation === 'update_preferences')
         void refreshUser().catch(() => undefined);
@@ -117,7 +121,7 @@ export function ChangeConversation({
     );
   return (
     <Card style={{ gap: 10, padding: 14 }}>
-      <AppText style={{ fontFamily: 'DMSansBold', fontSize: 17 }}>{change.title}</AppText>
+      <AppText style={{ fontFamily: 'DMSansBold', fontSize: 14 }}>{change.title}</AppText>
       {question ? (
         <>
           <AppText>{question.label}</AppText>
@@ -181,21 +185,30 @@ export function ChangeConversation({
           <AppText tone="muted" style={{ fontSize: 12 }}>
             {change.impact}
           </AppText>
-          <AppButton
-            title="Confirm"
-            loading={busy}
+          <ChatConfirmActions
+            busy={busy}
             disabled={!change.token}
-            onPress={() => void confirm()}
+            destructive={change.input.operation.startsWith('delete_')}
+            onConfirm={() => void confirm()}
+            onCancel={() => {
+              setCancelled(true);
+              onOutcome?.('Cancelled.');
+            }}
           />
         </>
       )}
       {!!error && <Feedback error={error} />}
-      <AppButton
-        title="Cancel"
-        variant="secondary"
-        disabled={busy}
-        onPress={() => setCancelled(true)}
-      />
+      {question && (
+        <AppButton
+          title="Cancel"
+          variant="secondary"
+          disabled={busy}
+          onPress={() => {
+            setCancelled(true);
+            onOutcome?.('Cancelled.');
+          }}
+        />
+      )}
     </Card>
   );
 }

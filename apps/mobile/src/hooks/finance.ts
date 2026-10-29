@@ -7,7 +7,7 @@ import { type ZodType } from 'zod';
 import { useApp } from '../providers/app-provider';
 import { transactionInputSchema } from '@finora/contracts';
 import { useNetworkState } from 'expo-network';
-import { canUseOffline, enqueue } from '../storage/outbox';
+import { enqueue } from '../storage/outbox';
 import { readSetup } from '../storage/setup';
 import { refreshLocalReminders } from '../notifications/reminders';
 
@@ -35,18 +35,6 @@ export function useFinanceMutation<T>(
         vault.ownerId === user.id
       ) {
         const input = transactionInputSchema.parse(body);
-        if (network.isConnected !== false) {
-          try {
-            if (await readSetup(vault)) await syncPending();
-            return await api.request(path, schema, {
-              method,
-              body: input,
-              operationKey: operation.current.key,
-            });
-          } catch (error) {
-            if (!canUseOffline(error)) throw error;
-          }
-        }
         const queued = await enqueue(vault, operation.current.key, input);
         return schema.parse({
           ...input,

@@ -1,5 +1,7 @@
 import { z } from 'zod';
 import {
+  conversationSendSchema,
+  assistantServerPolicyVersion,
   legacyAssistantChatInputSchema,
   assistantChangeArgsSchema,
   assistantConfirmInputSchema,
@@ -17,6 +19,7 @@ import { assistantEnabled } from './provider';
 import { answerQuestion } from './chat';
 import { prepareChange, confirmChange } from './changes';
 import { getAssistantUsage, reserveAssistantMessage } from './usage';
+import { conversationRoute, openConversation } from './conversations';
 import { database } from '../../database/client';
 
 export async function assistantRoute(
@@ -24,11 +27,19 @@ export async function assistantRoute(
   requestId: string,
 ): Promise<Response | null> {
   const url = new URL(request.url);
-  const expanded = url.pathname.startsWith('/api/v1/assistant/v3/');
-  const path = url.pathname.replace('/assistant/v3/', '/assistant/').replace(/\/$/, '');
+  const serverHistory = url.pathname.startsWith('/api/v1/assistant/v4/');
+  const expanded = serverHistory || url.pathname.startsWith('/api/v1/assistant/v3/');
+  const path = url.pathname
+    .replace('/assistant/v4/', '/assistant/')
+    .replace('/assistant/v3/', '/assistant/')
+    .replace(/\/$/, '');
   if (!path.startsWith('/api/v1/assistant/')) return null;
   const context = await authenticate(request);
   z.object({}).strict().parse(Object.fromEntries(url.searchParams));
+  if (serverHistory) {
+    const response = await conversationRoute(request, context, requestId);
+    if (response) return response;
+  }
   if (
     path === '/api/v1/assistant/changes/prepare' ||
     path === '/api/v1/assistant/changes/confirm'
@@ -55,12 +66,17 @@ export async function assistantRoute(
         enabled: assistantEnabled(),
         remembersConsent: true,
         consentAccepted: expanded
-          ? context.user.assistantConsentPolicy === assistantPolicyVersion
+          ? context.user.assistantConsentPolicy ===
+            (serverHistory ? assistantServerPolicyVersion : assistantPolicyVersion)
           : !!context.user.assistantConsentPolicy,
         readOnly: !expanded,
         provider: 'OpenAI',
         model: 'gpt-6-luna',
-        policyVersion: expanded ? assistantPolicyVersion : '2026-10-23-v2',
+        policyVersion: serverHistory
+          ? assistantServerPolicyVersion
+          : expanded
+            ? assistantPolicyVersion
+            : '2026-10-23-v2',
       },
       requestId,
     );
@@ -70,6 +86,7 @@ export async function assistantRoute(
     const input = await readBody(
       request,
       z.union([
+        z.object({ policyVersion: z.literal(assistantServerPolicyVersion) }).strict(),
         assistantConsentInputSchema,
         z.object({ policyVersion: z.literal('2026-10-23-v2') }).strict(),
       ]),
@@ -84,17 +101,94 @@ export async function assistantRoute(
   }
   if (path === '/api/v1/assistant/chat') {
     if (request.method !== 'POST') throw new ApiError(405, 'METHOD_NOT_ALLOWED', 'Use POST.');
-    const input = await readBody(
-      request,
-      expanded
-        ? assistantChatInputSchema
-        : z.union([legacyAssistantChatInputSchema, assistantChatInputSchema]),
-    );
     if (!assistantEnabled())
       throw new ApiError(503, 'ASSISTANT_DISABLED', 'AI chat is not enabled yet.');
     await rateLimit(request, 'assistant-chat', context.user.id, 10);
-    await reserveAssistantMessage(context);
-    return success(await answerQuestion(context, input, request), requestId);
+    const conversation = serverHistory
+      ? await openConversation(context, await readBody(request, conversationSendSchema))
+      : undefined;
+    if (conversation && 'cached' in conversation) return success(conversation.cached, requestId);
+    const input =
+      conversation?.input ??
+      (await readBody(
+        request,
+        expanded
+          ? assistantChatInputSchema
+          : z.union([legacyAssistantChatInputSchema, assistantChatInputSchema]),
+      ));
+    try {
+      await reserveAssistantMessage(context);
+    } catch (failure) {
+      await conversation?.release?.();
+      throw failure;
+    }
+    if (!expanded || !request.headers.get('accept')?.includes('application/x-ndjson')) {
+      try {
+        const answer = await answerQuestion(context, input, request, undefined, serverHistory);
+        await conversation?.finish?.(answer);
+        return success(answer, requestId);
+      } finally {
+        await conversation?.release?.();
+      }
+    }
+    const controller = new AbortController();
+    const abort = () => controller.abort();
+    request.signal.addEventListener('abort', abort, { once: true });
+    const activeRequest = new Request(request.url, {
+      method: 'POST',
+      headers: request.headers,
+      signal: controller.signal,
+    });
+    let closed = false;
+    const stream = new ReadableStream<Uint8Array>({
+      async start(output) {
+        const emit = (event: unknown) => {
+          if (!closed && !controller.signal.aborted)
+            output.enqueue(new TextEncoder().encode(`${JSON.stringify(event)}\n`));
+        };
+        try {
+          const answer = await answerQuestion(
+            context,
+            input,
+            activeRequest,
+            (progress) => emit({ type: 'progress', progress }),
+            true,
+          );
+          await conversation?.finish?.(answer);
+          emit({ type: 'answer', answer });
+        } catch (error) {
+          emit({
+            type: 'error',
+            code: error instanceof ApiError ? error.code : 'ASSISTANT_UNAVAILABLE',
+            message:
+              error instanceof ApiError
+                ? error.message
+                : 'I couldn’t finish that reply. Please try again.',
+            status: error instanceof ApiError ? error.status : 503,
+          });
+        } finally {
+          await conversation?.release?.();
+          request.signal.removeEventListener('abort', abort);
+          if (!closed) {
+            closed = true;
+            output.close();
+          }
+        }
+      },
+      cancel() {
+        closed = true;
+        controller.abort();
+        request.signal.removeEventListener('abort', abort);
+      },
+    });
+    return new Response(stream, {
+      headers: {
+        'Content-Type': 'application/x-ndjson; charset=utf-8',
+        'Cache-Control': 'no-store',
+        'X-Content-Type-Options': 'nosniff',
+        'X-Request-Id': requestId,
+      },
+    });
   }
   if (path === '/api/v1/assistant/feedback') {
     if (request.method !== 'POST') throw new ApiError(405, 'METHOD_NOT_ALLOWED', 'Use POST.');

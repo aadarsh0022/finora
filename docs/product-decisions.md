@@ -114,3 +114,19 @@ Consulted 20 October 2026; exact installed versions are recorded in the lockfile
   v2 clients retain the original data flow. Authentication/account deletion, billing,
   external money movement and device-only controls retain dedicated flows. No Play
   upload or billing activation. See assistant-plan.md for limits and verification.
+
+- 29 October: remove Money Ahead and its dedicated mobile, API, contract and calculation code.
+  Home uses a neutral balance card. Insights uses readable summary figures and category rows.
+  Account name validation uses an inline prompt; Settings allows display-name editing through
+  an authenticated, strictly validated profile endpoint. No email or identity fields are editable.
+- 29 October: v4 chat sends only the new question, chat/message IDs and optional edit reference
+  from mobile. Conversation context is loaded by the server, scoped to the signed-in user.
+  The current implementation uses four prior exchanges plus the new question (nine messages,
+  below the maximum of ten). Old v3 clients retain their existing compatibility endpoint.
+  New disclosure covers persistent account chat history. Server replies do not persist executable
+  proposal tokens in history. Starting a chat is separate from deleting one.
+- 29 October: transaction creates persist locally before network delivery when encrypted SQLite
+  is available. The server transaction ID equals its validated idempotency key so a lost response
+  cannot double-count the local overlay. Acknowledged entries remain locally until a complete
+  server snapshot includes them. Other write types still use their existing online/queued paths.
+  No Android build or Play upload is part of this changeset.

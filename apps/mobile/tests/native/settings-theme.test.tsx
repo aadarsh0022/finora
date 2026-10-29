@@ -1,6 +1,11 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, fireEvent, render, renderHook, screen, waitFor } from '@testing-library/react-native';
-import { settingsUpdateSchema, userSchema, type Preferences } from '@finora/contracts';
+import {
+  profileUpdateSchema,
+  settingsUpdateSchema,
+  userSchema,
+  type Preferences,
+} from '@finora/contracts';
 import { Alert, useColorScheme } from 'react-native';
 import { router } from 'expo-router';
 import Settings from '../../app/settings';
@@ -41,6 +46,12 @@ beforeEach(() => {
 
 async function mount() {
   const transport: HttpTransport = async (_url, options) => {
+    if (new URL(_url).pathname.endsWith('/auth/profile')) {
+      const input = profileUpdateSchema.parse(JSON.parse(String(options?.body)));
+      writes.push(input);
+      currentUser = { ...currentUser, name: input.name };
+      return Response.json({ success: true, data: currentUser });
+    }
     if (options?.method === 'PATCH') {
       const input = settingsUpdateSchema.parse(JSON.parse(String(options.body)));
       writes.push(input);
@@ -157,4 +168,14 @@ test('closing preferences confirms unsaved edits and discarding never writes set
   await fireEvent.press(screen.getByRole('button', { name: 'Preferences' }));
   expect(screen.getByRole('radio', { name: 'Light' })).toBeChecked();
   expect(screen.getByRole('button', { name: 'Save preferences' })).toBeDisabled();
+});
+
+test('edits a display name from the profile card without changing email', async () => {
+  await mount();
+  await fireEvent.press(screen.getByRole('button', { name: 'Edit your name' }));
+  await fireEvent.changeText(screen.getByLabelText('Your name'), '  New display name  ');
+  await fireEvent.press(screen.getByRole('button', { name: 'Save name' }));
+  await waitFor(() => expect(currentUser.name).toBe('New display name'));
+  expect(currentUser.email).toBe(initialUser.email);
+  expect(writes).toEqual([{ name: 'New display name' }]);
 });

@@ -201,3 +201,14 @@ clarifications/retry, cached hydration, missing native date-range formatting,
 reduced-motion startup, lower Home navigation and account-isolated privacy consent.
 These component/export results do not certify a signed build or full offline-first
 behavior. Native clipboard/launcher/splash assets require an updated binary.
+
+### 29 October app and API refinement
+
+- Full `pnpm check`: 167 API/core/unit tests and 99 native workflow tests passed,
+  together with strict TypeScript, ESLint and formatting. This includes profile
+  ownership/validation, server-owned chat context/replay/isolation, real streamed
+  tool activity, lost-response transaction reconciliation and exact local ledger
+  projection. Device and hosted smoke checks remain separate from this test result.
+- Android release configuration: 0.3.0, version code 7. Bundle preparation does not
+  upload or submit anything to Google Play. Play privacy declarations require review
+  for the new account-based chat history before a later upload.
