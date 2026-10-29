@@ -130,3 +130,8 @@ Consulted 20 October 2026; exact installed versions are recorded in the lockfile
   cannot double-count the local overlay. Acknowledged entries remain locally until a complete
   server snapshot includes them. Other write types still use their existing online/queued paths.
   No Android build or Play upload is part of this changeset.
+
+- 29 October follow-up: align Expo 58 patch packages and React Native 0.88.1 with
+  Expo's published compatibility recommendations after the hosted CI check detected
+  newer required patches. Keep strict peer validation and the online Expo CI check
+  enabled; add the matching React Native Metro configuration peer explicitly.
