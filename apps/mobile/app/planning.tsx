@@ -15,7 +15,27 @@ export default function Planning() {
   );
   const [editing, setEditing] = useState(false);
   return (
-    <Screen includeTopInset={false}>
+    <Screen
+      includeTopInset={false}
+      title={
+        editing
+          ? undefined
+          : mode === 'goals'
+            ? 'Savings goals'
+            : mode === 'recurring'
+              ? 'Recurring payments'
+              : 'Budgets'
+      }
+      subtitle={
+        editing
+          ? undefined
+          : mode === 'goals'
+            ? 'Small steps toward something you want.'
+            : mode === 'recurring'
+              ? 'Your regular payments, in one place.'
+              : 'Give your spending a simple plan.'
+      }
+    >
       {!editing && (
         <View
           style={{

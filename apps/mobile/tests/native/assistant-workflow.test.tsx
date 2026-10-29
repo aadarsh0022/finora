@@ -1,7 +1,11 @@
 import * as SecureStore from 'expo-secure-store';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
-import { assistantPolicyVersion, userSchema, type AssistantToolResult } from '@finora/contracts';
+import {
+  assistantServerPolicyVersion as assistantPolicyVersion,
+  userSchema,
+  type AssistantToolResult,
+} from '@finora/contracts';
 import { answerText } from '../../src/features/assistant/result';
 import { formatMoney } from '@finora/finance-core';
 import { useNetworkState } from 'expo-network';
@@ -10,6 +14,7 @@ import AssistantScreen from '../../src/features/assistant/chat';
 import { ApiClient, type HttpTransport } from '../../src/api/client';
 import { useApp } from '../../src/providers/app-provider';
 
+jest.mock('expo-crypto', () => ({ randomUUID: () => '99999999-9999-4999-8999-999999999999' }));
 jest.mock('expo-secure-store', () => ({
   getItemAsync: jest.fn(async () => null),
   setItemAsync: jest.fn(async () => undefined),
@@ -71,11 +76,11 @@ async function mount(
       const path = new URL(url).pathname.replace('/api/v1/', '');
       if (init?.body)
         requests.push({ path, body: JSON.parse(String(init.body)) as Record<string, unknown> });
-      if (path === 'assistant/v3/chat' && options.chat) return options.chat(url, init);
+      if (path === 'assistant/v4/chat' && options.chat) return options.chat(url, init);
       return Response.json({
         success: true,
         data:
-          path === 'assistant/v3/capabilities'
+          path === 'assistant/v4/capabilities'
             ? {
                 enabled: options.enabled ?? true,
                 provider: 'OpenAI',
@@ -149,11 +154,12 @@ test('consents explicitly, sends only bounded question context and renders exact
   expect(screen.queryByText('View accounts')).toBeNull();
   expect(requests).toEqual([
     {
-      path: 'assistant/v3/chat',
+      path: 'assistant/v4/chat',
       body: {
         question: 'What is my current balance?',
-        previousQuestions: [],
-        previousReplies: [],
+        chatId: expect.any(String),
+        messageId: expect.any(String),
+        editOf: null,
         acceptedPolicyVersion: assistantPolicyVersion,
       },
     },
@@ -178,7 +184,8 @@ test('preserves a failed question for manual retry and never queues or retries i
   chat.mockResolvedValue(Response.json({ success: true, data: answer }));
   await fireEvent.press(screen.getByRole('button', { name: 'Send question' }));
   await screen.findByText(balanceReply);
-  expect(requests[1]?.body.previousQuestions).toEqual([]);
+  expect(requests[1]?.body).not.toHaveProperty('previousQuestions');
+  expect(requests[1]?.body).not.toHaveProperty('previousReplies');
 });
 
 test('clearing a pending request discards its late answer', async () => {
@@ -230,7 +237,7 @@ test('reports an answer inside the app without attaching conversation text', asy
   await allow();
   await ask();
   await screen.findByText(balanceReply);
-  await fireEvent.press(screen.getByRole('button', { name: 'Report this answer' }));
+  await fireEvent(screen.getByTestId(`assistant-reply-${answer.answerId}`), 'longPress');
   await fireEvent.press(screen.getByRole('radio', { name: 'Unsafe or inappropriate' }));
   await fireEvent.press(screen.getByRole('button', { name: 'Send report' }));
   await screen.findByText('Report received. Thank you.');

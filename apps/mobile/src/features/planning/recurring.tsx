@@ -242,7 +242,7 @@ function RuleCard({ rule, edit }: { rule: RecurringRule; edit: () => void }) {
       </View>
       <AppText
         tone={rule.type === 'EXPENSE' ? 'danger' : 'accent'}
-        style={{ fontFamily: 'DMSansBold', fontSize: 20 }}
+        style={{ fontFamily: 'DMSansBold', fontSize: 25, lineHeight: 34 }}
       >
         {rule.amountMinor ? money(rule.amountMinor) : 'Variable amount'} ·{' '}
         {rule.frequency.toLowerCase()}

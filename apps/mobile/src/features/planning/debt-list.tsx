@@ -73,10 +73,7 @@ export function DebtList({ receivables = false }: { receivables?: boolean }) {
           <AppText style={{ fontFamily: 'DMSansBold', fontSize: 30, lineHeight: 38 }}>
             {money(total('LENT'))}
           </AppText>
-          <AppText tone="muted">
-            Expected money is not available cash. Archived outstanding claims stay in this total
-            until received or cancelled.
-          </AppText>
+          <AppText tone="muted">Track what is still owed to you, including archived items.</AppText>
         </Card>
       ) : (
         <View style={{ flexDirection: 'row', gap: 12 }}>
@@ -87,7 +84,9 @@ export function DebtList({ receivables = false }: { receivables?: boolean }) {
               </AppText>
               <AppText
                 tone={kind === 'BORROWED' ? 'danger' : 'accent'}
-                style={{ fontSize: 22, fontFamily: 'DMSansBold' }}
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                style={{ fontSize: 26, lineHeight: 34, fontFamily: 'DMSansBold' }}
               >
                 {money(total(kind))}
               </AppText>

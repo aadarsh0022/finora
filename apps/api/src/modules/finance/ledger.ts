@@ -1,4 +1,3 @@
-import { randomUUID } from 'node:crypto';
 import {
   Decimal128,
   type ClientSession,
@@ -81,7 +80,7 @@ export async function createTransaction(
       ...input,
       date: new Date(input.date).toISOString(),
       currency: context.user.preferences.baseCurrency,
-      id: randomUUID(),
+      id: transactionSchema.shape.id.parse(request.headers.get('Idempotency-Key')),
       userId: context.user.id,
       version: 1,
       createdAt: now,
@@ -236,6 +235,13 @@ export async function ledgerSnapshot(context: AuthContext) {
   try {
     return await session.withTransaction(
       async () => {
+        const owner = await db
+          .collection('users')
+          .findOne(
+            { id: context.user.id, authVersion: context.user.authVersion },
+            { session, projection: { financeVersion: 1 } },
+          );
+        if (!owner) throw new ApiError(401, 'UNAUTHORIZED', 'Please sign in again.');
         const accountRecords = await db
           .collection('accounts')
           .find({ userId: context.user.id }, { session })
@@ -273,7 +279,20 @@ export async function ledgerSnapshot(context: AuthContext) {
             ),
           };
         });
-        return { accounts, transactions };
+        const categoryRecords = await db
+          .collection('categories')
+          .find({ userId: context.user.id }, { session })
+          .limit(1001)
+          .toArray();
+        if (categoryRecords.length > 1000)
+          throw new ApiError(422, 'REPORT_LIMIT', 'Category limit exceeded.');
+        return {
+          accounts,
+          transactions,
+          categories: categoryRecords.map((record) => categorySchema.parse(record)),
+          revision: Number(owner.financeVersion ?? 0),
+          complete: true as const,
+        };
       },
       { readConcern: { level: 'snapshot' } },
     );

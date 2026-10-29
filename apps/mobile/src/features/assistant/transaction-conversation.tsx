@@ -25,10 +25,12 @@ export function TransactionConversation({
   draft: source,
   answerId,
   register,
+  onOutcome,
 }: {
   draft: AssistantTransactionDraft;
   answerId: string;
   register: RegisterDraftReply;
+  onOutcome?: (text: string) => void;
 }) {
   const theme = useTheme();
   const { user } = useApp();
@@ -183,7 +185,10 @@ export function TransactionConversation({
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Cancel transaction draft"
-            onPress={() => setCancelled(true)}
+            onPress={() => {
+              setCancelled(true);
+              onOutcome?.('Transaction cancelled.');
+            }}
             style={{ minHeight: 44, justifyContent: 'center', alignSelf: 'flex-start' }}
           >
             <AppText tone="muted" style={{ fontSize: 12 }}>
@@ -192,7 +197,7 @@ export function TransactionConversation({
           </Pressable>
         </View>
       ) : (
-        <TransactionDraftCard draft={draft} answerId={answerId} />
+        <TransactionDraftCard draft={draft} answerId={answerId} onOutcome={onOutcome} />
       )}
     </View>
   );

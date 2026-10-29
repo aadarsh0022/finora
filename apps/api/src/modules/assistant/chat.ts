@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import type { assistantProgressSchema } from '@finora/contracts';
 import {
   assistantChatInputSchema,
   legacyAssistantChatInputSchema,
@@ -13,6 +14,7 @@ import { runReadOnlyTool } from './tools';
 import { writeNarrative } from './narrative';
 import { prepareChange } from './changes';
 import { prepareTransaction } from './transaction-draft';
+import { answerAgent } from './agent';
 
 const followUps = {
   date_range:
@@ -20,9 +22,8 @@ const followUps = {
   account_selection:
     'I can show your total balance here. For an individual account, open Accounts and choose it there.',
   unsupported:
-    'I can help with recorded accounts, transactions, budgets, goals, debts, recurring items and financial planning. Tell me what you want to explore or change. Real bank payments, credentials and account security use their dedicated flows.',
-  one_question:
-    'Please ask about one thing at a time, such as your balance or this month’s spending.',
+    'I can log expenses and income, fix entries, and answer questions about your records. What would you like to log or check?',
+  one_question: 'What would you like to check or record?',
 };
 const answerMessages = {
   get_balance: 'Here is your recorded balance.',
@@ -35,22 +36,38 @@ export async function answerQuestion(
   context: AuthContext,
   value: z.infer<typeof assistantChatInputSchema> | z.infer<typeof legacyAssistantChatInputSchema>,
   request: Request,
+  progress: (value: z.infer<typeof assistantProgressSchema>) => void = () => undefined,
+  agent = false,
 ) {
   const input = z.union([assistantChatInputSchema, legacyAssistantChatInputSchema]).parse(value);
   const expanded = input.acceptedPolicyVersion === assistantPolicyVersion;
+  if (agent && expanded)
+    return answerAgent(
+      context,
+      { ...input, acceptedPolicyVersion: assistantPolicyVersion },
+      request,
+      progress,
+    );
+  progress({ id: 'thinking', state: 'thinking', label: 'Thinking…' });
   const selection = await selectAssistantTool(
     input.question,
     input.previousQuestions,
     context.user.preferences,
     request.signal,
     { userId: context.user.id, authVersion: context.user.authVersion, expanded },
+    input.previousReplies,
   );
   const answerId = randomUUID();
+  if (selection.name === 'finish_answer' || selection.name === 'prepare_multiple')
+    throw new ApiError(503, 'ASSISTANT_UNAVAILABLE', 'Please try that again.');
   if (selection.name === 'ask_follow_up')
     return assistantChatResponseSchema.parse({
       answerId,
       kind: selection.arguments.reason === 'unsupported' ? 'unsupported' : 'clarification',
-      message: followUps[selection.arguments.reason],
+      message:
+        expanded && selection.arguments.message
+          ? selection.arguments.message.replace(/[—–]/g, ',')
+          : followUps[selection.arguments.reason],
       result: null,
     });
   // Refresh authentication before every read or prepared change, including cache hits.
@@ -76,18 +93,40 @@ export async function answerQuestion(
     return assistantChatResponseSchema.parse({
       answerId,
       kind: 'draft',
-      message:
-        'Here is a draft. Review every field and save it in the transaction form. Nothing has been recorded yet.',
+      message: 'Check the details below, then confirm to save.',
       result: null,
       draft: await prepareTransaction(current, selection.arguments),
     });
-  const result = await runReadOnlyTool(current, selection);
+  const calls = selection.name === 'read_multiple' ? selection.arguments.calls : [selection];
+  const labels = {
+    get_balance: 'accounts',
+    get_cashflow: 'income and spending',
+    get_category_spending: 'spending categories',
+    get_budget_status: 'budgets',
+    get_debt_summary: 'debts',
+    plan_finances: 'plan',
+    read_records: 'records',
+  };
+  const results = await Promise.all(
+    calls.map(async (call, index) => {
+      const label =
+        call.name === 'read_records'
+          ? call.arguments.feature.replaceAll('_', ' ')
+          : labels[call.name];
+      progress({ id: `tool-${index}`, state: 'checking', label });
+      const result = await runReadOnlyTool(current, call);
+      progress({ id: `tool-${index}`, state: 'checked', label });
+      return result;
+    }),
+  );
+  const result = results[0]!;
   const narrative = expanded
     ? await writeNarrative(
         current,
         { ...input, acceptedPolicyVersion: assistantPolicyVersion },
         result,
         request.signal,
+        results.slice(1),
       )
     : null;
   await authenticate(request);
@@ -97,11 +136,12 @@ export async function answerQuestion(
     conversational: !!narrative,
     message:
       narrative ??
-      (selection.name === 'read_records' || selection.name === 'plan_finances'
-        ? result.name === selection.name
+      (results.length > 1
+        ? 'Here is what I found in your records.'
+        : result.name === 'read_records' || result.name === 'plan_finances'
           ? result.data.summary
-          : 'Here are your records.'
-        : answerMessages[selection.name]),
+          : answerMessages[result.name]),
     result,
+    additionalResults: results.slice(1),
   });
 }

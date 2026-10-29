@@ -81,10 +81,9 @@ function Navigation() {
           <Stack.Screen name="security" options={{ title: 'Security' }} />
           <Stack.Screen name="planning" options={{ title: 'Plan ahead' }} />
           <Stack.Screen name="debts" options={{ title: 'Debts' }} />
-          <Stack.Screen name="sync" options={{ title: 'Sync status' }} />
+          <Stack.Screen name="sync" options={{ title: 'Review entries' }} />
           <Stack.Screen name="favourites" options={{ title: 'Quick entry' }} />
           <Stack.Screen name="reminders" options={{ title: 'Reminders' }} />
-          <Stack.Screen name="money-ahead" options={{ title: 'Money Ahead' }} />
           <Stack.Screen name="weekly-review" options={{ title: 'Weekly review' }} />
           <Stack.Screen name="receivables" options={{ title: 'Money coming back' }} />
           <Stack.Screen name="debt" options={{ title: 'Debt' }} />

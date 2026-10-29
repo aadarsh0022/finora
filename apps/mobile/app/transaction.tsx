@@ -1,4 +1,4 @@
-import { Disclosure, ImpactNotice } from '../src/components/design';
+import { Disclosure } from '../src/components/design';
 import { useTheme } from '../src/theme';
 import {
   transactionInputSchema,
@@ -346,14 +346,24 @@ function TransactionForm({
     }
   }
   const hasAccounts = accounts.some((item) => !item.archived);
-  const accountName =
-    eligibleAccounts.find((a) => a.id === form.accountId)?.name ?? 'the selected account';
   return (
     <Screen
       title={
-        duplicate ? 'Duplicate transaction' : original ? 'Edit transaction' : 'Add transaction'
+        duplicate
+          ? 'Duplicate entry'
+          : original
+            ? 'Edit entry'
+            : form.type === 'EXPENSE'
+              ? 'Add expense'
+              : form.type === 'INCOME'
+                ? 'Add income'
+                : 'Account transfer'
       }
-      subtitle={`Amounts in ${currency}`}
+      subtitle={
+        form.type === 'TRANSFER'
+          ? 'Between your own accounts'
+          : 'Record it now. Keep your day moving.'
+      }
       includeTopInset={false}
       bottomAction={
         <AppButton
@@ -374,11 +384,6 @@ function TransactionForm({
         />
       }
     >
-      {assistantDraft && (
-        <ImpactNotice title="Draft from Finora AI">
-          Review every field before saving. Nothing has been recorded yet.
-        </ImpactNotice>
-      )}
       {!original && hasFavourites && (
         <AppButton
           title="Choose a favourite"
@@ -446,7 +451,7 @@ function TransactionForm({
       />
       <SelectField
         disabled={save.isPending || remove.isPending}
-        label={form.type === 'TRANSFER' ? 'From account' : 'Account'}
+        label={form.type === 'INCOME' ? 'Received in' : 'Paid from'}
         error={fieldErrors.accountId}
         value={form.accountId}
         onChange={(value) => set('accountId', value)}
@@ -495,14 +500,15 @@ function TransactionForm({
         value={form.date}
         onChange={(value) => set('date', value)}
       />
-      <Disclosure title="More details" initiallyOpen={detailsOpen}>
-        <Field
-          editable={!save.isPending && !remove.isPending}
-          label="Merchant (optional)"
-          value={form.merchant}
-          onChangeText={(value) => set('merchant', value)}
-          maxLength={120}
-        />
+      <Field
+        editable={!save.isPending && !remove.isPending}
+        label="Description (optional)"
+        placeholder="e.g. Lunch, groceries or salary"
+        value={form.merchant}
+        onChangeText={(value) => set('merchant', value)}
+        maxLength={120}
+      />
+      <Disclosure title="Add a note or tags" initiallyOpen={detailsOpen}>
         <Field
           editable={!save.isPending && !remove.isPending}
           label="Note (optional)"
@@ -519,19 +525,7 @@ function TransactionForm({
           maxLength={310}
         />
       </Disclosure>
-      <ImpactNotice
-        title={
-          original
-            ? 'Updates this posted transaction'
-            : form.type === 'TRANSFER'
-              ? 'Moves money between your accounts'
-              : `${form.type === 'EXPENSE' ? 'Subtracts from' : 'Adds to'} ${accountName}`
-        }
-      >
-        {original
-          ? 'The previous entry is replaced. Review the amount, date and accounts before saving.'
-          : 'The posted balance updates after a successful sync. Queued entries appear separately.'}
-      </ImpactNotice>
+
       {!Object.values(fieldErrors).some(Boolean) && (error || save.error || remove.error) && (
         <Feedback error={error ? new Error(error) : (save.error ?? remove.error)} />
       )}

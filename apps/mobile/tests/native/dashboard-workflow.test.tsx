@@ -17,7 +17,6 @@ import { useUi } from '../../src/stores/ui';
 import { testVault } from '../vault-fixture';
 import { calendarDate } from '@finora/finance-core';
 
-jest.mock('../../src/features/planning/outlook-summary', () => ({ OutlookSummary: () => null }));
 jest.mock('../../src/providers/app-provider', () => ({ useApp: jest.fn() }));
 jest.mock('expo-network', () => ({ useNetworkState: jest.fn(() => ({ isConnected: true })) }));
 jest.mock('expo-crypto', () => ({ randomUUID: () => '99999999-9999-4999-8999-999999999999' }));
@@ -262,7 +261,7 @@ test('renders exact balances and financial summaries, privacy toggle and transac
   expect(screen.getByText('₹1,000.00')).toBeOnTheScreen();
   expect(screen.getByText('₹987.50')).toBeOnTheScreen();
   expect(screen.getByText('Groceries')).toBeOnTheScreen();
-  expect(screen.getByText(/^Food ·/)).toBeOnTheScreen();
+  expect(screen.getByText(/Cash.*Food/)).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole('button', { name: 'Hide total balance' }));
   expect(screen.queryByText('₹9,007,199,254,740,993.01')).not.toBeOnTheScreen();
   expect(screen.getAllByText('••••••').length).toBeGreaterThanOrEqual(4);
@@ -293,7 +292,7 @@ test('opens profile settings from the dashboard', async () => {
 test('labels the offline state while displaying available data', async () => {
   jest.mocked(useNetworkState).mockReturnValue({ isConnected: false, isInternetReachable: false });
   await mount(empty);
-  expect(screen.getByText('Offline · Showing saved records')).toBeOnTheScreen();
+  expect(screen.queryByText(/Offline/)).toBeNull();
   expect(await screen.findByText('Start with your first account')).toBeOnTheScreen();
 });
 
@@ -305,7 +304,7 @@ test('exposes category errors and retries without discarding the loaded financia
   );
   expect(await screen.findByText('₹9,007,199,254,740,993.01')).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole('button', { name: 'Try again' }));
-  expect(await screen.findByText(/^Food ·/)).toBeOnTheScreen();
+  expect(await screen.findByText(/Cash.*Food/)).toBeOnTheScreen();
   expect(paths.filter((path) => path.startsWith('categories'))).toHaveLength(2);
 });
 

@@ -131,3 +131,12 @@ test('background refresh cannot lend a newer version to an older account draft',
   await fireEvent.press(screen.getByRole('button', { name: 'Close Review account' }));
   expect(screen.getByLabelText('Account name')).toHaveDisplayValue('My draft');
 });
+
+test('asks for an account name in plain language before any request', async () => {
+  const { writes } = await mount();
+  await fireEvent.press(screen.getByRole('button', { name: 'Review account' }));
+  expect(await screen.findByText('Enter an account name')).toBeOnTheScreen();
+  expect(writes).toHaveLength(0);
+  await fireEvent.changeText(screen.getByLabelText('Account name'), 'Everyday');
+  expect(screen.queryByText('Enter an account name')).toBeNull();
+});

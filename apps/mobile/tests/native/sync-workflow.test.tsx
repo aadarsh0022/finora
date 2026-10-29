@@ -75,8 +75,10 @@ async function mount(offline = false, unreadable = false) {
 
 test('offline sync is disabled and a conflict is shown as needing review, not posted money', async () => {
   const { syncPending } = await mount(true);
-  await screen.findByText('0 pending · 1 need review');
-  expect(screen.getByRole('button', { name: 'Sync now' })).toBeDisabled();
+  await screen.findByText(
+    'Check that the account and category are still available, then try again.',
+  );
+  expect(screen.queryByRole('button', { name: 'Sync now' })).toBeNull();
   expect(screen.getByRole('button', { name: 'Retry this entry' })).toBeDisabled();
   expect(screen.queryByRole('button', { name: 'View pending sync' })).toBeNull();
   expect(syncPending).not.toHaveBeenCalled();
@@ -94,5 +96,5 @@ test('an unreadable pending list is never presented as an empty, synced queue', 
   await mount(false, true);
   await screen.findByText('Could not read pending entries.');
   expect(screen.queryByText('No pending transactions')).toBeNull();
-  expect(screen.getByRole('button', { name: 'Sync now' })).toBeDisabled();
+  expect(screen.queryByRole('button', { name: 'Sync now' })).toBeNull();
 });

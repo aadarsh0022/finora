@@ -1,13 +1,17 @@
 import * as SecureStore from 'expo-secure-store';
+import * as Crypto from 'expo-crypto';
 import {
-  assistantCapabilitiesSchema,
+  assistantServerCapabilitiesSchema as assistantCapabilitiesSchema,
   assistantChatResponseSchema,
-  assistantPolicyVersion,
-  type AssistantChatResponse,
+  conversationListSchema,
+  conversationSchema,
+  assistantServerPolicyVersion as assistantPolicyVersion,
 } from '@finora/contracts';
 import { useQuery } from '@tanstack/react-query';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
+  Animated,
+  AccessibilityInfo,
   KeyboardAvoidingView,
   Linking,
   Platform,
@@ -22,19 +26,23 @@ import { useNetworkState } from 'expo-network';
 import { z } from 'zod';
 import { AppButton, AppText, Card, Choice, Feedback } from '../../components/ui';
 import { Icon } from '../../components/design';
-import { ChatThinking, UserBubble } from './chrome';
+import { ChatThinking, UserBubble, ChatText, ToolActivity } from './chrome';
+import type { assistantProgressSchema } from '@finora/contracts';
+import { assistantStreamEventSchema } from '@finora/contracts';
+import { ClientError } from '../../api/client';
 import { FlowSheet } from '../../components/flow';
 import { AssistantResult, answerText } from './result';
 import { ChangeConversation } from './change-conversation';
-import { AnswerActions } from './answer-actions';
 import { TransactionConversation, type DraftReply } from './transaction-conversation';
 import { useApp } from '../../providers/app-provider';
 import { publicPageUrl } from '../../public-site';
 import { useTheme } from '../../theme';
 import { FinoraMark } from '../../components/brand';
-import { queuedTransactionSchema } from '../../storage/outbox';
+import { savedChatSchema, chatSnapshot, type SavedChat, type ChatTurn } from './history';
+import { HistoryDrawer } from './history-drawer';
 
-type Turn = { question: string; answer: AssistantChatResponse };
+type Progress = z.infer<typeof assistantProgressSchema>;
+type Turn = ChatTurn;
 export default function AssistantScreen() {
   const { user } = useApp();
   return <AssistantSession key={user?.id ?? 'signed-out'} />;
@@ -66,14 +74,126 @@ function AssistantSession() {
     };
   }, [user?.id]);
   const [draft, setDraft] = useState('');
+  const [hintIndex, setHintIndex] = useState(0);
+  const hintOpacity = useRef(new Animated.Value(1)).current;
+  const hints = [
+    'Log an expense…',
+    'Ask about this month…',
+    'Find a transaction…',
+    'Plan your next goal…',
+  ];
+  useEffect(() => {
+    let active = true;
+    let timer: ReturnType<typeof setInterval> | undefined;
+    void AccessibilityInfo.isReduceMotionEnabled()
+      .then((reduced) => {
+        if (!active || reduced) return;
+        timer = setInterval(() => {
+          Animated.timing(hintOpacity, {
+            toValue: 0,
+            duration: 180,
+            useNativeDriver: true,
+            isInteraction: false,
+          }).start(({ finished }) => {
+            if (!finished || !active) return;
+            setHintIndex((value) => (value + 1) % 4);
+            Animated.timing(hintOpacity, {
+              toValue: 1,
+              duration: 240,
+              useNativeDriver: true,
+              isInteraction: false,
+            }).start();
+          });
+        }, 3600);
+      })
+      .catch(() => undefined);
+    return () => {
+      active = false;
+      if (timer) clearInterval(timer);
+      hintOpacity.stopAnimation();
+    };
+  }, [hintOpacity]);
   const [turns, setTurns] = useState<Turn[]>([]);
+  const [chatId, setChatId] = useState(() => Crypto.randomUUID());
+  const [chatTitle, setChatTitle] = useState('');
+  const [history, setHistory] = useState<SavedChat[]>([]);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [editingIndex, setEditingIndex] = useState<number>();
+  useEffect(() => {
+    if (!historyOpen || offline) return;
+    let active = true;
+    void api
+      .request('assistant/v4/chats', conversationListSchema)
+      .then((items) => {
+        if (active)
+          setHistory((cached) =>
+            items.map((item) => ({
+              id: item.id,
+              title: item.title,
+              turns: cached.find((chat) => chat.id === item.id)?.turns ?? [],
+            })),
+          );
+      })
+      .catch(() => undefined);
+    return () => {
+      active = false;
+    };
+  }, [historyOpen, api, offline]);
+
+  useEffect(() => {
+    let active = true;
+    if (vault && vault.ownerId === user?.id)
+      void vault
+        .list('chat:', savedChatSchema)
+        .then((rows) => {
+          if (active)
+            setHistory((current) =>
+              [
+                ...current,
+                ...rows
+                  .sort((a, b) => b.updated - a.updated)
+                  .map((row) => row.value)
+                  .filter((chat) => !current.some((entry) => entry.id === chat.id)),
+              ].slice(0, 30),
+            );
+        })
+        .catch(() => undefined);
+    return () => {
+      active = false;
+    };
+  }, [vault, user?.id]);
+  useEffect(() => {
+    if (!turns.length) return;
+    const snapshot = { ...chatSnapshot(chatId, turns), ...(chatTitle ? { title: chatTitle } : {}) };
+    setHistory((current) =>
+      [snapshot, ...current.filter((chat) => chat.id !== chatId)].slice(0, 30),
+    );
+    if (vault && vault.ownerId === user?.id)
+      void vault
+        .write(`chat:${chatId}`, snapshot)
+        .then(async () => {
+          const rows = await vault.list('chat:', savedChatSchema);
+          for (const row of rows.sort((a, b) => b.updated - a.updated).slice(30))
+            await vault.remove(row.key);
+        })
+        .catch(() => undefined);
+  }, [turns, chatId, chatTitle, vault, user?.id]);
+  function outcome(id: string, text: string) {
+    setTurns((current) =>
+      current.map((turn) =>
+        turn.answer.answerId === id
+          ? { ...turn, outcome: [turn.outcome, text].filter(Boolean).join(' ').slice(-1000) }
+          : turn,
+      ),
+    );
+  }
   const [busy, setBusy] = useState(false);
   const [pendingQuestion, setPendingQuestion] = useState('');
+  const [progress, setProgress] = useState<Progress[]>([]);
   const [error, setError] = useState<unknown>();
   const [report, setReport] = useState<string>();
   const [reason, setReason] = useState('incorrect');
   const [reporting, setReporting] = useState(false);
-  const [reported, setReported] = useState<string[]>([]);
   const [reportError, setReportError] = useState<unknown>();
   const [notice, setNotice] = useState('');
   const flight = useRef<AbortController | null>(null);
@@ -99,7 +219,7 @@ function AssistantSession() {
     gcTime: 0,
     retry: false,
     queryFn: ({ signal }) =>
-      api.request('assistant/v3/capabilities', assistantCapabilitiesSchema, { signal }),
+      api.request('assistant/v4/capabilities', assistantCapabilitiesSchema, { signal }),
   });
   useEffect(() => {
     if (consentReady && capabilities.data?.consentAccepted) setConsent(true);
@@ -115,7 +235,7 @@ function AssistantSession() {
       return;
     consentRecorded.current = true;
     void api
-      .request('assistant/v3/consent', z.object({ message: z.string() }), {
+      .request('assistant/v4/consent', z.object({ message: z.string() }), {
         method: 'POST',
         body: { policyVersion: assistantPolicyVersion },
       })
@@ -135,7 +255,7 @@ function AssistantSession() {
     setError(undefined);
     try {
       if (capabilities.data?.remembersConsent)
-        await api.request('assistant/v3/consent', z.object({ message: z.string() }), {
+        await api.request('assistant/v4/consent', z.object({ message: z.string() }), {
           method: 'POST',
           body: { policyVersion: assistantPolicyVersion },
         });
@@ -160,6 +280,9 @@ function AssistantSession() {
     [],
   );
   function clear() {
+    setChatId(Crypto.randomUUID());
+    setChatTitle('');
+    setEditingIndex(undefined);
     transactionReply.current = null;
     setAwaitingTransaction(false);
     flight.current?.abort();
@@ -170,7 +293,6 @@ function AssistantSession() {
     setDraft('');
     setError(undefined);
     setNotice('');
-    setReported([]);
   }
   async function send(question = draft.trim()) {
     if (
@@ -191,32 +313,49 @@ function AssistantSession() {
     flight.current = controller;
     setBusy(true);
     setPendingQuestion(question);
+    setProgress([]);
     setDraft('');
     followLatest.current = true;
     setError(undefined);
     setNotice('');
     try {
-      if (vault) {
-        await syncPending?.();
-        const recent = await vault.list('pending:', queuedTransactionSchema);
-        if (recent.length)
-          throw new Error(
-            'Your latest entries are saved on this device. Connect again before asking AI about them.',
-          );
-        if (flight.current !== controller) return;
-      }
-      const answer = await api.request('assistant/v3/chat', assistantChatResponseSchema, {
-        method: 'POST',
-        signal: controller.signal,
-        body: {
-          question,
-          previousQuestions: turns.slice(-3).map((t) => t.question),
-          previousReplies: turns.slice(-3).map((t) => t.answer.message.slice(0, 1000)),
-          acceptedPolicyVersion: assistantPolicyVersion,
+      if (vault) void syncPending?.().catch(() => undefined);
+      let latestSteps: Progress[] = [];
+      const contextTurns = editingIndex === undefined ? turns : turns.slice(0, editingIndex);
+      const answer = await api.stream(
+        'assistant/v4/chat',
+        assistantChatResponseSchema,
+        assistantStreamEventSchema,
+        (event) => {
+          if (flight.current !== controller) return;
+          if (event.type === 'error')
+            throw new ClientError(event.code, event.message, event.status);
+          if (event.type === 'answer') return event.answer;
+          latestSteps = [
+            ...latestSteps.filter((step) => step.id !== event.progress.id),
+            event.progress,
+          ];
+          setProgress(latestSteps);
         },
-      });
+        {
+          method: 'POST',
+          signal: controller.signal,
+          body: {
+            question,
+            chatId,
+            messageId: Crypto.randomUUID(),
+            editOf:
+              editingIndex === undefined ? null : (turns[editingIndex]?.answer.answerId ?? null),
+            acceptedPolicyVersion: assistantPolicyVersion,
+          },
+        },
+      );
       if (flight.current !== controller) return;
-      setTurns((current) => [...current.slice(-9), { question, answer }]);
+      setTurns(() => [
+        ...contextTurns.slice(-39),
+        { question, answer, steps: latestSteps.filter((step) => step.state === 'checked') },
+      ]);
+      setEditingIndex(undefined);
       setDraft('');
     } catch (failure) {
       if (flight.current === controller) {
@@ -253,7 +392,6 @@ function AssistantSession() {
         body: { answerId, reason },
       });
       if (reportFlight.current !== controller) return;
-      setReported((current) => [...current, answerId]);
       setReport(undefined);
       setNotice('Report received. Thank you.');
     } catch (failure) {
@@ -270,7 +408,7 @@ function AssistantSession() {
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={insets.top}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? insets.top : 0}
       >
         <View
           style={{
@@ -281,34 +419,30 @@ function AssistantSession() {
             gap: 12,
           }}
         >
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Chat history"
+            onPress={() => setHistoryOpen(true)}
+            style={{ width: 36, height: 42, alignItems: 'center', justifyContent: 'center' }}
+          >
+            <Icon name="activity" size={21} />
+          </Pressable>
           <View style={{ flex: 1, gap: 2 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
               <AppText
                 accessibilityRole="header"
                 style={{
-                  fontSize: 30,
-                  lineHeight: 38,
+                  fontSize: 18,
+                  lineHeight: 25,
                   fontFamily: 'DMSansBold',
                   letterSpacing: -0.8,
                 }}
               >
                 Finora AI
               </AppText>
-              <View
-                style={{
-                  backgroundColor: theme.accentSoft,
-                  borderRadius: 8,
-                  paddingHorizontal: 8,
-                  paddingVertical: 3,
-                }}
-              >
-                <AppText tone="accent" style={{ fontSize: 12 }}>
-                  Beta
-                </AppText>
-              </View>
             </View>
             <AppText tone="muted" style={{ fontSize: 14 }}>
-              Your personal money manager
+              Your money, made clear.
             </AppText>
           </View>
           {(turns.length > 0 || busy) && (
@@ -380,23 +514,12 @@ function AssistantSession() {
                 Understand your money. Review every change.
               </AppText>
               <AppText>
-                Ask about your money, explore a plan or prepare changes across accounts, budgets,
-                goals, debts and recurring items. Every saved change needs your confirmation.
+                Ask questions, plan your spending or log an entry. You confirm every change.
               </AppText>
               <AppText tone="muted">
-                To understand your request, OpenAI receives your question, up to three earlier
-                questions and replies in this chat, your currency and timezone, and relevant
-                financial summaries. Individual merchants, notes, credentials and record IDs are
-                excluded from tool summaries.
-              </AppText>
-              <AppText tone="muted">
-                Do not type passwords or bank credentials. Your questions may contain financial
-                information if you include it. OpenAI may retain abuse-monitoring data for up to 30
-                days; response storage is disabled.
-              </AppText>
-              <AppText tone="muted">
-                This chat stays in app memory and is not saved in Finora AI’s database. Clear chat
-                removes it from this screen. Answers use recorded data available at the time shown.
+                Chats are saved to your account. OpenAI receives your latest 10 messages and
+                relevant financial summaries to reply. Avoid sharing passwords. See our privacy
+                policy for data handling.
               </AppText>
               <AppButton
                 title="Read privacy policy"
@@ -420,169 +543,241 @@ function AssistantSession() {
           {consent && (
             <>
               {!turns.length && !busy && (
-                <View style={{ flex: 1, justifyContent: 'center', gap: 22, paddingBottom: 28 }}>
-                  <View style={{ gap: 8 }}>
-                    <AppText style={{ fontFamily: 'DMSansBold', fontSize: 28, lineHeight: 36 }}>
-                      A clearer picture of your money.
+                <View
+                  style={{
+                    flex: 1,
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    gap: 22,
+                    paddingVertical: 30,
+                  }}
+                >
+                  <View
+                    style={{
+                      width: 64,
+                      height: 64,
+                      borderRadius: 20,
+                      backgroundColor: theme.accentSoft,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <FinoraMark size={38} />
+                  </View>
+                  <View style={{ gap: 8, alignItems: 'center' }}>
+                    <AppText
+                      style={{
+                        fontFamily: 'DMSansBold',
+                        fontSize: 26,
+                        lineHeight: 34,
+                        textAlign: 'center',
+                      }}
+                    >
+                      How can I help with your money?
                     </AppText>
-                    <AppText tone="muted">
-                      Ask a question. Get an answer from your recorded data.
+                    <AppText tone="muted" style={{ textAlign: 'center', fontSize: 14 }}>
+                      Log, fix or ask in plain words.
                     </AppText>
                   </View>
-                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
-                    {[
-                      ['My balance', 'What is my current balance?'],
-                      ['This month’s spending', 'How much did I spend this month?'],
-                      ['Category breakdown', 'Show my spending by category this month'],
-                      ['Budget check', 'How are my budgets this month?'],
-                      ['What I owe', 'What do I owe?'],
-                    ].map(([label, question]) => (
+                  <View style={{ width: '100%', flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
+                    {(
+                      [
+                        ['plus', 'Log an expense', 'Spent 450 on pizza'],
+                        ['wallet', 'Check my balance', 'What is my current balance?'],
+                        ['activity', 'Fix a mistake', 'Undo my last expense'],
+                        ['calendar', 'What’s due', 'What’s due this week?'],
+                        ['goal', 'Ask about debts', 'What do I owe?'],
+                        ['plan', 'Review a month', 'How did last month go?'],
+                      ] as const
+                    ).map(([icon, label, question]) => (
                       <Pressable
                         key={question}
                         accessibilityRole="button"
                         accessibilityLabel={question}
                         disabled={offline}
                         onPress={() => {
-                          void send(question!);
+                          setDraft(question);
                         }}
                         style={({ pressed }) => ({
-                          minHeight: 48,
+                          width: '48%',
+                          minHeight: 104,
                           borderWidth: 1,
                           borderColor: theme.border,
-                          borderRadius: 24,
-                          paddingHorizontal: 16,
-                          justifyContent: 'center',
+                          borderRadius: 16,
+                          padding: 13,
+                          gap: 8,
+                          backgroundColor: theme.surface,
                           opacity: offline || pressed ? 0.5 : 1,
                         })}
                       >
-                        <AppText style={{ fontSize: 14 }}>{label}</AppText>
+                        <Icon name={icon} size={20} color={theme.accent} />
+                        <AppText style={{ fontSize: 13, fontFamily: 'DMSansBold' }}>
+                          {label}
+                        </AppText>
+                        <AppText tone="muted" numberOfLines={1} style={{ fontSize: 11 }}>
+                          {question}
+                        </AppText>
                       </Pressable>
                     ))}
                   </View>
                 </View>
               )}
-              {turns.map(({ question, answer }) => (
+              {turns.map(({ question, answer, steps, restored }, turnIndex) => (
                 <View key={answer.answerId} style={{ gap: 12 }}>
-                  <UserBubble question={question} />
-                  <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 10 }}>
-                    <View
-                      style={{
-                        width: 42,
-                        height: 44,
-                        backgroundColor: theme.surface,
-                        borderRadius: 14,
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                      }}
-                    >
-                      <FinoraMark size={27} />
-                    </View>
-                    <View
-                      style={{
-                        flex: 1,
-                        backgroundColor: theme.surface,
-                        borderRadius: 20,
-                        padding: 13,
-                      }}
-                    >
-                      <AppText accessibilityLiveRegion="polite" style={{ fontSize: 15 }}>
-                        {answer.draft?.missingFields.length
-                          ? 'Let’s fill in a detail first.'
-                          : answer.result && !answer.conversational
+                  <Pressable
+                    accessibilityHint="Long press to edit your message"
+                    onLongPress={() => {
+                      if (busy) return;
+                      setEditingIndex(turnIndex);
+                      setDraft(question);
+                      transactionReply.current = null;
+                      setAwaitingTransaction(false);
+                    }}
+                  >
+                    <UserBubble question={question} />
+                  </Pressable>
+                  {steps?.map((step) => (
+                    <ToolActivity key={step.id} label={step.label} done />
+                  ))}
+                  {!answer.draft && !answer.change && !answer.prepared?.length && (
+                    <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 10 }}>
+                      <Pressable
+                        testID={`assistant-reply-${answer.answerId}`}
+                        accessibilityHint="Long press to report this answer"
+                        onLongPress={() => {
+                          setReport(answer.answerId);
+                          setReason('incorrect');
+                          setReportError(undefined);
+                        }}
+                        style={{
+                          flex: 1,
+                          paddingHorizontal: 2,
+                          paddingVertical: 8,
+                        }}
+                      >
+                        <ChatText
+                          animate={answer.answerId === turns.at(-1)?.answer.answerId && !busy}
+                        >
+                          {answer.result &&
+                          (!answer.conversational ||
+                            (answer.result.name === 'get_balance' &&
+                              !answer.additionalResults?.length))
                             ? answerText(answer.result, user?.preferences.locale)
                             : answer.message}
-                      </AppText>
+                        </ChatText>
+                      </Pressable>
                     </View>
-                  </View>
-                  {answer.result && (
-                    <AssistantResult
-                      result={answer.result}
-                      actions={
-                        <AnswerActions
-                          answer={answer}
-                          reported={reported.includes(answer.answerId)}
-                          onReport={() => {
-                            setReport(answer.answerId);
-                            setReason('incorrect');
-                            setReportError(undefined);
-                          }}
-                        />
-                      }
+                  )}
+                  {answer.result && <AssistantResult result={answer.result} />}
+                  {(answer.additionalResults ?? []).map((result, index) => (
+                    <AssistantResult key={`${answer.answerId}-${index}`} result={result} />
+                  ))}
+                  {answer.change && !restored && turnIndex === turns.length - 1 && !busy && (
+                    <ChangeConversation
+                      change={answer.change}
+                      register={registerDraftReply}
+                      onOutcome={(text) => outcome(answer.answerId, text)}
                     />
                   )}
-                  {answer.change && (
-                    <ChangeConversation change={answer.change} register={registerDraftReply} />
-                  )}
-                  {answer.draft && (
+                  {answer.draft && !restored && turnIndex === turns.length - 1 && !busy && (
                     <TransactionConversation
                       draft={answer.draft}
                       answerId={answer.answerId}
                       register={registerDraftReply}
+                      onOutcome={(text) => outcome(answer.answerId, text)}
                     />
                   )}
+                  {!restored &&
+                    turnIndex === turns.length - 1 &&
+                    !busy &&
+                    (answer.prepared ?? []).map((entry) => (
+                      <View key={entry.id}>
+                        {entry.draft && (
+                          <TransactionConversation
+                            draft={entry.draft}
+                            answerId={entry.id}
+                            register={registerDraftReply}
+                            onOutcome={(text) => outcome(answer.answerId, text)}
+                          />
+                        )}{' '}
+                        {entry.change && (
+                          <ChangeConversation
+                            change={entry.change}
+                            register={registerDraftReply}
+                            onOutcome={(text) => outcome(answer.answerId, text)}
+                          />
+                        )}
+                      </View>
+                    ))}
                 </View>
               ))}
-              {!!turns.length && !busy && !awaitingTransaction && (
-                <View style={{ gap: 8 }}>
-                  <ScrollView
-                    horizontal
-                    showsHorizontalScrollIndicator={false}
-                    contentContainerStyle={{ gap: 8 }}
-                    accessibilityLabel="Suggested questions"
-                  >
-                    {(
-                      [
-                        ['activity', 'Show my monthly summary', 'Show my monthly summary'],
+              {!!turns.length &&
+                !busy &&
+                !awaitingTransaction &&
+                turns.at(-1)?.answer.kind === 'answer' && (
+                  <View style={{ gap: 8 }}>
+                    <ScrollView
+                      horizontal
+                      showsHorizontalScrollIndicator={false}
+                      contentContainerStyle={{ gap: 8 }}
+                      accessibilityLabel="Suggested questions"
+                    >
+                      {(
                         [
-                          'arrowRight',
-                          'What are my top expenses?',
-                          'Show my spending by category this month',
-                        ],
-                        [
-                          'calendar',
-                          'How much did I spend this month?',
-                          'How much did I spend this month?',
-                        ],
-                        ['goal', 'How are my budgets?', 'How are my budgets this month?'],
-                        ['wallet', 'What do I owe?', 'What do I owe?'],
-                      ] as const
-                    )
-                      .filter(
-                        ([, , question]) =>
-                          question.toLocaleLowerCase() !==
-                          turns[turns.length - 1]?.question.toLocaleLowerCase(),
+                          ['calendar', 'And last month?', 'And last month?'],
+                          [
+                            'activity',
+                            'Show transactions',
+                            'Show the transactions for that period',
+                          ],
+                        ] as const
                       )
-                      .map(([icon, label, question]) => (
-                        <Pressable
-                          key={question}
-                          accessibilityRole="button"
-                          accessibilityLabel={label}
-                          disabled={offline}
-                          onPress={() => {
-                            void send(question);
-                          }}
-                          style={{
-                            minHeight: 44,
-                            maxWidth: 200,
-                            backgroundColor: theme.surface,
-                            borderRadius: 15,
-                            padding: 10,
-                            flexDirection: 'row',
-                            alignItems: 'center',
-                            gap: 7,
-                          }}
-                        >
-                          <Icon name={icon} color={theme.accent} size={19} />
-                          <AppText style={{ fontSize: 12, lineHeight: 17 }}>{label}</AppText>
-                        </Pressable>
-                      ))}
-                  </ScrollView>
-                </View>
-              )}
+                        .filter(
+                          ([, , question]) =>
+                            question.toLocaleLowerCase() !==
+                            turns[turns.length - 1]?.question.toLocaleLowerCase(),
+                        )
+                        .map(([icon, label, question]) => (
+                          <Pressable
+                            key={question}
+                            accessibilityRole="button"
+                            accessibilityLabel={label}
+                            disabled={offline}
+                            onPress={() => {
+                              void send(question);
+                            }}
+                            style={{
+                              minHeight: 36,
+                              maxWidth: 200,
+                              backgroundColor: theme.surface,
+                              borderRadius: 20,
+                              paddingHorizontal: 12,
+                              paddingVertical: 7,
+                              flexDirection: 'row',
+                              alignItems: 'center',
+                              gap: 7,
+                            }}
+                          >
+                            <Icon name={icon} color={theme.accent} size={19} />
+                            <AppText style={{ fontSize: 12, lineHeight: 17 }}>{label}</AppText>
+                          </Pressable>
+                        ))}
+                    </ScrollView>
+                  </View>
+                )}
               {busy && (
                 <View style={{ gap: 18 }}>
                   <UserBubble question={pendingQuestion} />
-                  <ChatThinking />
+                  {progress
+                    .filter((step) => step.state !== 'thinking')
+                    .map((step) => (
+                      <ToolActivity
+                        key={step.id}
+                        label={step.label}
+                        done={step.state === 'checked'}
+                      />
+                    ))}
+                  {!progress.some((step) => step.state === 'checking') && <ChatThinking />}
                 </View>
               )}
             </>
@@ -592,7 +787,18 @@ function AssistantSession() {
               You’re offline. Reconnect to ask a question. Earlier answers are recorded snapshots.
             </AppText>
           )}
-          {!!error && <Feedback error={error} />}
+          {!!error && (
+            <Feedback
+              error={error}
+              retry={
+                draft.trim()
+                  ? () => {
+                      void send();
+                    }
+                  : undefined
+              }
+            />
+          )}
           {!!notice && (
             <AppText tone="accent" accessibilityRole="alert">
               {notice}
@@ -601,6 +807,19 @@ function AssistantSession() {
         </ScrollView>
         {consent && capabilities.data?.enabled && (
           <View style={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: 10, gap: 8 }}>
+            {editingIndex !== undefined && (
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => {
+                  setEditingIndex(undefined);
+                  setDraft('');
+                }}
+              >
+                <AppText tone="muted" style={{ fontSize: 12 }}>
+                  Editing message · Cancel
+                </AppText>
+              </Pressable>
+            )}
             <View
               style={{
                 flexDirection: 'row',
@@ -614,17 +833,32 @@ function AssistantSession() {
                 gap: 8,
               }}
             >
+              {!draft && !awaitingTransaction && (
+                <Animated.Text
+                  pointerEvents="none"
+                  accessible={false}
+                  style={{
+                    position: 'absolute',
+                    left: 16,
+                    right: 65,
+                    top: 19,
+                    opacity: hintOpacity,
+                    color: theme.muted,
+                    fontFamily: 'DMSans',
+                    fontSize: 15,
+                  }}
+                  numberOfLines={1}
+                >
+                  {hints[hintIndex]}
+                </Animated.Text>
+              )}
               <TextInput
                 accessibilityLabel="Your question"
-                placeholder={
-                  awaitingTransaction
-                    ? 'Enter the missing detail…'
-                    : 'Ask anything about your money…'
-                }
+                placeholder={awaitingTransaction ? 'Enter the missing detail…' : ''}
                 placeholderTextColor={theme.muted}
                 value={draft}
                 onChangeText={setDraft}
-                maxLength={1000}
+                maxLength={4000}
                 editable={!busy}
                 multiline
                 returnKeyType="send"
@@ -685,6 +919,86 @@ function AssistantSession() {
           </View>
         )}
       </KeyboardAvoidingView>
+      <HistoryDrawer visible={historyOpen} onClose={() => setHistoryOpen(false)}>
+        <AppButton
+          title="New chat"
+          onPress={() => {
+            clear();
+            setHistoryOpen(false);
+          }}
+        />
+        {!history.length && <AppText tone="muted">Your conversations will appear here.</AppText>}
+        {history.map((chat) => (
+          <View
+            key={chat.id}
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 8,
+              borderBottomWidth: 1,
+              borderBottomColor: theme.border,
+              paddingVertical: 10,
+            }}
+          >
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`Open chat ${chat.title}`}
+              onPress={() => {
+                clear();
+                setChatId(chat.id);
+                setChatTitle(chat.title);
+                setTurns(chat.turns.map((turn) => ({ ...turn, restored: true })));
+                if (!offline)
+                  void api
+                    .request(`assistant/v4/chats/${chat.id}`, conversationSchema)
+                    .then((saved) => {
+                      setTurns(
+                        saved.messages.flatMap((message) =>
+                          message.answer
+                            ? [
+                                {
+                                  question: message.question,
+                                  answer: message.answer,
+                                  restored: true,
+                                },
+                              ]
+                            : [],
+                        ),
+                      );
+                    })
+                    .catch(setError);
+                setHistoryOpen(false);
+              }}
+              style={{ flex: 1, minHeight: 44, justifyContent: 'center' }}
+            >
+              <AppText numberOfLines={2} style={{ fontSize: 14 }}>
+                {chat.title}
+              </AppText>
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`Delete chat ${chat.title}`}
+              onPress={() => {
+                void api
+                  .request(`assistant/v4/chats/${chat.id}`, z.object({ message: z.string() }), {
+                    method: 'DELETE',
+                  })
+                  .then(() => {
+                    setHistory((current) => current.filter((entry) => entry.id !== chat.id));
+                    if (chat.id === chatId) clear();
+                    if (vault) void vault.remove(`chat:${chat.id}`).catch(() => undefined);
+                  })
+                  .catch(setError);
+              }}
+              style={{ padding: 10 }}
+            >
+              <AppText tone="muted" style={{ fontSize: 12 }}>
+                Delete
+              </AppText>
+            </Pressable>
+          </View>
+        ))}
+      </HistoryDrawer>
       <FlowSheet
         title="Report an answer"
         visible={!!report}

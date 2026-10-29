@@ -27,6 +27,7 @@ const errorSchema = z.object({
   }),
 });
 interface RequestOptions {
+  streamEvents?: boolean;
   method?: 'GET' | 'POST' | 'PATCH' | 'DELETE';
   body?: unknown;
   authenticated?: boolean;
@@ -94,19 +95,32 @@ export class ApiClient {
       throw new ClientError('INVALID_PATH', 'Invalid API path.');
     const controller = new AbortController();
     let timedOut = false;
-    const timer = setTimeout(() => {
-      timedOut = true;
-      controller.abort();
-    }, 20000);
+    const timer = setTimeout(
+      () => {
+        timedOut = true;
+        controller.abort();
+      },
+      options.streamEvents ? 60000 : 20000,
+    );
     const abort = () => controller.abort();
     if (options.signal?.aborted) controller.abort();
     options.signal?.addEventListener('abort', abort, { once: true });
     try {
-      return await this.transport(`${this.baseUrl}/api/v1/${path}`, {
+      let transport: HttpTransport = this.transport;
+      let streamEvents = options.streamEvents;
+      if (options.streamEvents && this.transport === fetch) {
+        try {
+          transport = (await import('expo/fetch')).fetch;
+        } catch {
+          streamEvents = false;
+        }
+      }
+      return await transport(`${this.baseUrl}/api/v1/${path}`, {
         method: options.method ?? 'GET',
         signal: controller.signal,
         headers: {
           'Content-Type': 'application/json',
+          ...(streamEvents ? { Accept: 'application/x-ndjson' } : {}),
           ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
           ...(options.operationKey ? { 'Idempotency-Key': options.operationKey } : {}),
         },
@@ -224,6 +238,66 @@ export class ApiClient {
     if (this.generation !== generation || options.signal?.aborted)
       throw new ClientError('CANCELLED', 'Session changed or request cancelled.');
     return value;
+  }
+  async stream<T, E>(
+    path: string,
+    schema: ZodType<T>,
+    eventSchema: ZodType<E>,
+    onEvent: (event: E) => T | undefined,
+    options: RequestOptions = {},
+  ): Promise<T> {
+    const generation = this.generation;
+    const response = await this.authorizedResponse(path, { ...options, streamEvents: true });
+    if (!response.ok || !response.headers.get('content-type')?.includes('application/x-ndjson')) {
+      const value = await this.decode(response, schema);
+      if (this.generation !== generation || options.signal?.aborted)
+        throw new ClientError('CANCELLED', 'Request cancelled.');
+      return value;
+    }
+    const reader = response.body?.getReader();
+    if (!reader) throw new ClientError('INVALID_RESPONSE', 'Unable to read the chat response.');
+    const decoder = new TextDecoder();
+    let buffer = '';
+    let bytes = 0;
+    let answer: T | undefined;
+    const check = () => {
+      if (this.generation !== generation || options.signal?.aborted)
+        throw new ClientError('CANCELLED', 'Request cancelled.');
+    };
+    const consume = (line: string) => {
+      if (!line.trim()) return;
+      check();
+      const result = onEvent(eventSchema.parse(JSON.parse(line)));
+      if (result !== undefined) answer = schema.parse(result);
+    };
+    const timeout = setTimeout(() => {
+      void reader.cancel().catch(() => undefined);
+    }, 60000);
+    try {
+      while (true) {
+        check();
+        const { done, value } = await reader.read();
+        if (done) break;
+        bytes += value.length;
+        if (bytes > 1024 * 1024)
+          throw new ClientError('INVALID_RESPONSE', 'Chat response is too large.');
+        buffer += decoder.decode(value, { stream: true });
+        let next;
+        while ((next = buffer.indexOf('\n')) >= 0) {
+          consume(buffer.slice(0, next));
+          buffer = buffer.slice(next + 1);
+        }
+      }
+      buffer += decoder.decode();
+      consume(buffer);
+      check();
+      if (answer === undefined)
+        throw new ClientError('INVALID_RESPONSE', 'The reply was interrupted. Please retry.');
+      return answer;
+    } finally {
+      clearTimeout(timeout);
+      await reader.cancel().catch(() => undefined);
+    }
   }
   async download(path: string, options: RequestOptions = {}): Promise<string> {
     const generation = this.generation;

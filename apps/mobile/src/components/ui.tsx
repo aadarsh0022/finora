@@ -14,7 +14,6 @@ import {
   type ViewStyle,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNetworkState } from 'expo-network';
 import { useTheme } from '../theme';
 import { useContext, useState, type ReactNode } from 'react';
 import { HeaderHeightContext } from 'expo-router/react-navigation';
@@ -64,14 +63,14 @@ export function Screen({
   includeTopInset?: boolean;
 }) {
   const theme = useTheme();
-  const network = useNetworkState();
   const headerHeight = useContext(HeaderHeightContext) ?? 0;
   const [refreshing, setRefreshing] = useState(false);
-  const { user, vault, storageError } = useApp();
+  const { user, vault, storageError, syncPending } = useApp();
   async function refresh() {
     if (!onRefresh || refreshing) return;
     setRefreshing(true);
     try {
+      await syncPending?.().catch(() => undefined);
       await onRefresh();
     } finally {
       setRefreshing(false);
@@ -113,26 +112,6 @@ export function Screen({
             ...contentStyle,
           }}
         >
-          {network.isConnected === false && (
-            <View
-              style={{
-                padding: 12,
-                backgroundColor: theme.surface,
-                borderRadius: 12,
-                borderWidth: 1,
-                borderColor: theme.border,
-              }}
-            >
-              <AppText style={{ fontSize: 13, fontFamily: 'DMSansBold' }}>
-                Offline · Showing saved records
-              </AppText>
-              <AppText tone="muted" style={{ fontSize: 12, lineHeight: 18 }}>
-                {vault
-                  ? 'New entries wait for sync. Other changes need a connection.'
-                  : 'Reconnect before saving. Records may be out of date.'}
-              </AppText>
-            </View>
-          )}
           {user && storageError ? (
             <AppText tone="danger" style={{ fontSize: 13 }}>
               {storageError}
@@ -198,11 +177,12 @@ function PendingStatus() {
         Pending entries could not be read. Keep this device and contact support.
       </AppText>
     );
-  if (!pending.data?.length) return null;
+  const attention = pending.data?.filter((item) => item.value.state === 'ATTENTION') ?? [];
+  if (!attention.length) return null;
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel="View pending sync"
+      accessibilityLabel="Review an entry"
       onPress={() => router.push('/sync')}
       style={{
         paddingVertical: 10,
@@ -214,9 +194,9 @@ function PendingStatus() {
       }}
     >
       <AppText style={{ fontSize: 13 }}>
-        {pending.data.filter((item) => item.value.state === 'PENDING').length} pending ·{' '}
-        {pending.data.filter((item) => item.value.state === 'ATTENTION').length} need review · View
-        sync
+        {attention.length === 1
+          ? 'An entry needs a quick review'
+          : `${attention.length} entries need a quick review`}
       </AppText>
     </Pressable>
   );

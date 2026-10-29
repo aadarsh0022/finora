@@ -304,14 +304,14 @@ test('opens a favourite as a draft dated today without automatically posting it'
   expect(screen.getByText(/^Today ·/)).toBeOnTheScreen();
   expect(writes).toHaveLength(0);
   await fireEvent.press(screen.getByRole('button', { name: /^Save (expense|income|transfer)$/ }));
-  await waitFor(() => expect(writes).toHaveLength(1));
-  expect(writes[0]?.body).toMatchObject({ amountMinor: '1250', merchant: 'Lunch' });
-  expect(
-    calendarDate(
-      new Date(transactionInputSchema.parse(writes[0]?.body).date),
-      user.preferences.timezone,
-    ),
-  ).toBe(calendarDate(new Date(), user.preferences.timezone));
+  await waitFor(() => expect(router.back).toHaveBeenCalledTimes(1));
+  expect(writes).toHaveLength(0);
+  const saved = await vault.list('pending:', queuedTransactionSchema);
+  expect(saved).toHaveLength(1);
+  expect(saved[0]?.value.body).toMatchObject({ amountMinor: '1250', merchant: 'Lunch' });
+  expect(calendarDate(new Date(saved[0]!.value.body.date), user.preferences.timezone)).toBe(
+    calendarDate(new Date(), user.preferences.timezone),
+  );
 });
 
 test('validates the form before sending and preserves exact transfer amounts', async () => {
@@ -365,9 +365,9 @@ test('keeps optional details when collapsed and saves them through the compact f
   await fireEvent.changeText(screen.getByLabelText('Amount (INR)'), '12.50');
   await fireEvent.press(screen.getByRole('button', { name: 'Category' }));
   await fireEvent.press(screen.getByRole('radio', { name: 'Food' }));
-  await fireEvent.press(screen.getByRole('button', { name: 'More details' }));
+  await fireEvent.press(screen.getByRole('button', { name: 'Add a note or tags' }));
   await fireEvent.changeText(screen.getByLabelText('Note (optional)'), 'Synthetic form test');
-  await fireEvent.press(screen.getByRole('button', { name: 'More details' }));
+  await fireEvent.press(screen.getByRole('button', { name: 'Add a note or tags' }));
   expect(screen.queryByLabelText('Note (optional)')).toBeNull();
   await fireEvent.press(screen.getByRole('button', { name: /^Save (expense|income|transfer)$/ }));
   await waitFor(() => expect(writes).toHaveLength(1));

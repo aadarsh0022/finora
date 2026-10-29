@@ -12,7 +12,8 @@ export const queuedTransactionSchema = z
     id: z.uuid(),
     ownerId: z.uuid(),
     body: transactionInputSchema,
-    state: z.enum(['PENDING', 'ATTENTION']),
+    state: z.enum(['PENDING', 'ATTENTION', 'ACKNOWLEDGED']),
+    serverTransaction: transactionSchema.optional(),
     createdAt: z.iso.datetime(),
     code: z.string().max(80).default(''),
   })
@@ -68,13 +69,13 @@ export async function drainOutbox(
       throw new Error('Pending entries belong to another account.');
     if (value.state !== 'PENDING') continue;
     try {
-      await api.request('transactions', transactionSchema, {
+      const serverTransaction = await api.request('transactions', transactionSchema, {
         method: 'POST',
         body: value.body,
         operationKey: value.id,
       });
       if (!isCurrent()) break;
-      await vault.remove(key);
+      await vault.write(key, { ...value, state: 'ACKNOWLEDGED', serverTransaction });
       synced++;
     } catch (error) {
       if (

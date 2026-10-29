@@ -9,7 +9,8 @@ import { Pressable, View } from 'react-native';
 import { TransactionIcon } from './transaction-icon';
 import { useTheme } from '../../theme';
 import { useApp } from '../../providers/app-provider';
-import { canUseOffline } from '../../storage/outbox';
+import { canUseOffline, queuedTransactionSchema } from '../../storage/outbox';
+import { projectDeviceLedger, readDeviceLedger } from '../../storage/ledger';
 import { readSetup, setupProjection } from '../../storage/setup';
 import { useNetworkState } from 'expo-network';
 import { ClientError } from '../../api/client';
@@ -56,6 +57,17 @@ export function useRead<T>(path: string, schema: ZodType<T>, enabled = true) {
     enabled: !!user && enabled && (!vault || path.startsWith('auth/') || hydrated === scope),
     queryFn: async ({ signal }) => {
       try {
+        const ledger = vault ? await readDeviceLedger(vault) : null;
+        if (ledger && vault && user) {
+          const rows = await vault.list('pending:', queuedTransactionSchema);
+          const local = projectDeviceLedger(
+            ledger.value,
+            rows.map((row) => row.value),
+            path,
+            user,
+          );
+          if (local !== undefined) return schema.parse(local);
+        }
         const setup = vault ? await readSetup(vault) : undefined;
         const projection = setup ? setupProjection(setup, path) : undefined;
         if (projection !== undefined) return schema.parse(projection);
@@ -87,21 +99,8 @@ export function useRead<T>(path: string, schema: ZodType<T>, enabled = true) {
     cachedAt: snapshot?.scope === scope && snapshot.cached ? snapshot.savedAt : undefined,
   };
 }
-export function SavedDataNotice({ at }: { at?: number }) {
-  const { user } = useApp();
-  if (!at) return null;
-  const time = new Intl.DateTimeFormat(user?.preferences.locale ?? 'en-IN', {
-    day: 'numeric',
-    month: 'short',
-    hour: '2-digit',
-    minute: '2-digit',
-    timeZone: user?.preferences.timezone ?? 'Asia/Kolkata',
-  }).format(new Date(at));
-  return (
-    <AppText tone="muted" style={{ fontSize: 12 }}>
-      Saved on this device · {time}. Refresh when connected for the latest records.
-    </AppText>
-  );
+export function SavedDataNotice(_props: { at?: number }) {
+  return null;
 }
 export function useMoney() {
   const { user } = useApp();
@@ -160,8 +159,8 @@ export function TransactionCard({
           }).format(new Date(item.date));
   const detail =
     item.type === 'TRANSFER'
-      ? 'Transfer'
-      : (categoryName ?? (item.type === 'INCOME' ? 'Income' : (accountName ?? 'Expense')));
+      ? `${accountName ?? 'Account'} → ${destinationAccountName ?? 'Account'}`
+      : [accountName, item.merchant ? categoryName : undefined].filter(Boolean).join(' · ') || kind;
   return (
     <Pressable
       accessibilityRole="button"
@@ -189,11 +188,11 @@ export function TransactionCard({
       <View style={{ flex: 1, gap: 3 }}>
         <AppText
           numberOfLines={1}
-          style={{ fontFamily: 'DMSansBold', fontSize: 14, lineHeight: 20 }}
+          style={{ fontFamily: 'DMSansBold', fontSize: 15, lineHeight: 21 }}
         >
           {title}
         </AppText>
-        <AppText numberOfLines={1} tone="muted" style={{ fontSize: 11, lineHeight: 17 }}>
+        <AppText numberOfLines={1} tone="muted" style={{ fontSize: 12, lineHeight: 18 }}>
           {detail} · {dateLabel}
         </AppText>
       </View>

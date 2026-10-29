@@ -64,13 +64,13 @@ it('stays disabled without configuration and requires explicit policy consent be
       await call(
         'POST',
         'assistant/v3/chat',
-        { ...input, previousQuestions: ['a', 'b', 'c', 'd'] },
+        { ...input, previousQuestions: ['a', 'b', 'c', 'd', 'e', 'f'] },
         token,
       )
     ).status,
   ).toBe(400);
   expect(
-    (await call('POST', 'assistant/v3/chat', { ...input, question: 'x'.repeat(1001) }, token))
+    (await call('POST', 'assistant/v3/chat', { ...input, question: 'x'.repeat(4001) }, token))
       .status,
   ).toBe(400);
   expect((await call('POST', 'assistant/v3/chat', input)).status).toBe(401);
@@ -111,9 +111,9 @@ it('uses one Luna request to select a tool and keeps identity and financial resu
   expect(body).toMatchObject({
     model: 'gpt-6-luna',
     store: false,
-    parallel_tool_calls: false,
+    parallel_tool_calls: true,
     tool_choice: 'required',
-    max_output_tokens: 512,
+    max_output_tokens: 1400,
   });
   expect(body.input).toEqual([{ role: 'user', content: input.question }]);
   const serialized = JSON.stringify(body);
@@ -146,7 +146,7 @@ it('uses fixed clarification and unsupported answers rather than model-authored 
     ),
   );
   expect(answer).toMatchObject({ kind: 'unsupported', result: null });
-  expect(answer.message).toContain('recorded accounts');
+  expect(answer.message).toContain('log expenses');
   upstream.mockImplementation(async () =>
     Response.json(toolOutput('ask_follow_up', { reason: 'date_range' })),
   );
@@ -170,7 +170,7 @@ it('rejects unknown, multiple, invented and unstructured model outputs without l
   const bad = [
     toolOutput('delete_transaction', {}),
     toolOutput('get_balance', { accountId: null, userId: 'other-owner' }),
-    { status: 'completed', output: [...toolOutput().output, ...toolOutput().output] },
+    { status: 'completed', output: Array.from({ length: 5 }, () => toolOutput().output[0]) },
     { status: 'completed', output: [{ type: 'message', content: 'Your balance is invented.' }] },
     { status: 'incomplete', output: toolOutput().output },
     toolOutput('get_cashflow', { from: '2026-02-30', to: '2026-03-01' }),
@@ -320,4 +320,82 @@ it('remembers versioned AI consent for the authenticated account only', async ()
   ).toBe(200);
   expect(await state(first.accessToken)).toMatchObject({ consentAccepted: true });
   expect(await state(second.accessToken)).toMatchObject({ consentAccepted: false });
+});
+
+it('answers a combined read without forcing separate questions and keeps prior assistant context', async () => {
+  const { token } = await fixture();
+  enable();
+  const upstream = vi.fn(async (_url: string, init: RequestInit) => {
+    const body = JSON.parse(String(init.body));
+    if (body.tools)
+      return Response.json({
+        status: 'completed',
+        output: [
+          ...toolOutput().output,
+          ...toolOutput('get_debt_summary', {}).output.map((call) => ({
+            ...call,
+            call_id: 'second-read',
+          })),
+        ],
+      });
+    return Response.json({
+      status: 'completed',
+      output: [
+        {
+          type: 'message',
+          content: [
+            {
+              type: 'output_text',
+              text: JSON.stringify({ reply: 'Here are your balance and debts together.' }),
+            },
+          ],
+        },
+      ],
+    });
+  });
+  vi.stubGlobal('fetch', upstream);
+  const response = await call(
+    'POST',
+    'assistant/v3/chat',
+    {
+      ...input,
+      question: 'And my balance and debts?',
+      previousQuestions: ['What did I spend?'],
+      previousReplies: ['Your spending this month is shown above.'],
+    },
+    token,
+  );
+  expect(response.status).toBe(200);
+  const answer = assistantChatResponseSchema.parse(data(response));
+  expect(answer.result?.name).toBe('get_balance');
+  expect(answer.additionalResults.map((result) => result.name)).toEqual(['get_debt_summary']);
+  expect(answer.message).toBe('Here are your balance and debts together.');
+  const firstBody = JSON.parse(String(upstream.mock.calls[0]![1].body));
+  expect(firstBody.input).toContainEqual({
+    role: 'assistant',
+    content: 'Your spending this month is shown above.',
+  });
+  const { db } = await database();
+  expect(await db.collection('transactions').countDocuments()).toBe(0);
+});
+
+it('uses a short contextual clarification instead of a fixed restriction message', async () => {
+  const { accessToken: token } = await createUser();
+  enable();
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async () =>
+      Response.json(
+        toolOutput('ask_follow_up', {
+          reason: 'account_selection',
+          message: 'Which account did you use?',
+        }),
+      ),
+    ),
+  );
+  const answer = assistantChatResponseSchema.parse(
+    data(await call('POST', 'assistant/v3/chat', { ...input, question: 'Record my lunch' }, token)),
+  );
+  expect(answer.message).toBe('Which account did you use?');
+  expect(answer.kind).toBe('clarification');
 });

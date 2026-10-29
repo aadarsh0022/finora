@@ -178,7 +178,6 @@ export function nextOccurrence(
   }
   return date.toISOString().slice(0, 10);
 }
-export * from './outlook';
 
 export function calendarInstant(value: string, timezone: string) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) throw new Error('Enter a date as YYYY-MM-DD.');

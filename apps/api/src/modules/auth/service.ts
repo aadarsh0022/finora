@@ -294,6 +294,9 @@ export async function deleteAccount(context: AuthContext, password: string) {
     'import_previews',
     'assistant_feedback',
     'assistant_usage',
+    'assistant_threads',
+    'assistant_messages',
+    'assistant_proposals',
   ];
   try {
     await transaction.withTransaction(async () => {
@@ -308,4 +311,15 @@ export async function deleteAccount(context: AuthContext, password: string) {
   } finally {
     await transaction.endSession();
   }
+}
+
+export async function updateProfile(context: AuthContext, name: string) {
+  const { users } = await database();
+  const updated = await users.findOneAndUpdate(
+    { id: context.user.id, authVersion: context.user.authVersion },
+    { $set: { name, updatedAt: new Date() } },
+    { returnDocument: 'after' },
+  );
+  if (!updated) throw unauthorized();
+  return publicUser(userRecordSchema.parse(updated));
 }

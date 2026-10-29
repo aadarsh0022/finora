@@ -6,13 +6,14 @@ import {
   transactionSchema,
 } from '@finora/contracts';
 import { formatMoney, parseMoney, entryDate } from '@finora/finance-core';
-import { AppButton, AppText, Card, Feedback, Field } from '../../components/ui';
+import { AppText, Card, Feedback, Field } from '../../components/ui';
 import { useApp } from '../../providers/app-provider';
 import { useTransactionDrafts } from '../../stores/transaction-drafts';
 import { useFinanceMutation } from '../../hooks/finance';
 import { accountsSchema, categoriesSchema, useRead } from '../finance/shared';
 import { decimalAmount } from '../finance/values';
 import { useTheme } from '../../theme';
+import { ChatConfirmActions } from './confirmation';
 
 function InlineSelect({
   label,
@@ -99,11 +100,15 @@ function InlineSelect({
 export function TransactionDraftCard({
   draft,
   answerId,
+  onOutcome,
 }: {
   draft: AssistantTransactionDraft;
   answerId: string;
+  onOutcome?: (text: string) => void;
 }) {
   const { user } = useApp();
+  const theme = useTheme();
+  const [cancelled, setCancelled] = useState(false);
   const submitted = useTransactionDrafts((state) =>
     state.submitted.includes(`${user?.id}:${answerId}`),
   );
@@ -178,6 +183,7 @@ export function TransactionDraftCard({
       });
       await save.mutateAsync(input);
       useTransactionDrafts.getState().complete(user.id, answerId);
+      onOutcome?.(`Saved ${displayAmount}${draft.merchant ? ` · ${draft.merchant}` : ''}.`);
       setEditing(false);
     } catch (failure) {
       setError(
@@ -190,11 +196,28 @@ export function TransactionDraftCard({
       lock.current = false;
     }
   }
+  if (submitted || cancelled)
+    return (
+      <View
+        style={{
+          padding: 12,
+          borderRadius: 14,
+          borderWidth: 1,
+          borderColor: theme.border,
+          backgroundColor: submitted ? theme.accentSoft : theme.surface,
+        }}
+      >
+        <AppText tone={submitted ? 'accent' : 'muted'} style={{ fontSize: 13 }}>
+          {submitted ? 'Saved' : 'Cancelled'} · {displayAmount}
+          {draft.merchant ? ` · ${draft.merchant}` : ''}
+        </AppText>
+      </View>
+    );
   return (
-    <Card style={{ gap: 10, borderRadius: 22 }}>
+    <Card style={{ gap: 8, padding: 14, borderRadius: 16, backgroundColor: theme.accentSoft }}>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
         <AppText tone="muted" style={{ fontSize: 12 }}>
-          {draft.type === 'EXPENSE' ? 'Expense' : draft.type === 'INCOME' ? 'Income' : 'Transfer'}
+          Confirm to save
         </AppText>
         {!submitted && (
           <Pressable
@@ -210,10 +233,10 @@ export function TransactionDraftCard({
           </Pressable>
         )}
       </View>
-      <AppText style={{ fontFamily: 'DMSansBold', fontSize: 30, lineHeight: 38 }}>
+      <AppText style={{ fontFamily: 'DMSansBold', fontSize: 15, lineHeight: 22 }}>
         {displayAmount}
+        {draft.merchant ? ` · ${draft.merchant}` : ''}
       </AppText>
-      {!!draft.merchant && <AppText style={{ fontFamily: 'DMSansBold' }}>{draft.merchant}</AppText>}
       {editing && !submitted ? (
         <View style={{ gap: 10 }}>
           <Field
@@ -295,24 +318,20 @@ export function TransactionDraftCard({
           }}
         />
       )}
-      <AppButton
-        title={submitted ? 'Saved' : 'Confirm and save'}
+      <ChatConfirmActions
+        label="Confirm and save"
+        busy={save.isPending}
         disabled={
-          submitted ||
-          !user ||
-          accounts.isPending ||
-          (draft.type !== 'TRANSFER' && categories.isPending)
+          !user || accounts.isPending || (draft.type !== 'TRANSFER' && categories.isPending)
         }
-        loading={save.isPending}
-        onPress={() => {
+        onConfirm={() => {
           void confirm();
         }}
+        onCancel={() => {
+          setCancelled(true);
+          onOutcome?.('Transaction cancelled.');
+        }}
       />
-      {!submitted && (
-        <AppText tone="muted" style={{ fontSize: 11 }}>
-          Nothing is saved until you confirm.
-        </AppText>
-      )}
     </Card>
   );
 }

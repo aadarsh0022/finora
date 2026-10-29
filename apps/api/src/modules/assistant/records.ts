@@ -11,7 +11,6 @@ import { listGoals } from '../advanced/goals';
 import { listBudgets, totalLimit } from '../advanced/budgets';
 import { listDebts } from '../debts/service';
 import { listRules, listOccurrences } from '../advanced/recurring';
-import { getOutlook } from '../outlook/service';
 import { getInsights } from '../reports/insights';
 import { getAssistantUsage } from './usage';
 import { ApiError } from '../../utils/http';
@@ -166,17 +165,6 @@ export async function readRecords(context: AuthContext, value: unknown) {
         detail: String(entry),
       }));
       break;
-    case 'money_ahead': {
-      const outlook = await getOutlook(context);
-      items = outlook.flows.map((f) => ({
-        id: f.id,
-        title: f.label,
-        detail: `${f.day} · ${f.direction} · ${f.source}`,
-        amountMinor: f.amountMinor ?? undefined,
-      }));
-      summary = `Upcoming recorded commitments through ${outlook.through}. Expected income is separate from recorded cash.`;
-      break;
-    }
     case 'insights': {
       const report = await getInsights(context, month);
       summary = `Spending insights for ${month}.`;

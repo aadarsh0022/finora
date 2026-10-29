@@ -40,3 +40,20 @@ artifacts and evidence: [release status](release-status.md).
   sensitive finance cache. Billing, ads, bank integration and AI features are absent.
 - Three upstream tooling advisories remain documented in dependency-review.md.
   No clean dependency audit is claimed.
+
+## 29 October changeset boundaries
+
+- Local-first projection currently covers transaction creates, account balances/lists,
+  categories and the Home overview. Other writes retain their existing online/versioned
+  flows. This is not a claim that every feature supports offline CRUD.
+- The ledger snapshot endpoint is bounded to 200 accounts, 1,000 categories and 10,000
+  transactions. Large hosted response-size behavior still requires operational testing.
+  Device persistence commits bounded pages before exposing a new snapshot generation.
+- Chat history is server-owned in v4. Only four prior exchanges and the new question
+  are supplied as conversational context, below the ten-message maximum. Executable
+  proposals are not restored from history; ask again to prepare a new confirmation.
+- Visible word-by-word reply rendering is a presentation animation after a complete
+  answer. Real tool progress uses the streaming transport; model token streaming is
+  not implemented.
+- Play Console privacy/Data safety declarations must be reviewed before uploading this
+  new build because account chat retention changed. No store submission is performed.
