@@ -55,10 +55,28 @@ function headers(requestId: string) {
   };
 }
 
+// Server-Timing carries only the total handler time and whether this was the first request on a
+// new server instance. It never includes data, identifiers or error details.
+let served = false;
+function timed(response: Response, started: number, cold: boolean) {
+  try {
+    response.headers.set(
+      'Server-Timing',
+      `app;dur=${Math.round(performance.now() - started)}${cold ? ', cold' : ''}`,
+    );
+  } catch {
+    /* Immutable response headers: skip the timing rather than fail the request. */
+  }
+  return response;
+}
+
 export async function handle(action: (requestId: string) => Promise<Response>) {
   const requestId = randomUUID();
+  const started = performance.now();
+  const cold = !served;
+  served = true;
   try {
-    return await action(requestId);
+    return timed(await action(requestId), started, cold);
   } catch (error) {
     let status = 503;
     let code = 'SERVICE_UNAVAILABLE';
@@ -88,13 +106,17 @@ export async function handle(action: (requestId: string) => Promise<Response>) {
     const responseHeaders: Record<string, string> = headers(requestId);
     if (status === 429) responseHeaders['Retry-After'] = '600';
     if (status === 401) responseHeaders['WWW-Authenticate'] = 'Bearer';
-    return Response.json(
-      {
-        success: false,
-        error: { code, message, ...(details ? { details } : {}) },
-        meta: { requestId },
-      },
-      { status, headers: responseHeaders },
+    return timed(
+      Response.json(
+        {
+          success: false,
+          error: { code, message, ...(details ? { details } : {}) },
+          meta: { requestId },
+        },
+        { status, headers: responseHeaders },
+      ),
+      started,
+      cold,
     );
   }
 }
