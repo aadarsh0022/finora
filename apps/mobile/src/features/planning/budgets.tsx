@@ -253,7 +253,8 @@ function BudgetForm({
         </AppText>
       )}
       <MonthPicker
-        label="budget month"
+        variant="field"
+        label="Budget month"
         value={form.month}
         onChange={(value) => setForm((current) => ({ ...current, month: value }))}
       />
