@@ -563,8 +563,12 @@ export function LoanFormSheet({
           { value: 'large', label: 'Large' },
         ]}
       />
-      <AppText style={{ fontFamily: 'DMSansBold', fontSize: 14 }}>Start month</AppText>
-      <MonthPicker label="Start month" value={form.start} onChange={(v) => set('start', v)} />
+      <MonthPicker
+        variant="field"
+        label="Start month"
+        value={form.start}
+        onChange={(v) => set('start', v)}
+      />
       <Field
         label="Due day of the month"
         value={form.dueDay}
@@ -617,8 +621,12 @@ export function LoanFormSheet({
       </Pressable>
       {!form.ongoing && (
         <>
-          <AppText style={{ fontFamily: 'DMSansBold', fontSize: 14 }}>End month</AppText>
-          <MonthPicker label="End month" value={form.end} onChange={(v) => set('end', v)} />
+          <MonthPicker
+            variant="field"
+            label="End month"
+            value={form.end}
+            onChange={(v) => set('end', v)}
+          />
         </>
       )}
       {!!error && <Feedback error={error} />}
@@ -751,8 +759,8 @@ export function IncomeSheet({
             onChangeText={(v) => setForm((c) => ({ ...c, amount: v }))}
             keyboardType="decimal-pad"
           />
-          <AppText style={{ fontFamily: 'DMSansBold', fontSize: 14 }}>From</AppText>
           <MonthPicker
+            variant="field"
             label="From"
             value={form.start}
             onChange={(v) => setForm((c) => ({ ...c, start: v }))}
@@ -768,6 +776,7 @@ export function IncomeSheet({
           />
           {!form.ongoing && (
             <MonthPicker
+              variant="field"
               label="Last month"
               value={form.end}
               onChange={(v) => setForm((c) => ({ ...c, end: v }))}
