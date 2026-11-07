@@ -45,7 +45,7 @@ export function FlowSheet({
       }}
     >
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        behavior="padding"
         style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: '#00000066' }}
       >
         <Pressable accessible={false} disabled={busy} style={{ flex: 1 }} onPress={onClose} />
