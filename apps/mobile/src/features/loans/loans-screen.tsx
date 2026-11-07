@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Alert, Pressable, View } from 'react-native';
+import { router } from 'expo-router';
 import { z } from 'zod';
 import { emiLoanSchema, type EmiLoanDto } from '@finora/contracts';
 import { calendarDate, formatMoney, getRemainingPayable } from '@finora/finance-core';
@@ -264,7 +265,7 @@ export function LoansScreen() {
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel="Manage income"
-                onPress={() => setIncomeOpen(true)}
+                onPress={() => router.push('/income')}
                 hitSlop={8}
               >
                 <AppText tone="accent" style={{ fontFamily: 'DMSansBold', fontSize: 13 }}>

@@ -28,7 +28,7 @@ function savedSentence(change: { title: string; rows: { label: string; value: st
     .filter((row) => !/^(name|for|record)$/i.test(row.label))
     .map((row) => `${row.label.toLowerCase()} ${row.value}`)
     .join(', ');
-  const text = `${verb}${subject ? ` ${subject}` : ` ${change.title.toLowerCase()}`}${details ? `: ${details}` : ''}.`;
+  const text = `${verb}${subject ? ` ${subject}` : ` ${change.title.replace(/^(add|create|record|set|update|edit|change|restore|copy|archive|cancel|pause|delete|remove|reverse)\s+/i, '').toLowerCase()}`}${details ? `: ${details}` : ''}.`;
   return text.length > 150 ? `${text.slice(0, 147).trimEnd()}...` : text;
 }
 
