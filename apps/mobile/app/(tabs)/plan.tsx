@@ -6,7 +6,7 @@ import { ActionRow, ProfileAction, SectionHeading } from '../../src/components/d
 export default function Plan() {
   return (
     <Screen title="Plan" subtitle="Make room for what comes next." headerAction={<ProfileAction />}>
-      <View>
+      <View style={{ gap: 10 }}>
         <SectionHeading title="Your plans" />
         <Card style={{ paddingVertical: 0, paddingHorizontal: 16, gap: 0, overflow: 'hidden' }}>
           <ActionRow
@@ -54,15 +54,6 @@ export default function Plan() {
           />
         </Card>
       </View>
-      <Card style={{ paddingVertical: 0, paddingHorizontal: 16, gap: 0, overflow: 'hidden' }}>
-        <ActionRow
-          title="Your weekly check-in"
-          subtitle="Review entries and follow-ups"
-          icon="calendar"
-          last
-          onPress={() => router.push('/weekly-review')}
-        />
-      </Card>
     </Screen>
   );
 }

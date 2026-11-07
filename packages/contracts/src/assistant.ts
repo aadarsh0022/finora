@@ -212,9 +212,9 @@ export const assistantCapabilitiesSchema = z.object({
 export const assistantChatInputSchema = z
   .object({
     question: z.string().trim().min(1).max(4000),
-    previousQuestions: z.array(z.string().trim().min(1).max(4000)).max(5),
+    previousQuestions: z.array(z.string().trim().min(1).max(4000)).max(6),
     acceptedPolicyVersion: z.literal(assistantPolicyVersion),
-    previousReplies: z.array(z.string().max(4000)).max(5).default([]),
+    previousReplies: z.array(z.string().max(4000)).max(6).default([]),
   })
   .strict();
 export const legacyAssistantChatInputSchema = assistantChatInputSchema.extend({

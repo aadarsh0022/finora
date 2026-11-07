@@ -44,7 +44,6 @@ export default function Home() {
     <Screen
       title={firstName ? `Hi, ${firstName}` : 'Your money'}
       subtitle="Your money at a glance."
-      titleSize={28}
       showPendingStatus={false}
       backdrop={<Backdrop />}
       floatingAction={<AddTransactionAction />}

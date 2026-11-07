@@ -110,6 +110,33 @@ function CardTitle({
   );
 }
 
+/** A round initial that gives each loan a quick visual anchor. */
+export function LoanAvatar({ name, muted = false }: { name: string; muted?: boolean }) {
+  const theme = useTheme();
+  return (
+    <View
+      style={{
+        width: 40,
+        height: 40,
+        borderRadius: 14,
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: muted ? `${theme.text}0D` : theme.accentSoft,
+      }}
+    >
+      <AppText
+        style={{
+          fontFamily: 'DMSansBold',
+          fontSize: 16,
+          color: muted ? theme.muted : theme.accent,
+        }}
+      >
+        {name.trim().charAt(0).toUpperCase() || '•'}
+      </AppText>
+    </View>
+  );
+}
+
 const DAY = 86_400_000;
 function daysUntil(dueDateIso: string, today: string) {
   return Math.round(
@@ -228,7 +255,8 @@ export function ThisMonth({ today }: { today: string }) {
       days < 0 && !done ? theme.danger : days <= 3 && !done ? theme.accent : theme.muted;
     return (
       <View key={item.debt.id} style={{ paddingVertical: 12, gap: 8 }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+          <LoanAvatar name={item.debt.name} muted={done} />
           <View style={{ flex: 1, gap: 2 }}>
             <AppText style={{ fontFamily: 'DMSansBold', fontSize: 15 }} numberOfLines={1}>
               {item.debt.name}
@@ -252,6 +280,14 @@ export function ThisMonth({ today }: { today: string }) {
               disabled={working}
               onPress={() => void undo(item)}
               hitSlop={8}
+              style={{
+                paddingHorizontal: 14,
+                height: 34,
+                borderRadius: 12,
+                justifyContent: 'center',
+                borderWidth: 1,
+                borderColor: theme.border,
+              }}
             >
               <AppText tone="accent" style={{ fontSize: 13, fontFamily: 'DMSansBold' }}>
                 {working ? 'Saving…' : 'Undo'}
@@ -272,15 +308,18 @@ export function ThisMonth({ today }: { today: string }) {
                   );
                 }}
                 style={{
-                  width: 36,
+                  paddingHorizontal: 10,
                   height: 36,
-                  borderRadius: 11,
+                  borderRadius: 12,
                   alignItems: 'center',
                   justifyContent: 'center',
-                  backgroundColor: `${theme.text}0A`,
+                  borderWidth: 1,
+                  borderColor: theme.border,
                 }}
               >
-                <Icon name="activity" size={15} color={theme.muted} />
+                <AppText tone="muted" style={{ fontSize: 12, fontFamily: 'DMSansBold' }}>
+                  Part
+                </AppText>
               </Pressable>
               <Pressable
                 accessibilityRole="button"
@@ -379,17 +418,53 @@ export function ThisMonth({ today }: { today: string }) {
       <Card style={{ paddingVertical: 4, gap: 0 }}>
         {toPay.length ? (
           <>
-            <AppText tone="muted" style={{ fontSize: 12, paddingTop: 8 }}>
-              TO PAY · {toPay.length} · {money(left)} left
-            </AppText>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingTop: 12 }}>
+              <AppText style={{ fontSize: 13, fontFamily: 'DMSansBold' }}>
+                To pay · {toPay.length}
+              </AppText>
+              <AppText tone="muted" style={{ fontSize: 13 }}>
+                {money(left)} left
+              </AppText>
+            </View>
             {toPay.map((item) => row(item, false))}
           </>
         ) : (
-          <AppText tone="muted" style={{ paddingVertical: 14, fontSize: 13 }}>
-            All EMIs for {monthLabel(month, locale)} are paid.
-          </AppText>
+          <View
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 12,
+              marginTop: 12,
+              marginBottom: 4,
+              padding: 14,
+              borderRadius: 16,
+              backgroundColor: theme.successSoft,
+            }}
+          >
+            <View
+              style={{
+                width: 36,
+                height: 36,
+                borderRadius: 18,
+                alignItems: 'center',
+                justifyContent: 'center',
+                backgroundColor: theme.success,
+              }}
+            >
+              <Icon name="check" size={18} color="#FFFFFF" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <AppText style={{ fontFamily: 'DMSansBold', fontSize: 15 }}>
+                All paid for {monthLabel(month, locale)}
+              </AppText>
+              <AppText tone="muted" style={{ fontSize: 13 }}>
+                {money(paidTotal)} across {paid.length} {paid.length === 1 ? 'EMI' : 'EMIs'}
+              </AppText>
+            </View>
+          </View>
         )}
-        {paid.length > 0 && (
+        {paid.length > 0 && !toPay.length && paid.map((item) => row(item, true))}
+        {paid.length > 0 && !!toPay.length && (
           <>
             <Pressable
               accessibilityRole="button"
@@ -401,9 +476,14 @@ export function ThisMonth({ today }: { today: string }) {
                 borderTopColor: theme.border,
               }}
             >
-              <AppText tone="muted" style={{ fontSize: 12 }}>
-                PAID · {paid.length} · {money(paidTotal)} {showPaid ? '▴' : '▾'}
-              </AppText>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                <AppText tone="muted" style={{ fontSize: 13, fontFamily: 'DMSansBold' }}>
+                  Paid · {paid.length} {showPaid ? '▴' : '▾'}
+                </AppText>
+                <AppText tone="muted" style={{ fontSize: 13 }}>
+                  {money(paidTotal)}
+                </AppText>
+              </View>
             </Pressable>
             {showPaid && paid.map((item) => row(item, true))}
           </>
@@ -461,9 +541,18 @@ export function Statistics() {
             ['Paid', `${pct}%`],
           ] as const
         ).map(([label, value]) => (
-          <View key={label} style={{ flex: 1 }}>
+          <View
+            key={label}
+            style={{
+              flex: 1,
+              gap: 2,
+              padding: 10,
+              borderRadius: 14,
+              backgroundColor: `${theme.text}08`,
+            }}
+          >
             <AppText tone="muted" style={{ fontSize: 11 }}>
-              {label.toUpperCase()}
+              {label}
             </AppText>
             <AppText
               style={{ fontFamily: 'DMSansBold', fontSize: 14 }}

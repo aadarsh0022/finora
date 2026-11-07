@@ -74,7 +74,6 @@ export function HomeDetails({
   amount: (value: string) => string;
   hidden: boolean;
 }) {
-  const theme = useTheme();
   const budgets = useRead(`budgets?month=${data.month}`, z.array(budgetStatusSchema));
   const goals = useRead('goals', z.array(goalProgressSchema));
   const payments = useRead(
@@ -212,17 +211,6 @@ export function HomeDetails({
           </AppText>
         )}
       </Section>
-      <Card style={{ backgroundColor: theme.accentSoft, borderWidth: 0 }}>
-        <SectionHeading
-          title="Your weekly check-in"
-          action="Start"
-          actionLabel="Start weekly check-in"
-          onPress={() => router.push('/weekly-review')}
-        />
-        <AppText tone="muted" style={{ fontSize: 13 }}>
-          Review recent activity and look at the week ahead.
-        </AppText>
-      </Card>
     </>
   );
 }

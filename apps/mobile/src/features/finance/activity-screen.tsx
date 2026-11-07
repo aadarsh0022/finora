@@ -94,7 +94,6 @@ export default function Transactions() {
   return (
     <Screen
       title="Activity"
-      titleSize={30}
       showPendingStatus={false}
       headerAction={<ProfileAction />}
       subtitle="Your money, one entry at a time."

@@ -64,7 +64,7 @@ it('stays disabled without configuration and requires explicit policy consent be
       await call(
         'POST',
         'assistant/v3/chat',
-        { ...input, previousQuestions: ['a', 'b', 'c', 'd', 'e', 'f'] },
+        { ...input, previousQuestions: ['a', 'b', 'c', 'd', 'e', 'f', 'g'] },
         token,
       )
     ).status,
@@ -114,7 +114,7 @@ it('uses one Luna request to select a tool and keeps identity and financial resu
     store: false,
     parallel_tool_calls: true,
     tool_choice: 'required',
-    max_output_tokens: 1400,
+    max_output_tokens: 4000,
   });
   expect(body.input).toEqual([{ role: 'user', content: input.question }]);
   const serialized = JSON.stringify(body);
@@ -221,7 +221,7 @@ it('bounds the provider deadline and discards an oversized upstream response', a
       baseCurrency: 'INR',
     });
     const assertion = expect(selection).rejects.toMatchObject({ code: 'ASSISTANT_UNAVAILABLE' });
-    await vi.advanceTimersByTimeAsync(12001);
+    await vi.advanceTimersByTimeAsync(30001);
     await assertion;
   } finally {
     vi.useRealTimers();

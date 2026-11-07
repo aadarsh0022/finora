@@ -14,15 +14,17 @@ import { useTheme } from '../../theme';
 export function HistoryDrawer({
   visible,
   onClose,
+  headerAction,
   children,
 }: {
   visible: boolean;
   onClose: () => void;
+  headerAction?: ReactNode;
   children: ReactNode;
 }) {
   const theme = useTheme();
   const { width } = useWindowDimensions();
-  const drawerWidth = Math.min(width * 0.86, 360);
+  const drawerWidth = Math.min(width * 0.7, 300);
   const [mounted, setMounted] = useState(visible);
   const slide = useRef(new Animated.Value(-drawerWidth)).current;
   const backdrop = useRef(new Animated.Value(0)).current;
@@ -95,8 +97,8 @@ export function HistoryDrawer({
           <SafeAreaView style={{ flex: 1 }}>
             <View
               style={{
-                paddingHorizontal: 20,
-                paddingVertical: 18,
+                paddingHorizontal: 16,
+                paddingVertical: 14,
                 flexDirection: 'row',
                 alignItems: 'center',
                 justifyContent: 'space-between',
@@ -104,18 +106,22 @@ export function HistoryDrawer({
             >
               <AppText
                 accessibilityRole="header"
-                style={{ fontSize: 22, fontFamily: 'DMSansBold' }}
+                style={{ fontSize: 18, fontFamily: 'DMSansBold', flexShrink: 1 }}
+                numberOfLines={1}
               >
-                Chats
+                Walleto AI chats
               </AppText>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Close sidebar"
-                onPress={onClose}
-                style={{ width: 40, height: 40, alignItems: 'center', justifyContent: 'center' }}
-              >
-                <AppText style={{ fontSize: 24 }}>×</AppText>
-              </Pressable>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                {headerAction}
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Close sidebar"
+                  onPress={onClose}
+                  style={{ width: 40, height: 40, alignItems: 'center', justifyContent: 'center' }}
+                >
+                  <AppText style={{ fontSize: 24 }}>×</AppText>
+                </Pressable>
+              </View>
             </View>
             <ScrollView
               keyboardShouldPersistTaps="handled"

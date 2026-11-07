@@ -9,7 +9,11 @@ import {
 import { database } from '../../database/client';
 import { ApiError, success } from '../../utils/http';
 import type { AuthContext } from '../auth/service';
-const messagesSchema = z.array(conversationMessageSchema).max(40);
+import { fallbackTitle, generateChatTitle } from './title';
+/** A chat holds at most 50 messages; the model is shown the latest 6 exchanges. */
+export const chatMessageLimit = 50;
+const contextMessages = 6;
+const messagesSchema = z.array(conversationMessageSchema).max(chatMessageLimit);
 export async function openConversation(
   context: AuthContext,
   body: z.infer<typeof conversationSendSchema>,
@@ -18,11 +22,13 @@ export async function openConversation(
   const threads = db.collection('assistant_threads');
   const filter = { id: body.chatId, userId: context.user.id };
   const existing = await threads.findOne(filter);
+  // A new chat is named by the model while the first answer is being written.
+  const naming = existing ? null : generateChatTitle(body.question);
   if (!existing) {
     try {
       await threads.insertOne({
         ...filter,
-        title: body.question.slice(0, 100),
+        title: fallbackTitle(body.question),
         messages: [],
         updatedAt: new Date(),
         leaseUntil: new Date(0),
@@ -58,7 +64,13 @@ export async function openConversation(
         throw new ApiError(409, 'MESSAGE_MISSING', 'Open the latest chat and try again.');
       messages = messages.slice(0, index);
     }
-    const previous = messages.filter((message) => message.answer).slice(-4);
+    if (messages.length >= chatMessageLimit && !repeated)
+      throw new ApiError(
+        409,
+        'CHAT_FULL',
+        'This chat has reached 50 messages. Start a new chat to continue.',
+      );
+    const previous = messages.filter((message) => message.answer).slice(-contextMessages);
     const input = {
       question: body.question,
       previousQuestions: previous.map((message) => message.question),
@@ -66,17 +78,21 @@ export async function openConversation(
       acceptedPolicyVersion: assistantPolicyVersion,
     };
     const pending = { id: body.messageId, question: body.question, answer: null };
-    messages = [...messages.filter((message) => message.id !== body.messageId), pending].slice(-40);
+    messages = [...messages.filter((message) => message.id !== body.messageId), pending].slice(
+      -chatMessageLimit,
+    );
     await threads.updateOne({ ...filter, lease }, { $set: { messages, updatedAt: new Date() } });
     return {
       input,
       release,
       finish: async (answer: z.infer<typeof assistantChatResponseSchema>) => {
         const safeAnswer = { ...answer, draft: null, change: null, prepared: [] };
+        const title = naming ? await naming : null;
         await threads.updateOne(
           { ...filter, lease },
           {
             $set: {
+              ...(title ? { title } : {}),
               messages: messages.map((message) =>
                 message.id === body.messageId ? { ...message, answer: safeAnswer } : message,
               ),

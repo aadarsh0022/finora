@@ -20,7 +20,7 @@ const pastVerbs: [RegExp, string][] = [
   [/^(archive|cancel|pause)/i, 'Archived'],
   [/^(delete|remove|reverse)/i, 'Removed'],
 ];
-/** One plain sentence saying what was saved, built from the reviewed details (max 150 characters). */
+/** One plain sentence saying what was saved, built from the reviewed details (max 100 characters). */
 function savedSentence(change: { title: string; rows: { label: string; value: string }[] }) {
   const verb = pastVerbs.find(([pattern]) => pattern.test(change.title))?.[1] ?? 'Saved';
   const subject = change.rows.find((row) => /^(name|for|record)$/i.test(row.label))?.value;
@@ -29,7 +29,7 @@ function savedSentence(change: { title: string; rows: { label: string; value: st
     .map((row) => `${row.label.toLowerCase()} ${row.value}`)
     .join(', ');
   const text = `${verb}${subject ? ` ${subject}` : ` ${change.title.replace(/^(add|create|record|set|update|edit|change|restore|copy|archive|cancel|pause|delete|remove|reverse)\s+/i, '').toLowerCase()}`}${details ? `: ${details}` : ''}.`;
-  return text.length > 150 ? `${text.slice(0, 147).trimEnd()}...` : text;
+  return text.length > 100 ? `${text.slice(0, 97).trimEnd()}...` : text;
 }
 
 export function ChangeConversation({

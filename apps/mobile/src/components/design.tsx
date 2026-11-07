@@ -30,6 +30,7 @@ const paths = {
   transfer: 'M7 7h13m-4-4 4 4-4 4M17 17H4m4-4-4 4 4 4',
   send: 'M12 19V5m-6 6 6-6 6 6',
   newChat: 'M13 5H5v15h15v-8M11 13l1-4 7-7 3 3-7 7-4 1Z',
+  trash: 'M4 7h16M9 7V4h6v3m-9 0 1 13h10l1-13M10 11v5m4-5v5',
   chevron: 'm9 5 7 7-7 7',
   more: 'M5 12h.01M12 12h.01M19 12h.01',
   search: 'm16 16 5 5M18 10a8 8 0 1 1-16 0 8 8 0 0 1 16 0Z',

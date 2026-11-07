@@ -9,6 +9,7 @@ import { runReadOnlyTool } from './tools';
 import { narrativeFacts, shortenReply, writeNarrative } from './narrative';
 import { prepareTransaction } from './transaction-draft';
 import { prepareChange } from './changes';
+import { listAccounts, listCategories } from '../finance/entities';
 import type { assistantProgressSchema } from '@finora/contracts';
 
 const readLabels = {
@@ -31,6 +32,19 @@ export async function answerAgent(
   const results: AssistantToolResult[] = [];
   const seen = new Set<string>();
   progress({ id: 'thinking', state: 'thinking', label: 'Thinking…' });
+  // Names only, so the model can pick real categories and accounts and answer in context.
+  const names = (items: { name: string }[]) => items.slice(0, 40).map((i) => i.name.slice(0, 40));
+  const [accounts, categories] = await Promise.all([
+    listAccounts(context, false).catch(() => []),
+    listCategories(context, false).catch(() => []),
+  ]);
+  const known = {
+    accounts: names(accounts),
+    categories: {
+      expense: names(categories.filter((c) => c.type === 'EXPENSE')),
+      income: names(categories.filter((c) => c.type === 'INCOME')),
+    },
+  };
   for (let round = 0; round < 6; round++) {
     if (request.signal.aborted) throw new ApiError(499, 'CANCELLED', 'Request cancelled.');
     const current = await authenticate(request);
@@ -51,6 +65,7 @@ export async function answerAgent(
       { userId: current.user.id, authVersion: current.user.authVersion, expanded: true },
       input.previousReplies,
       facts,
+      known,
     );
     if (selection.name === 'finish_answer') break;
     if (selection.name === 'ask_follow_up')

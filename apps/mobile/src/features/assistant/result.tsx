@@ -3,7 +3,8 @@ import { formatMoney } from '@finora/finance-core';
 import { router } from 'expo-router';
 import { Pressable, View } from 'react-native';
 import type { ReactNode } from 'react';
-import { AppText, Card } from '../../components/ui';
+import { AppText } from '../../components/ui';
+import { useTheme } from '../../theme';
 import { useApp } from '../../providers/app-provider';
 
 function Row({
@@ -17,12 +18,17 @@ function Row({
 }) {
   return (
     <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 12 }}>
-      <AppText tone="muted" style={{ flex: 1, fontSize: 14 }}>
+      <AppText tone="muted" style={{ flex: 1, fontSize: 13 }}>
         {label}
       </AppText>
       <AppText
         tone={tone}
-        style={{ flexShrink: 1, fontFamily: 'DMSansBold', fontVariant: ['tabular-nums'] }}
+        style={{
+          flexShrink: 1,
+          fontSize: 13,
+          fontFamily: 'DMSansBold',
+          fontVariant: ['tabular-nums'],
+        }}
       >
         {value}
       </AppText>
@@ -36,9 +42,9 @@ function Link({ title, onPress }: { title: string; onPress: () => void }) {
       accessibilityRole="button"
       accessibilityLabel={title}
       onPress={onPress}
-      style={{ minHeight: 36, justifyContent: 'center', alignSelf: 'flex-start' }}
+      style={{ minHeight: 32, justifyContent: 'center', alignSelf: 'flex-start' }}
     >
-      <AppText tone="accent" style={{ fontSize: 13, fontFamily: 'DMSansBold' }}>
+      <AppText tone="accent" style={{ fontSize: 12, fontFamily: 'DMSansBold' }}>
         {title} ›
       </AppText>
     </Pressable>
@@ -53,6 +59,7 @@ export function AssistantResult({
   actions?: ReactNode;
 }) {
   const { user } = useApp();
+  const theme = useTheme();
   const money = (value: string) =>
     formatMoney(value, result.currency, user?.preferences.locale ?? 'en-IN');
   let content;
@@ -61,16 +68,19 @@ export function AssistantResult({
     case 'plan_finances':
       content = (
         <>
-          {result.data.facts.map((fact, index) => (
-            <AppText key={index}>{fact}</AppText>
-          ))}
+          {result.name === 'read_records' &&
+            result.data.facts.map((fact, index) => (
+              <AppText key={index} tone="muted" style={{ fontSize: 13 }}>
+                {fact}
+              </AppText>
+            ))}
           {result.data.items.map((item, index) => (
-            <View key={item.id ?? index} style={{ gap: 3, paddingVertical: 5 }}>
-              <AppText style={{ fontFamily: 'DMSansBold' }}>
+            <View key={item.id ?? index} style={{ gap: 1, paddingVertical: 3 }}>
+              <AppText style={{ fontFamily: 'DMSansBold', fontSize: 14 }}>
                 {item.title}
                 {item.amountMinor ? ` · ${money(item.amountMinor)}` : ''}
               </AppText>
-              <AppText tone="muted" style={{ fontSize: 13 }}>
+              <AppText tone="muted" style={{ fontSize: 12 }}>
                 {item.detail}
               </AppText>
             </View>
@@ -196,11 +206,24 @@ export function AssistantResult({
       !result.data.facts.length &&
       !result.data.items.length) ||
     (result.name === 'get_debt_summary' && result.data.openRecordCount === 0) ||
-    (result.name === 'get_category_spending' && !result.data.categories.length);
+    (result.name === 'get_category_spending' && !result.data.categories.length) ||
+    (result.name === 'plan_finances' && !result.data.items.length);
   if (empty && !actions) return null;
+  // Details sit open under the answer as a quiet, compact block instead of a large card.
   return (
     <View style={{ gap: 6 }}>
-      {!empty && <Card style={{ gap: 6, padding: 12, borderRadius: 14 }}>{content}</Card>}
+      {!empty && (
+        <View
+          style={{
+            gap: 4,
+            paddingLeft: 12,
+            borderLeftWidth: 2,
+            borderLeftColor: theme.border,
+          }}
+        >
+          {content}
+        </View>
+      )}
       {actions}
     </View>
   );
