@@ -283,13 +283,13 @@ function AccentPicker({
         })}
       </View>
       <AppText tone="muted" style={{ fontSize: 12 }}>
-        Applies instantly and is saved to your account for every device.
+        Applies when you save, for every device.
       </AppText>
     </View>
   );
 }
 function PreferencesForm({ initial }: { initial: z.infer<typeof settingsSchema> }) {
-  const { refreshUser, api, syncPending } = useApp();
+  const { refreshUser } = useApp();
   const [saved, setSaved] = useState(initial);
   const [form, setForm] = useState<Preferences>(initial.preferences);
   const [error, setError] = useState('');
@@ -307,16 +307,6 @@ function PreferencesForm({ initial }: { initial: z.infer<typeof settingsSchema> 
       setOpen(false);
     });
   }
-  function chooseAccent(next: AccentColor) {
-    // Applies at once and syncs quietly; it is not part of the form's unsaved changes.
-    useAppearance.getState().choose(next);
-    setSaved((current) => ({
-      ...current,
-      preferences: { ...current.preferences, accentColor: next },
-    }));
-    setForm((current) => ({ ...current, accentColor: next }));
-    void syncPending?.().catch(() => undefined);
-  }
   function set<K extends keyof Preferences>(key: K, value: Preferences[K]) {
     setNotice('');
     setForm((current) => ({ ...current, [key]: value }));
@@ -325,26 +315,16 @@ function PreferencesForm({ initial }: { initial: z.infer<typeof settingsSchema> 
     setError('');
     setNotice('');
     try {
-      // A background colour save raises the account version; reuse it only if nothing else changed.
-      let version = saved.version;
-      try {
-        const latest = await api.request('settings', settingsSchema);
-        const rest = (value: Preferences) => JSON.stringify({ ...value, accentColor: null });
-        if (rest(latest.preferences) === rest(saved.preferences)) version = latest.version;
-      } catch {
-        // Offline or unavailable: the save below reports the connection problem.
-      }
       const next = await save.mutateAsync(
         settingsUpdateSchema.parse({
-          preferences: {
-            ...form,
-            accentColor: useAppearance.getState().accent ?? form.accentColor,
-          },
-          version,
+          preferences: form,
+          version: saved.version,
         }),
       );
       setSaved(next);
       setForm(next.preferences);
+      useAppearance.getState().choose(next.preferences.accentColor);
+      useAppearance.getState().markSynced(next.preferences.accentColor);
       setProfilePending(true);
       await refreshUser();
       setProfilePending(false);
@@ -402,7 +382,7 @@ function PreferencesForm({ initial }: { initial: z.infer<typeof settingsSchema> 
             { value: 'dark', label: 'Dark' },
           ]}
         />
-        <AccentPicker value={form.accentColor} onChange={chooseAccent} />
+        <AccentPicker value={form.accentColor} onChange={(value) => set('accentColor', value)} />
         <SelectField
           label="Base currency"
           value={form.baseCurrency}

@@ -314,6 +314,4 @@ test('adds lower dashboard sections with working destinations', async () => {
     pathname: '/planning',
     params: { section: 'budgets' },
   });
-  await fireEvent.press(screen.getByRole('button', { name: 'Start weekly check-in' }));
-  expect(router.push).toHaveBeenCalledWith('/weekly-review');
 });

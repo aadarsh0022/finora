@@ -10,7 +10,7 @@ export const chatTurnSchema = z.object({
 export const savedChatSchema = z.object({
   id: z.uuid(),
   title: z.string().max(100),
-  turns: z.array(chatTurnSchema).max(40),
+  turns: z.array(chatTurnSchema).max(50),
 });
 export type SavedChat = z.infer<typeof savedChatSchema>;
 export type ChatTurn = z.infer<typeof chatTurnSchema>;

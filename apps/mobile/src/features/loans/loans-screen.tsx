@@ -3,7 +3,13 @@ import { Alert, Pressable, View } from 'react-native';
 import { router } from 'expo-router';
 import { z } from 'zod';
 import { emiLoanSchema, type EmiLoanDto } from '@finora/contracts';
-import { calendarDate, formatMoney, getRemainingPayable } from '@finora/finance-core';
+import {
+  calendarDate,
+  formatMoney,
+  getPrincipalTotals,
+  getRemainingPayable,
+  getRemainingPayableTotals,
+} from '@finora/finance-core';
 import { AppText, Card, Feedback, Screen } from '../../components/ui';
 import { Loading } from '../../components/skeleton';
 import { CreateAction, EmptyState, Icon, SectionHeading } from '../../components/design';
@@ -11,7 +17,14 @@ import { useApp } from '../../providers/app-provider';
 import { useTheme } from '../../theme';
 import { useEmiWrite, useLoans } from './model';
 import { monthLabel, monthOverview } from './summary';
-import { ComingMonths, LeftToPayOff, PayoffStrategy, Statistics, ThisMonth } from './loan-sections';
+import {
+  ComingMonths,
+  LeftToPayOff,
+  LoanAvatar,
+  PayoffStrategy,
+  Statistics,
+  ThisMonth,
+} from './loan-sections';
 import { ForecastSheet, IncomeSheet, LoanFormSheet, LoanHistorySheet } from './loan-sheets';
 
 type Filter = 'all' | 'large' | 'small';
@@ -78,6 +91,11 @@ export function LoansScreen() {
     () => monthOverview(debts, payments, incomes, month),
     [debts, payments, incomes, month],
   );
+  const totals = useMemo(
+    () => getRemainingPayableTotals(debts, payments, extras, month),
+    [debts, payments, extras, month],
+  );
+  const principal = useMemo(() => getPrincipalTotals(debts), [debts]);
   const shown = loans.filter((loan) => filter === 'all' || loan.loanTag === filter);
 
   async function toggleActive(loan: EmiLoanDto) {
@@ -153,7 +171,7 @@ export function LoansScreen() {
         <>
           <View style={{ backgroundColor: theme.accent, borderRadius: 26, padding: 20, gap: 14 }}>
             <AppText style={{ fontSize: 13, color: `${theme.onAccent}D0` }}>
-              {monthLabel(month, locale)} EMIs
+              {monthLabel(month, locale)} · to pay this month
             </AppText>
             <View style={{ gap: 2 }}>
               <AppText
@@ -170,7 +188,8 @@ export function LoansScreen() {
                 {money(overview.left)}
               </AppText>
               <AppText style={{ fontSize: 13, color: `${theme.onAccent}D0` }}>
-                left to pay of {money(overview.totalDue)}
+                left to pay of {money(overview.totalDue)} · {overview.doneCount} of{' '}
+                {overview.itemCount} EMIs done
               </AppText>
             </View>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
@@ -199,9 +218,23 @@ export function LoansScreen() {
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
               <Tile
                 icon="check"
-                label="Paid so far"
-                value={money(overview.totalPaid)}
-                note={`${overview.doneCount} of ${overview.itemCount} EMIs done`}
+                label="Total left to pay"
+                value={money(totals.combined)}
+                note={
+                  totals.excludedOngoingCount
+                    ? `${totals.excludedOngoingCount} ongoing not counted`
+                    : 'All remaining EMIs'
+                }
+              />
+              <Tile
+                icon="goal"
+                label="Principal left"
+                value={principal.withPrincipal ? money(principal.total) : 'Not added'}
+                note={
+                  principal.withPrincipal
+                    ? `${principal.withPrincipal} ${principal.withPrincipal === 1 ? 'loan' : 'loans'} with a balance`
+                    : 'Add it from Edit on a loan'
+                }
               />
               <Tile
                 icon="calendar"
@@ -331,30 +364,9 @@ export function LoansScreen() {
             </Pressable>
           </Card>
 
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Change how EMI payments are recorded"
-            onPress={() => router.push('/settings')}
-            style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 4 }}
-          >
-            <Icon name="info" size={14} color={theme.muted} />
-            <AppText tone="muted" style={{ flex: 1, fontSize: 12 }}>
-              {user?.preferences.keepDebtSeparate
-                ? 'EMI payments stay in Loans only and do not change your balance.'
-                : 'Marking an EMI paid also records an expense from your balance.'}
-            </AppText>
-            <AppText tone="accent" style={{ fontSize: 12, fontFamily: 'DMSansBold' }}>
-              Change
-            </AppText>
-          </Pressable>
           <ThisMonth
             today={calendarDate(new Date(), user?.preferences.timezone ?? 'Asia/Kolkata')}
           />
-          <Statistics />
-          <LeftToPayOff />
-          <ComingMonths />
-          <PayoffStrategy />
-
           <View style={{ gap: 12 }}>
             <SectionHeading title="All debts" />
             <View style={{ flexDirection: 'row', gap: 8 }}>
@@ -379,7 +391,10 @@ export function LoansScreen() {
                       color: filter === value ? theme.surface : theme.muted,
                     }}
                   >
-                    {value === 'all' ? 'ALL DEBTS' : value.toUpperCase()}
+                    {value === 'all' ? 'All' : value === 'large' ? 'Large' : 'Small'}{' '}
+                    {value === 'all'
+                      ? loans.length
+                      : loans.filter((l) => l.loanTag === value).length}
                   </AppText>
                 </Pressable>
               ))}
@@ -395,8 +410,8 @@ export function LoansScreen() {
                     key={loan.id}
                     style={{
                       padding: 16,
-                      gap: 10,
-                      opacity: loan.isActive ? 1 : 0.55,
+                      gap: 12,
+                      opacity: loan.isActive ? 1 : 0.6,
                       borderTopWidth: index ? 1 : 0,
                       borderTopColor: theme.border,
                     }}
@@ -405,104 +420,95 @@ export function LoansScreen() {
                       accessibilityRole="button"
                       accessibilityLabel={`${loan.name} history`}
                       onPress={() => setHistory(loan.id)}
-                      style={{ gap: 3 }}
+                      style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}
                     >
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                        <AppText style={{ fontFamily: 'DMSansBold', fontSize: 17 }}>
-                          {loan.name}
-                        </AppText>
-                        <View
-                          style={{
-                            paddingHorizontal: 8,
-                            paddingVertical: 2,
-                            borderRadius: 8,
-                            backgroundColor: theme.accentSoft,
-                          }}
-                        >
+                      <LoanAvatar name={loan.name} muted={!loan.isActive} />
+                      <View style={{ flex: 1, gap: 2 }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                           <AppText
-                            style={{ fontSize: 10, fontFamily: 'DMSansBold', color: theme.accent }}
+                            style={{ fontFamily: 'DMSansBold', fontSize: 16, flexShrink: 1 }}
+                            numberOfLines={1}
                           >
-                            {loan.loanTag.toUpperCase()}
+                            {loan.name}
                           </AppText>
+                          <View
+                            style={{
+                              paddingHorizontal: 8,
+                              paddingVertical: 2,
+                              borderRadius: 8,
+                              backgroundColor: theme.accentSoft,
+                            }}
+                          >
+                            <AppText
+                              style={{
+                                fontSize: 10,
+                                fontFamily: 'DMSansBold',
+                                color: theme.accent,
+                              }}
+                            >
+                              {loan.isActive ? loan.loanTag.toUpperCase() : 'ARCHIVED'}
+                            </AppText>
+                          </View>
                         </View>
-                        {!loan.isActive && (
-                          <AppText tone="muted" style={{ fontSize: 11 }}>
-                            Archived
-                          </AppText>
-                        )}
-                      </View>
-                      <AppText tone="muted" style={{ fontSize: 13 }}>
-                        {money(loan.monthlyAmountMinor)}/mo · {range}
-                      </AppText>
-                      {loan.principalRemainingMinor !== null && (
-                        <AppText tone="muted" style={{ fontSize: 13 }}>
-                          Principal{' '}
-                          <AppText style={{ fontSize: 13, fontFamily: 'DMSansBold' }}>
-                            {money(loan.principalRemainingMinor)}
-                          </AppText>
-                          {loan.principalAsOf
-                            ? ` · as of ${new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'short', timeZone: 'UTC' }).format(new Date(`${loan.principalAsOf}T12:00:00Z`))}`
-                            : ''}
+                        <AppText tone="muted" style={{ fontSize: 13 }} numberOfLines={1}>
+                          {money(loan.monthlyAmountMinor)}/mo · {range}
                         </AppText>
-                      )}
+                      </View>
                     </Pressable>
-                    <View
-                      style={{
-                        flexDirection: 'row',
-                        alignItems: 'flex-end',
-                        justifyContent: 'space-between',
-                      }}
-                    >
-                      <View>
-                        <AppText tone="muted" style={{ fontSize: 11, letterSpacing: 0.6 }}>
-                          REMAINING
+                    <View style={{ flexDirection: 'row', gap: 8 }}>
+                      <View
+                        style={{
+                          flex: 1,
+                          gap: 2,
+                          padding: 12,
+                          borderRadius: 14,
+                          backgroundColor: `${theme.text}08`,
+                        }}
+                      >
+                        <AppText tone="muted" style={{ fontSize: 11 }}>
+                          Remaining
                         </AppText>
                         <AppText
                           style={{
-                            fontSize: 22,
-                            lineHeight: 30,
+                            fontSize: 18,
                             fontFamily: 'DMSansBold',
                             fontVariant: ['tabular-nums'],
                           }}
+                          numberOfLines={1}
+                          adjustsFontSizeToFit
                         >
                           {remaining === null ? 'Ongoing' : money(remaining)}
                         </AppText>
                       </View>
-                      <View style={{ flexDirection: 'row', gap: 6 }}>
-                        {(
-                          [
-                            ['History', 'activity', () => setHistory(loan.id)],
-                            ['Edit', 'chart', () => setForm({ open: true, loan })],
-                            [
-                              loan.isActive ? 'Archive' : 'Restore',
-                              'repeat',
-                              () => void toggleActive(loan),
-                            ],
-                            ['Delete', 'expense', () => confirmDelete(loan)],
-                          ] as const
-                        ).map(([label, icon, press]) => (
-                          <Pressable
-                            key={label}
-                            accessibilityRole="button"
-                            accessibilityLabel={`${label} ${loan.name}`}
-                            onPress={press}
+                      {loan.principalRemainingMinor !== null && (
+                        <View
+                          style={{
+                            flex: 1,
+                            gap: 2,
+                            padding: 12,
+                            borderRadius: 14,
+                            backgroundColor: `${theme.text}08`,
+                          }}
+                        >
+                          <AppText tone="muted" style={{ fontSize: 11 }}>
+                            Principal
+                            {loan.principalAsOf
+                              ? ` · ${new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'short', timeZone: 'UTC' }).format(new Date(`${loan.principalAsOf}T12:00:00Z`))}`
+                              : ''}
+                          </AppText>
+                          <AppText
                             style={{
-                              width: 38,
-                              height: 38,
-                              borderRadius: 11,
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              backgroundColor: `${theme.text}0A`,
+                              fontSize: 18,
+                              fontFamily: 'DMSansBold',
+                              fontVariant: ['tabular-nums'],
                             }}
+                            numberOfLines={1}
+                            adjustsFontSizeToFit
                           >
-                            <Icon
-                              name={icon}
-                              size={16}
-                              color={label === 'Delete' ? theme.danger : theme.muted}
-                            />
-                          </Pressable>
-                        ))}
-                      </View>
+                            {money(loan.principalRemainingMinor)}
+                          </AppText>
+                        </View>
+                      )}
                     </View>
                   </View>
                 );
@@ -514,9 +520,30 @@ export function LoansScreen() {
               )}
             </Card>
           </View>
+
+          <SectionHeading title="Insights" />
+          <Statistics />
+          <LeftToPayOff />
+          <ComingMonths />
+          <PayoffStrategy />
         </>
       )}
-      <LoanHistorySheet loanId={history} onClose={() => setHistory(null)} />
+      <LoanHistorySheet
+        loanId={history}
+        onClose={() => setHistory(null)}
+        onEdit={(loan) => {
+          setHistory(null);
+          setForm({ open: true, loan });
+        }}
+        onToggleActive={(loan) => {
+          setHistory(null);
+          void toggleActive(loan);
+        }}
+        onDelete={(loan) => {
+          setHistory(null);
+          confirmDelete(loan);
+        }}
+      />
       <LoanFormSheet
         loan={form.loan}
         visible={form.open}

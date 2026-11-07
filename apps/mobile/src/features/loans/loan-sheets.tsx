@@ -109,9 +109,15 @@ function RoundButton({
 export function LoanHistorySheet({
   loanId,
   onClose,
+  onEdit,
+  onToggleActive,
+  onDelete,
 }: {
   loanId: string | null;
   onClose: () => void;
+  onEdit?: (loan: EmiLoanDto) => void;
+  onToggleActive?: (loan: EmiLoanDto) => void;
+  onDelete?: (loan: EmiLoanDto) => void;
 }) {
   const theme = useTheme();
   const { user } = useApp();
@@ -252,6 +258,29 @@ export function LoanHistorySheet({
           {prepaid > 0n ? ` · prepaid ${money(prepaid)}` : ''}
         </AppText>
       </View>
+      {(onEdit || onToggleActive || onDelete) && (
+        <View style={{ flexDirection: 'row', gap: 8 }}>
+          {onEdit && (
+            <View style={{ flex: 1 }}>
+              <AppButton title="Edit" variant="secondary" onPress={() => onEdit(loan)} />
+            </View>
+          )}
+          {onToggleActive && (
+            <View style={{ flex: 1 }}>
+              <AppButton
+                title={loan.isActive ? 'Archive' : 'Restore'}
+                variant="secondary"
+                onPress={() => onToggleActive(loan)}
+              />
+            </View>
+          )}
+          {onDelete && (
+            <View style={{ flex: 1 }}>
+              <AppButton title="Delete" variant="danger" onPress={() => onDelete(loan)} />
+            </View>
+          )}
+        </View>
+      )}
       {!separate && (
         <Card style={{ gap: 10, padding: 12, borderRadius: 14 }}>
           <AppText tone="muted" style={{ fontSize: 12 }}>

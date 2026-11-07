@@ -13,7 +13,7 @@ export const conversationMessageSchema = z.object({
 export const conversationSchema = z.object({
   id: z.uuid(),
   title: z.string().max(100),
-  messages: z.array(conversationMessageSchema).max(40),
+  messages: z.array(conversationMessageSchema).max(50),
 });
 export const conversationListSchema = z
   .array(z.object({ id: z.uuid(), title: z.string().max(100), updatedAt: z.iso.datetime() }))

@@ -196,6 +196,8 @@ function AssistantSession() {
     );
   }
   const [busy, setBusy] = useState(false);
+  // Questions typed while an answer is still being written wait here and are sent in order.
+  const [queue, setQueue] = useState<string[]>([]);
   const [pendingQuestion, setPendingQuestion] = useState('');
   const [progress, setProgress] = useState<Progress[]>([]);
   const [error, setError] = useState<unknown>();
@@ -297,13 +299,16 @@ function AssistantSession() {
     flight.current = null;
     setBusy(false);
     setPendingQuestion('');
+    setQueue([]);
     setTurns([]);
     setDraft('');
     setError(undefined);
     setNotice('');
   }
+  const chatFull = turns.length >= 50 && editingIndex === undefined;
   async function send(question = draft.trim()) {
     if (
+      chatFull ||
       !question ||
       !consent ||
       capabilities.data?.enabled === false ||
@@ -360,7 +365,7 @@ function AssistantSession() {
       );
       if (flight.current !== controller) return;
       setTurns(() => [
-        ...contextTurns.slice(-39),
+        ...contextTurns.slice(-49),
         { question, answer, steps: latestSteps.filter((step) => step.state === 'checked') },
       ]);
       setEditingIndex(undefined);
@@ -383,9 +388,26 @@ function AssistantSession() {
     flight.current = null;
     setDraft(pendingQuestion);
     setPendingQuestion('');
+    setQueue([]);
     setBusy(false);
     setError(undefined);
   }
+  function submit() {
+    const text = draft.trim();
+    if (busy) {
+      if (!text) return;
+      setQueue((current) => [...current, text].slice(0, 5));
+      setDraft('');
+      return;
+    }
+    void send();
+  }
+  useEffect(() => {
+    if (busy || error || flight.current || !queue.length || offline) return;
+    const [next, ...rest] = queue;
+    setQueue(rest);
+    void send(next);
+  }, [busy, error, queue, offline]);
   async function submitReport() {
     if (!report || reporting || reportFlight.current || offline) return;
     const answerId = report;
@@ -775,12 +797,28 @@ function AssistantSession() {
                   {!progress.some((step) => step.state === 'checking') && <ChatThinking />}
                 </View>
               )}
+              {queue.map((text, index) => (
+                <View key={`${index}-${text}`} style={{ opacity: 0.55, gap: 4 }}>
+                  <UserBubble question={text} />
+                  <AppText tone="muted" style={{ fontSize: 11, alignSelf: 'flex-end' }}>
+                    Queued
+                  </AppText>
+                </View>
+              ))}
             </>
           )}
           {offline && (
             <AppText tone="muted" accessibilityRole="alert">
               You’re offline. Reconnect to ask a question. Earlier answers are recorded snapshots.
             </AppText>
+          )}
+          {chatFull && !busy && (
+            <View style={{ gap: 10, paddingVertical: 8 }}>
+              <AppText tone="muted" style={{ fontSize: 13 }}>
+                This chat has reached 50 messages. Start a new chat to keep going.
+              </AppText>
+              <AppButton title="Start new chat" onPress={clear} />
+            </View>
           )}
           {!!error && (
             <Feedback
@@ -854,13 +892,10 @@ function AssistantSession() {
                 value={draft}
                 onChangeText={setDraft}
                 maxLength={4000}
-                editable={!busy}
                 multiline
                 returnKeyType="send"
                 submitBehavior="submit"
-                onSubmitEditing={() => {
-                  void send();
-                }}
+                onSubmitEditing={submit}
                 style={{
                   flex: 1,
                   minHeight: 44,
@@ -875,14 +910,16 @@ function AssistantSession() {
               />
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel={busy ? 'Stop response' : 'Send question'}
+                accessibilityLabel={
+                  busy ? (draft.trim() ? 'Queue question' : 'Stop response') : 'Send question'
+                }
                 accessibilityState={{
                   disabled: !busy && ((offline && !awaitingTransaction) || !draft.trim()),
                 }}
                 disabled={!busy && ((offline && !awaitingTransaction) || !draft.trim())}
                 onPress={() => {
-                  if (busy) stop();
-                  else void send();
+                  if (busy && !draft.trim()) stop();
+                  else submit();
                 }}
                 style={({ pressed }) => ({
                   width: 44,
@@ -897,7 +934,7 @@ function AssistantSession() {
                       : 1,
                 })}
               >
-                {busy ? (
+                {busy && !draft.trim() ? (
                   <View
                     style={{
                       width: 14,
@@ -914,14 +951,30 @@ function AssistantSession() {
           </View>
         )}
       </KeyboardAvoidingView>
-      <HistoryDrawer visible={historyOpen} onClose={() => setHistoryOpen(false)}>
-        <AppButton
-          title="New chat"
-          onPress={() => {
-            clear();
-            setHistoryOpen(false);
-          }}
-        />
+      <HistoryDrawer
+        visible={historyOpen}
+        onClose={() => setHistoryOpen(false)}
+        headerAction={
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="New chat"
+            onPress={() => {
+              clear();
+              setHistoryOpen(false);
+            }}
+            style={{
+              width: 40,
+              height: 40,
+              alignItems: 'center',
+              justifyContent: 'center',
+              backgroundColor: `${theme.text}0A`,
+              borderRadius: 12,
+            }}
+          >
+            <Icon name="newChat" size={20} color={theme.text} />
+          </Pressable>
+        }
+      >
         {!history.length && <AppText tone="muted">Your conversations will appear here.</AppText>}
         {history.map((chat) => (
           <View
@@ -966,7 +1019,7 @@ function AssistantSession() {
               }}
               style={{ flex: 1, minHeight: 44, justifyContent: 'center' }}
             >
-              <AppText numberOfLines={2} style={{ fontSize: 14 }}>
+              <AppText numberOfLines={1} style={{ fontSize: 14 }}>
                 {chat.title}
               </AppText>
             </Pressable>
@@ -985,11 +1038,10 @@ function AssistantSession() {
                   })
                   .catch(setError);
               }}
-              style={{ padding: 10 }}
+              hitSlop={6}
+              style={{ padding: 8 }}
             >
-              <AppText tone="muted" style={{ fontSize: 12 }}>
-                Delete
-              </AppText>
+              <Icon name="trash" size={18} color={theme.muted} />
             </Pressable>
           </View>
         ))}

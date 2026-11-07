@@ -72,7 +72,7 @@ export function Screen({
   headerAction,
   leadingAction,
   topContent,
-  titleSize = 30,
+  titleSize = 23,
   contentStyle,
   showPendingStatus = true,
   includeTopInset = true,
@@ -160,15 +160,15 @@ export function Screen({
           {showPendingStatus && user && vault && <PendingStatus />}
           {topContent}
           {title && (
-            <View style={{ gap: 6 }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+            <View style={{ gap: 0 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
                 {leading}
                 <AppText
                   accessibilityRole="header"
                   style={{
                     fontFamily: 'DMSansBold',
                     fontSize: titleSize,
-                    lineHeight: 38,
+                    lineHeight: 30,
                     letterSpacing: -1,
                     flex: 1,
                   }}
@@ -180,7 +180,7 @@ export function Screen({
               {subtitle && (
                 <AppText
                   tone="muted"
-                  style={{ fontSize: 14, lineHeight: 21, marginLeft: leading ? 52 : 0 }}
+                  style={{ fontSize: 14, lineHeight: 21, marginLeft: leading ? 50 : 0 }}
                 >
                   {subtitle}
                 </AppText>

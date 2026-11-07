@@ -41,6 +41,38 @@ export class ApiClient {
   private generation = 0;
   private storageQueue: Promise<void> = Promise.resolve();
   private baseUrl: string;
+  // Android only runs a few requests per host at once; the rest wait in the transport. The
+  // timeout must measure the server, not the queue, so requests start through this gate and
+  // their timer begins only when they really go out.
+  private active = 0;
+  private waiting: (() => void)[] = [];
+  private readonly maxActive = 4;
+  private restartable = new Set<{ restart: () => void }>();
+
+  private async acquire() {
+    if (this.active < this.maxActive) {
+      this.active++;
+      return;
+    }
+    await new Promise<void>((resolve) => this.waiting.push(resolve));
+  }
+  private release() {
+    const next = this.waiting.shift();
+    if (next) next();
+    else this.active--;
+  }
+  /** Abort reads that were in flight while the app was in the background; they are retried once. */
+  restartReads() {
+    for (const entry of [...this.restartable]) entry.restart();
+  }
+  /** Wake the server on app start so the first real request is not a cold start. Fire and forget. */
+  warm() {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 10000);
+    void this.transport(`${this.baseUrl}/api/health`, { signal: controller.signal })
+      .catch(() => undefined)
+      .finally(() => clearTimeout(timer));
+  }
 
   constructor(
     baseUrl: string,
@@ -93,16 +125,27 @@ export class ApiClient {
   private async send(path: string, options: RequestOptions, accessToken?: string) {
     if (path.startsWith('/') || path.includes('://') || path.includes('..'))
       throw new ClientError('INVALID_PATH', 'Invalid API path.');
+    const gated = !options.streamEvents;
+    if (gated) await this.acquire();
     const controller = new AbortController();
     let timedOut = false;
+    let restarted = false;
     const timer = setTimeout(
       () => {
         timedOut = true;
         controller.abort();
       },
-      options.streamEvents ? 60000 : 20000,
+      options.streamEvents ? 60000 : 30000,
     );
     const abort = () => controller.abort();
+    const entry = {
+      restart: () => {
+        restarted = true;
+        controller.abort();
+      },
+    };
+    const isRead = (options.method ?? 'GET') === 'GET' && !options.streamEvents;
+    if (isRead) this.restartable.add(entry);
     if (options.signal?.aborted) controller.abort();
     options.signal?.addEventListener('abort', abort, { once: true });
     try {
@@ -128,6 +171,7 @@ export class ApiClient {
       });
     } catch {
       if (options.signal?.aborted) throw new ClientError('CANCELLED', 'Request cancelled.');
+      if (restarted) throw new ClientError('NETWORK', 'The connection was interrupted.');
       throw new ClientError(
         timedOut ? 'TIMEOUT' : 'NETWORK',
         timedOut
@@ -137,6 +181,8 @@ export class ApiClient {
     } finally {
       clearTimeout(timer);
       options.signal?.removeEventListener('abort', abort);
+      this.restartable.delete(entry);
+      if (gated) this.release();
     }
   }
   private async decode<T>(response: Response, schema: ZodType<T>): Promise<T> {
@@ -234,7 +280,23 @@ export class ApiClient {
   }
   async request<T>(path: string, schema: ZodType<T>, options: RequestOptions = {}): Promise<T> {
     const generation = this.generation;
-    const value = await this.decode(await this.authorizedResponse(path, options), schema);
+    const read = (options.method ?? 'GET') === 'GET';
+    const attempt = () => this.authorizedResponse(path, options);
+    let response: Response;
+    try {
+      response = await attempt();
+    } catch (failure) {
+      // A read that timed out or lost its connection is safe to repeat once, silently.
+      if (
+        !read ||
+        options.signal?.aborted ||
+        !(failure instanceof ClientError) ||
+        (failure.code !== 'TIMEOUT' && failure.code !== 'NETWORK')
+      )
+        throw failure;
+      response = await attempt();
+    }
+    const value = await this.decode(response, schema);
     if (this.generation !== generation || options.signal?.aborted)
       throw new ClientError('CANCELLED', 'Session changed or request cancelled.');
     return value;

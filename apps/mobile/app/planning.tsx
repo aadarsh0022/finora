@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useLocalSearchParams } from 'expo-router';
 import { Pressable, View } from 'react-native';
 import { AppText, Screen } from '../src/components/ui';
@@ -9,11 +9,17 @@ import { Goals } from '../src/features/planning/goals';
 import { Recurring } from '../src/features/planning/recurring';
 
 export default function Planning() {
-  const params = useLocalSearchParams<{ mode?: string }>();
+  const params = useLocalSearchParams<{ mode?: string; section?: string }>();
+  // Home and Insights link with section, Plan with mode; both open the matching tab.
+  const target = params.mode ?? params.section;
   const theme = useTheme();
   const [mode, setMode] = useState(
-    params.mode === 'goals' || params.mode === 'recurring' ? params.mode : 'budgets',
+    target === 'goals' || target === 'recurring' ? target : 'budgets',
   );
+  // A link that arrives while this screen is already open switches to its tab too.
+  useEffect(() => {
+    setMode(target === 'goals' || target === 'recurring' ? target : 'budgets');
+  }, [target]);
   const [editing, setEditing] = useState(false);
   const [create, setCreate] = useState<CreateRegistration | null>(null);
   return (

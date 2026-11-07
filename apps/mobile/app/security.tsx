@@ -64,7 +64,7 @@ export default function Security() {
           Change password
         </AppText>
         <AppText tone="muted">
-          Use at least 12 characters. Changing your password signs out every device, including this
+          Use at least 8 characters. Changing your password signs out every device, including this
           one.
         </AppText>
         <Field
