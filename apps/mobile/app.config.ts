@@ -4,13 +4,13 @@ const config: ExpoConfig = {
   name: 'Walleto',
   slug: 'finora',
   scheme: 'finora',
-  version: '0.3.0',
+  version: '0.4.0',
   orientation: 'portrait',
   userInterfaceStyle: 'automatic',
   icon: './assets/brand/icon.png',
   android: {
     package: 'app.finora.money',
-    versionCode: 7,
+    versionCode: 8,
     allowBackup: false,
     adaptiveIcon: {
       foregroundImage: './assets/brand/adaptive-foreground.png',
