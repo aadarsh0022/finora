@@ -345,6 +345,22 @@ export function LoansScreen() {
             </Pressable>
           </Card>
 
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Change how EMI payments are recorded"
+            onPress={() => router.push('/settings')}
+            style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 4 }}
+          >
+            <Icon name="info" size={14} color={theme.muted} />
+            <AppText tone="muted" style={{ flex: 1, fontSize: 12 }}>
+              {user?.preferences.keepDebtSeparate
+                ? 'EMI payments stay in Loans only and do not change your balance.'
+                : 'Marking an EMI paid also records an expense from your balance.'}
+            </AppText>
+            <AppText tone="accent" style={{ fontSize: 12, fontFamily: 'DMSansBold' }}>
+              Change
+            </AppText>
+          </Pressable>
           <ThisMonth
             today={calendarDate(new Date(), user?.preferences.timezone ?? 'Asia/Kolkata')}
           />
