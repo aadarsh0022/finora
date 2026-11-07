@@ -1,4 +1,5 @@
 import { Icon } from '../../src/components/design';
+import { Chevron } from '../../src/components/chevron';
 import { reportRangeSchema, reportSummarySchema, type ReportRange } from '@finora/contracts';
 import { calendarDate } from '@finora/finance-core';
 import { useMutation } from '@tanstack/react-query';
@@ -123,7 +124,7 @@ export default function Reports() {
           <AppText style={{ fontSize: 11 }}>
             {periods.find((period) => period.value === range)?.label ?? 'Period'}
           </AppText>
-          <AppText style={{ fontSize: 12 }}>⌄</AppText>
+          <Chevron direction="down" size={16} />
         </Pressable>
       }
       subtitle="Track · Plan · Stay on top"
@@ -141,9 +142,12 @@ export default function Reports() {
           }}
           style={{ minHeight: 44, justifyContent: 'center', marginVertical: -12 }}
         >
-          <AppText tone="accent" style={{ fontSize: 13 }}>
-            Edit dates ›
-          </AppText>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
+            <AppText tone="accent" style={{ fontSize: 13 }}>
+              Edit dates
+            </AppText>
+            <Chevron direction="right" size={16} color={theme.accent} />
+          </View>
         </Pressable>
       )}
       {exportReport.error && <Feedback error={exportReport.error} />}

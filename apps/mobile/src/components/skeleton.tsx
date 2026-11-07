@@ -11,7 +11,11 @@ type Variant =
   | 'goals'
   | 'debts'
   | 'budgets'
-  | 'recurring';
+  | 'recurring'
+  | 'categories'
+  | 'detail'
+  | 'bars'
+  | 'activity';
 
 function Block({
   width = '100%',
@@ -134,22 +138,152 @@ function Form() {
     </View>
   );
 }
+function Spaced({ children }: { children: ReactNode }) {
+  return (
+    <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 12 }}>
+      {children}
+    </View>
+  );
+}
 function Cards({ variant }: { variant: Variant }) {
+  const theme = useTheme();
+  if (variant === 'accounts')
+    return (
+      <>
+        <Panel style={{ gap: 10, padding: 20, borderRadius: 20 }}>
+          <Block width="40%" height={12} />
+          <Block width="58%" height={32} />
+          <Block width="24%" height={12} />
+        </Panel>
+        <Block height={44} radius={14} />
+        <Panel style={{ padding: 0, gap: 0, borderRadius: 18, overflow: 'hidden' }}>
+          {[0, 1, 2].map((index) => (
+            <View
+              key={index}
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 12,
+                padding: 16,
+                minHeight: 88,
+                borderTopWidth: index ? 1 : 0,
+                borderTopColor: theme.border,
+              }}
+            >
+              <Block width={42} height={42} radius={13} />
+              <View style={{ flex: 1, gap: 8 }}>
+                <Block width="50%" height={16} />
+                <Block width="30%" height={12} />
+              </View>
+              <Block width="24%" height={18} />
+            </View>
+          ))}
+        </Panel>
+      </>
+    );
   return (
     <>
       {[0, 1].map((index) => (
-        <Panel key={index} style={{ gap: 16 }}>
-          <Block width="48%" height={22} />
-          <Block width="66%" height={13} />
-          {variant === 'accounts' || variant === 'debts' ? (
-            <Block width="64%" height={32} />
+        <Panel key={index} style={{ gap: variant === 'budgets' ? 12 : 14 }}>
+          {variant === 'categories' ? (
+            <>
+              <Block width="44%" height={18} />
+              <Block width="22%" height={13} />
+              <Block height={48} radius={14} />
+            </>
+          ) : variant === 'goals' ? (
+            <>
+              <Spaced>
+                <Block width="50%" height={20} />
+                <Block width={14} height={20} />
+              </Spaced>
+              <Block width="36%" height={26} />
+              <Block height={8} radius={4} />
+              <Spaced>
+                <Block width="28%" height={12} />
+                <Block width="22%" height={12} />
+              </Spaced>
+            </>
+          ) : variant === 'budgets' ? (
+            <>
+              <Block width="48%" height={22} />
+              <Block width="66%" height={14} />
+              <Block height={8} radius={4} />
+              <Block width="40%" height={14} />
+              <Block width="70%" height={12} />
+              <Block height={44} radius={12} />
+            </>
+          ) : variant === 'debts' ? (
+            <>
+              <Spaced>
+                <Block width="46%" height={18} />
+                <Block width="20%" height={14} />
+              </Spaced>
+              <Block width="50%" height={28} />
+              <Block height={5} radius={3} />
+              <Block width="44%" height={12} />
+            </>
           ) : (
-            <Block height={8} radius={4} />
+            <>
+              <Spaced>
+                <Block width="50%" height={18} />
+                <Block width="22%" height={18} />
+              </Spaced>
+              <Block width="58%" height={12} />
+              <Block width="48%" height={12} />
+              <Block height={44} radius={12} />
+            </>
           )}
-          <Block width="44%" height={12} />
-          {(variant === 'accounts' || variant === 'budgets') && <Block height={44} radius={12} />}
         </Panel>
       ))}
+    </>
+  );
+}
+function Detail() {
+  const theme = useTheme();
+  return (
+    <>
+      <Panel style={{ gap: 14 }}>
+        <Block width="40%" height={12} />
+        <Block width="60%" height={34} />
+        <Block height={8} radius={4} />
+        <Metrics />
+      </Panel>
+      <Block width="40%" height={18} />
+      <Panel style={{ paddingVertical: 0 }}>
+        <Rows count={3} />
+      </Panel>
+      <Block height={50} radius={14} />
+      <View style={{ height: 1, backgroundColor: theme.border }} />
+    </>
+  );
+}
+function Bars() {
+  return (
+    <View style={{ gap: 14 }}>
+      {[0, 1, 2].map((index) => (
+        <View key={index} style={{ gap: 8 }}>
+          <Spaced>
+            <Block width="34%" height={12} />
+            <Block width="24%" height={12} />
+          </Spaced>
+          <Block height={8} radius={4} />
+        </View>
+      ))}
+    </View>
+  );
+}
+function Activity({ count }: { count: number }) {
+  return (
+    <>
+      <Block width="30%" height={14} />
+      <Panel style={{ paddingVertical: 0 }}>
+        <Rows count={Math.min(4, count)} />
+      </Panel>
+      <Block width="26%" height={14} />
+      <Panel style={{ paddingVertical: 0 }}>
+        <Rows count={Math.max(2, count - 4)} />
+      </Panel>
     </>
   );
 }
@@ -213,6 +347,12 @@ export function Loading({ variant = 'list' }: { variant?: Variant }) {
           <Reports />
         ) : variant === 'form' ? (
           <Form />
+        ) : variant === 'detail' ? (
+          <Detail />
+        ) : variant === 'bars' ? (
+          <Bars />
+        ) : variant === 'activity' ? (
+          <Activity count={Math.max(4, Math.min(8, Math.ceil((height - 320) / 66)))} />
         ) : variant === 'list' ? (
           <Rows count={Math.max(3, Math.min(10, Math.ceil((height - 240) / 66)))} />
         ) : (

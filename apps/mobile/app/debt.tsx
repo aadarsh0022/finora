@@ -43,7 +43,7 @@ export default function DebtScreen() {
       includeTopInset={false}
       onRefresh={() => query.refetch()}
     >
-      {query.isPending && <Loading variant="debts" />}
+      {query.isPending && <Loading variant="detail" />}
       {query.error && (
         <Feedback
           error={query.error}

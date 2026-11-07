@@ -135,3 +135,10 @@ Consulted 20 October 2026; exact installed versions are recorded in the lockfile
   Expo's published compatibility recommendations after the hosted CI check detected
   newer required patches. Keep strict peer validation and the online Expo CI check
   enabled; add the matching React Native Metro configuration peer explicitly.
+
+- 7 November: the owner's intended direction is a free tier with ads plus a
+  subscription-based premium tier (premium visuals/imagery and extras), and a
+  widget-style presentation. Plans, pricing, ad placement and widget scope are
+  undecided. No ad SDK, billing, entitlement UI or Play action is implemented or
+  authorized by this note; the earlier no-ads/no-billing constraints stay in force
+  until the owner decides details. Any ad/analytics SDK needs a Data safety review.

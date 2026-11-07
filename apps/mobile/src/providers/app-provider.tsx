@@ -17,6 +17,7 @@ import { canUseOffline, drainOutbox } from '../storage/outbox';
 import { drainSetup, readSetup, saveSetup } from '../storage/setup';
 import { retryDelay, shouldRetrySync } from '../storage/sync-retry';
 import { refreshDeviceLedger } from '../storage/ledger';
+import { warmReads } from '../storage/warm';
 import * as Crypto from 'expo-crypto';
 import { cancelLocalReminders, refreshLocalReminders } from '../notifications/reminders';
 
@@ -79,6 +80,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const retryTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const retryAttempt = useRef(0);
   const networkRef = useRef(true);
+  const userRef = useRef<User | null>(null);
+  userRef.current = user;
   const network = useNetworkState();
   networkRef.current = network.isConnected !== false && network.isInternetReachable !== false;
   function cancelRetry() {
@@ -185,6 +188,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
           );
         if (vaultRef.current === current)
           await queryClient.invalidateQueries({ queryKey: [current.ownerId] });
+        if (vaultRef.current === current && userRef.current)
+          void warmReads(
+            current,
+            api,
+            userRef.current.preferences.timezone,
+            () => vaultRef.current === current && verified.current,
+          ).catch(() => undefined);
         if (count && user && vaultRef.current === current)
           void refreshLocalReminders(current, api, user).catch(() => undefined);
       } catch (failure) {

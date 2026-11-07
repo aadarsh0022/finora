@@ -103,6 +103,7 @@ export function Screen({
             ) : undefined
           }
           contentContainerStyle={{
+            flexGrow: 1,
             padding: 18,
             paddingBottom: floatingAction ? 104 : bottomAction ? 24 : 40,
             gap: 16,

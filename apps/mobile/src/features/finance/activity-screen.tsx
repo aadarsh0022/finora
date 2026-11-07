@@ -1,20 +1,11 @@
-import { ProfileAction, Icon } from '../../components/design';
+import { ProfileAction, Icon, EmptyState } from '../../components/design';
 import { transactionPageSchema } from '@finora/contracts';
 import { calendarDate } from '@finora/finance-core';
 import { router } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { Pressable, View } from 'react-native';
 import { z } from 'zod';
-import {
-  AppButton,
-  AppText,
-  Card,
-  Choice,
-  Feedback,
-  Field,
-  Loading,
-  Screen,
-} from '../../components/ui';
+import { AppButton, AppText, Choice, Feedback, Field, Loading, Screen } from '../../components/ui';
 import { DateField, FlowSheet, SelectField } from '../../components/flow';
 import { accountsSchema, categoriesSchema, useMoney, TransactionCard, useRead } from './shared';
 import { activityQuery, emptyActivityFilters, type ActivityFilters } from './filters';
@@ -247,7 +238,7 @@ export default function Transactions() {
         </View>
       )}
       {!open && error ? <Feedback error={new Error(error)} /> : null}
-      {query.isPending && <Loading />}
+      {query.isPending && <Loading variant="activity" />}
       {query.isError && (
         <Feedback
           error={query.error}
@@ -274,28 +265,23 @@ export default function Transactions() {
             </AppText>
           )}
           {!items.length && (
-            <Card>
-              <AppText style={{ fontFamily: 'DMSansBold', fontSize: 20 }}>
-                {active.length ? 'No matching transactions' : 'Your story starts here'}
-              </AppText>
-              <AppText tone="muted">
-                {active.length
+            <EmptyState
+              icon={active.length ? 'search' : 'repeat'}
+              title={active.length ? 'No matching transactions' : 'Your story starts here'}
+              message={
+                active.length
                   ? 'Try a different search or clear your filters.'
-                  : 'Add an income, expense or transfer to see it here.'}
-              </AppText>
-              {active.length ? (
-                <AppButton
-                  title="Clear filters"
-                  variant="secondary"
-                  onPress={() => apply({ ...emptyActivityFilters })}
-                />
-              ) : (
-                <AppButton
-                  title="Add your first transaction"
-                  onPress={() => router.push('/transaction')}
-                />
-              )}
-            </Card>
+                  : 'Add an income, expense or transfer to see it here.'
+              }
+              action={
+                active.length
+                  ? { title: 'Clear filters', onPress: () => apply({ ...emptyActivityFilters }) }
+                  : {
+                      title: 'Add your first transaction',
+                      onPress: () => router.push('/transaction'),
+                    }
+              }
+            />
           )}
           {[...groups].map(([day, records]) => (
             <View key={day} style={{ gap: 8 }}>

@@ -17,6 +17,7 @@ import {
   Loading,
   Screen,
 } from '../src/components/ui';
+import { EmptyState } from '../src/components/design';
 import { categoriesSchema, useRead } from '../src/features/finance/shared';
 import { useFinanceMutation, useUnsavedChanges } from '../src/hooks/finance';
 
@@ -44,7 +45,7 @@ export default function Categories() {
               { value: 'archived', label: 'Archived' },
             ]}
           />
-          {query.isPending && <Loading />}
+          {query.isPending && <Loading variant="categories" />}
           {query.isError && (
             <Feedback
               error={query.error}
@@ -71,7 +72,15 @@ export default function Categories() {
             ))}
           {query.data &&
             !query.data.some((category) => category.archived === (show === 'archived')) && (
-              <AppText tone="muted">No {show} categories.</AppText>
+              <EmptyState
+                icon="plan"
+                title={`No ${show} categories`}
+                message={
+                  show === 'archived'
+                    ? 'Categories you archive will appear here.'
+                    : 'Add a category to organise your spending.'
+                }
+              />
             )}
         </>
       )}

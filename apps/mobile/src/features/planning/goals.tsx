@@ -1,4 +1,6 @@
-import { Disclosure } from '../../components/design';
+import { Disclosure, EmptyState } from '../../components/design';
+import { useTheme } from '../../theme';
+import { Chevron } from '../../components/chevron';
 import {
   contributionInputSchema,
   contributionSchema,
@@ -48,7 +50,11 @@ export function Goals({ onEditing }: { onEditing: (editing: boolean) => void }) 
         />
       )}
       {query.data?.length === 0 && (
-        <AppText tone="muted">Give your next milestone a name and a target.</AppText>
+        <EmptyState
+          icon="goal"
+          title="No savings goals yet"
+          message="Give your next milestone a name and a target."
+        />
       )}
       {query.data?.map((goal) => (
         <Pressable
@@ -145,13 +151,14 @@ function GoalForm({ goal: currentGoal, done }: { goal?: Goal; done: () => void }
   );
 }
 function GoalDetail({ id, done }: { id: string; done: () => void }) {
+  const theme = useTheme();
   const query = useRead(`goals/${id}`, goalDetailSchema);
   const [editing, setEditing] = useState(false);
   const [contributing, setContributing] = useState(false);
   const [contributionDirty, setContributionDirty] = useState(false);
   const update = useFinanceMutation(`goals/${id}`, goalSchema, 'PATCH');
   const remove = useFinanceMutation(`goals/${id}`, deletedSchema, 'DELETE');
-  if (query.isPending) return <Loading variant="goals" />;
+  if (query.isPending) return <Loading variant="detail" />;
   if (query.isError)
     return (
       <>
@@ -174,9 +181,12 @@ function GoalDetail({ id, done }: { id: string; done: () => void }) {
         onPress={() => confirmDiscard(contributionDirty, done)}
         style={{ minHeight: 44, justifyContent: 'center' }}
       >
-        <AppText tone="accent" style={{ fontSize: 14 }}>
-          ‹ All goals
-        </AppText>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
+          <Chevron direction="left" size={18} color={theme.accent} />
+          <AppText tone="accent" style={{ fontSize: 14 }}>
+            All goals
+          </AppText>
+        </View>
       </Pressable>
       <Card>
         <GoalOverview goal={goal} />
@@ -402,11 +412,7 @@ function GoalOverview({
     <View style={{ gap: 12 }}>
       <View style={{ flexDirection: 'row', gap: 12, alignItems: 'center' }}>
         <AppText style={{ flex: 1, fontFamily: 'DMSansBold', fontSize: 21 }}>{goal.name}</AppText>
-        {showChevron && (
-          <AppText tone="muted" style={{ fontSize: 24 }}>
-            ›
-          </AppText>
-        )}
+        {showChevron && <Chevron direction="right" size={22} />}
       </View>
       <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 6, flexWrap: 'wrap' }}>
         <AppText tone="accent" style={{ fontFamily: 'DMSansBold', fontSize: 26, lineHeight: 34 }}>
