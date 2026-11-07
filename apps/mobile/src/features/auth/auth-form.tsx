@@ -50,12 +50,12 @@ export function AuthForm({ mode }: { mode: 'login' | 'register' }) {
         ? registerSchema.parse({
             ...values,
             preferences: preferencesSchema.parse({ baseCurrency: currency }),
-            deviceName: 'Finora Android',
+            deviceName: 'Walleto Android',
           })
         : loginSchema.parse({
             email: values.email,
             password: values.password,
-            deviceName: 'Finora Android',
+            deviceName: 'Walleto Android',
           });
       const tokens = await api.request(`auth/${mode}`, sessionTokensSchema, {
         method: 'POST',

@@ -72,6 +72,8 @@ const labels: Record<string, string> = {
   kind: 'Debt or receipt type',
   baseCurrency: 'Currency',
   preferredTheme: 'Appearance',
+  accentColor: 'Theme colour',
+  keepDebtSeparate: 'Keep debt separate',
   firstDayOfWeek: 'First day of week',
   preferredDateFormat: 'Date format',
   warningThresholdBasisPoints: 'Warning threshold',

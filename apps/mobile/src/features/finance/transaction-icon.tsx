@@ -56,10 +56,10 @@ export function TransactionIcon({ type, merchant }: { type: string; merchant: st
       <AppText style={{ color: '#FFFFFF', fontSize: 23, fontFamily: 'DMSansBold' }}>पे</AppText>
     );
   } else if (type === 'INCOME') {
-    background = theme.accentSoft;
+    background = theme.successSoft;
     mark = (
       <Svg width={24} height={28} viewBox="0 0 24 28" accessible={false}>
-        <Path d="m8 2 8 0-2 5H10ZM7 9c-8 13-5 17 5 17s13-4 5-17Z" fill={theme.accent} />
+        <Path d="m8 2 8 0-2 5H10ZM7 9c-8 13-5 17 5 17s13-4 5-17Z" fill={theme.success} />
         <Path
           d="M14 12h-3c-3 0-3 4 0 4h2c3 0 3 4 0 4h-3m2-10v12"
           fill="none"

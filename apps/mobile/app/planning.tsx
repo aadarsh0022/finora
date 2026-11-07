@@ -43,9 +43,7 @@ export default function Planning() {
             gap: 4,
             padding: 4,
             borderRadius: 16,
-            backgroundColor: theme.surface,
-            borderWidth: 1,
-            borderColor: theme.border,
+            backgroundColor: `${theme.text}0F`,
           }}
         >
           {[
@@ -64,13 +62,16 @@ export default function Planning() {
                 minHeight: 46,
                 alignItems: 'center',
                 justifyContent: 'center',
-                borderRadius: 12,
-                backgroundColor: mode === item.value ? theme.accentSoft : theme.surface,
+                borderRadius: 13,
+                backgroundColor: mode === item.value ? theme.text : 'transparent',
               }}
             >
               <AppText
-                tone={mode === item.value ? 'accent' : 'muted'}
-                style={{ fontSize: 14, fontFamily: mode === item.value ? 'DMSansBold' : 'DMSans' }}
+                style={{
+                  fontSize: 14,
+                  fontFamily: mode === item.value ? 'DMSansBold' : 'DMSans',
+                  color: mode === item.value ? theme.surface : theme.muted,
+                }}
               >
                 {item.label}
               </AppText>

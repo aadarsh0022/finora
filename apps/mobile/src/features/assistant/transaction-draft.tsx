@@ -14,7 +14,7 @@ import { useFinanceMutation } from '../../hooks/finance';
 import { accountsSchema, categoriesSchema, useRead } from '../finance/shared';
 import { decimalAmount } from '../finance/values';
 import { useTheme } from '../../theme';
-import { ChatConfirmActions } from './confirmation';
+import { ActionBadge, ChatConfirmActions, SavedLine } from './confirmation';
 
 function InlineSelect({
   label,
@@ -109,7 +109,6 @@ export function TransactionDraftCard({
   onOutcome?: (text: string) => void;
 }) {
   const { user } = useApp();
-  const theme = useTheme();
   const [cancelled, setCancelled] = useState(false);
   const submitted = useTransactionDrafts((state) =>
     state.submitted.includes(`${user?.id}:${answerId}`),
@@ -147,6 +146,19 @@ export function TransactionDraftCard({
   } catch {
     /* Keep the incomplete input visible while editing. */
   }
+  const accountName =
+    activeAccounts.find((account) => account.id === accountId)?.name ?? draft.accountName;
+  const destinationName =
+    activeAccounts.find((account) => account.id === destinationId)?.name ??
+    draft.destinationAccountName;
+  const categoryName =
+    availableCategories.find((category) => category.id === categoryId)?.name ?? draft.categoryName;
+  const savedText =
+    draft.type === 'TRANSFER'
+      ? `Moved ${displayAmount}${accountName ? ` from ${accountName}` : ''}${destinationName ? ` to ${destinationName}` : ''}.`
+      : draft.type === 'INCOME'
+        ? `Saved your ${displayAmount} income${draft.merchant ? ` from ${draft.merchant}` : ''}${categoryName ? ` in ${categoryName}` : ''}.`
+        : `Saved your ${displayAmount} expense${draft.merchant ? ` for ${draft.merchant}` : ''}${categoryName ? ` in ${categoryName}` : ''}.`;
   async function confirm() {
     if (lock.current || submitted || !user) return;
     lock.current = true;
@@ -185,7 +197,7 @@ export function TransactionDraftCard({
       });
       await save.mutateAsync(input);
       useTransactionDrafts.getState().complete(user.id, answerId);
-      onOutcome?.(`Saved ${displayAmount}${draft.merchant ? ` · ${draft.merchant}` : ''}.`);
+      onOutcome?.(savedText);
       setEditing(false);
     } catch (failure) {
       setError(
@@ -198,47 +210,52 @@ export function TransactionDraftCard({
       lock.current = false;
     }
   }
-  if (submitted || cancelled)
-    return (
-      <View
-        style={{
-          padding: 12,
-          borderRadius: 14,
-          borderWidth: 1,
-          borderColor: theme.border,
-          backgroundColor: submitted ? theme.accentSoft : theme.surface,
-        }}
-      >
-        <AppText tone={submitted ? 'accent' : 'muted'} style={{ fontSize: 13 }}>
-          {submitted ? 'Saved' : 'Cancelled'} · {displayAmount}
-          {draft.merchant ? ` · ${draft.merchant}` : ''}
-        </AppText>
-      </View>
-    );
+  if (submitted) return <SavedLine text={savedText} />;
+  if (cancelled) return <AppText tone="muted">Okay, nothing was saved.</AppText>;
+  const typeLabel =
+    draft.type === 'TRANSFER' ? 'Transfer' : draft.type === 'INCOME' ? 'Income' : 'Expense';
   return (
-    <Card style={{ gap: 8, padding: 14, borderRadius: 16, backgroundColor: theme.accentSoft }}>
+    <Card style={{ gap: 8, padding: 12, borderRadius: 16 }}>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-        <AppText tone="muted" style={{ fontSize: 12 }}>
-          Confirm to save
+        <ActionBadge
+          icon={
+            draft.type === 'TRANSFER' ? 'transfer' : draft.type === 'INCOME' ? 'income' : 'expense'
+          }
+          tone={
+            draft.type === 'INCOME' ? 'success' : draft.type === 'EXPENSE' ? 'danger' : 'accent'
+          }
+          label={typeLabel}
+        />
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Edit transaction details"
+          disabled={save.isPending}
+          onPress={() => setEditing(!editing)}
+          style={{ minHeight: 36, justifyContent: 'center' }}
+        >
+          <AppText tone="accent" style={{ fontSize: 13, fontFamily: 'DMSansBold' }}>
+            {editing ? 'Done' : 'Edit'}
+          </AppText>
+        </Pressable>
+      </View>
+      <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 8 }}>
+        <AppText
+          style={{
+            fontFamily: 'DMSansBold',
+            fontSize: 24,
+            lineHeight: 30,
+            letterSpacing: -0.5,
+            fontVariant: ['tabular-nums'],
+          }}
+        >
+          {displayAmount}
         </AppText>
-        {!submitted && (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Edit transaction details"
-            disabled={save.isPending}
-            onPress={() => setEditing(!editing)}
-            style={{ minHeight: 36, justifyContent: 'center' }}
-          >
-            <AppText tone="accent" style={{ fontSize: 12 }}>
-              {editing ? 'Done editing' : 'Edit details'}
-            </AppText>
-          </Pressable>
+        {!!draft.merchant && (
+          <AppText tone="muted" numberOfLines={1} style={{ flex: 1, fontSize: 14 }}>
+            {draft.merchant}
+          </AppText>
         )}
       </View>
-      <AppText style={{ fontFamily: 'DMSansBold', fontSize: 15, lineHeight: 22 }}>
-        {displayAmount}
-        {draft.merchant ? ` · ${draft.merchant}` : ''}
-      </AppText>
       {editing && !submitted ? (
         <View style={{ gap: 10 }}>
           <Field
@@ -286,24 +303,14 @@ export function TransactionDraftCard({
           />
         </View>
       ) : (
-        <>
-          <AppText tone="muted" style={{ fontSize: 13 }}>
-            {activeAccounts.find((account) => account.id === accountId)?.name ??
-              draft.accountName ??
-              'Account needed'}{' '}
-            ·{' '}
-            {draft.type === 'TRANSFER'
-              ? (activeAccounts.find((account) => account.id === destinationId)?.name ??
-                draft.destinationAccountName ??
-                'Destination needed')
-              : (availableCategories.find((category) => category.id === categoryId)?.name ??
-                draft.categoryName ??
-                'Category needed')}
-          </AppText>
-          <AppText tone="muted" style={{ fontSize: 12 }}>
-            {date}
-          </AppText>
-        </>
+        <AppText tone="muted" style={{ fontSize: 13 }}>
+          {[
+            draft.type === 'TRANSFER'
+              ? `${accountName ?? 'Account needed'} → ${destinationName ?? 'Destination needed'}`
+              : `${accountName ?? 'Account needed'} · ${categoryName ?? 'Category needed'}`,
+            date,
+          ].join(' · ')}
+        </AppText>
       )}
       {!!draft.note && (
         <AppText tone="muted" style={{ fontSize: 13 }}>
@@ -321,7 +328,13 @@ export function TransactionDraftCard({
         />
       )}
       <ChatConfirmActions
-        label="Confirm and save"
+        label={
+          draft.type === 'TRANSFER'
+            ? 'Save transfer'
+            : draft.type === 'INCOME'
+              ? 'Save income'
+              : 'Save expense'
+        }
         busy={save.isPending}
         disabled={
           !user || accounts.isPending || (draft.type !== 'TRANSFER' && categories.isPending)
@@ -331,7 +344,7 @@ export function TransactionDraftCard({
         }}
         onCancel={() => {
           setCancelled(true);
-          onOutcome?.('Transaction cancelled.');
+          onOutcome?.('Cancelled. Nothing was saved.');
         }}
       />
     </Card>

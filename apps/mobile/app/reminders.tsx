@@ -77,7 +77,7 @@ export default function Reminders() {
   return (
     <Screen
       title="A little nudge"
-      subtitle="Useful reminders. Your financial details stay inside Finora."
+      subtitle="Useful reminders. Your financial details stay inside Walleto."
       includeTopInset={false}
     >
       {loading ? <Loading variant="form" /> : null}
@@ -127,7 +127,7 @@ export default function Reminders() {
           )}
           <AppText tone="muted" style={{ fontSize: 13 }}>
             Daily check-ins use your device’s local time. Due dates use the item’s timezone at noon.
-            Finora refreshes the next 30 days when you open the app or save changes online. Device
+            Walleto refreshes the next 30 days when you open the app or save changes online. Device
             settings may delay delivery. Reminders never record or move money.
           </AppText>
           {error ? <Feedback error={error} /> : null}

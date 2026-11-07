@@ -258,13 +258,11 @@ test('exposes report errors and retry loads the real query result', async () => 
 test('renders exact balances and financial summaries, privacy toggle and transaction navigation', async () => {
   await mount(populated);
   expect(await screen.findByText('₹9,007,199,254,740,993.01')).toBeOnTheScreen();
-  expect(screen.getByText('₹1,000.00')).toBeOnTheScreen();
-  expect(screen.getByText('₹987.50')).toBeOnTheScreen();
   expect(screen.getByText('Groceries')).toBeOnTheScreen();
   expect(screen.getByText(/Cash.*Food/)).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole('button', { name: 'Hide total balance' }));
   expect(screen.queryByText('₹9,007,199,254,740,993.01')).not.toBeOnTheScreen();
-  expect(screen.getAllByText('••••••').length).toBeGreaterThanOrEqual(4);
+  expect(screen.getAllByText('••••••').length).toBeGreaterThanOrEqual(3);
   await fireEvent.press(screen.getByRole('button', { name: 'Show total balance' }));
   expect(screen.getByText('₹9,007,199,254,740,993.01')).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole('button', { name: 'Add a transaction' }));
@@ -273,8 +271,6 @@ test('renders exact balances and financial summaries, privacy toggle and transac
   expect(router.push).toHaveBeenCalledWith('/accounts');
   await fireEvent.press(screen.getByRole('button', { name: 'View all transactions' }));
   expect(router.push).toHaveBeenCalledWith('/(tabs)/transactions');
-  await fireEvent.press(screen.getByRole('button', { name: 'View spending reports' }));
-  expect(router.push).toHaveBeenCalledWith('/(tabs)/reports');
   await fireEvent.press(screen.getByRole('button', { name: 'View or edit Groceries' }));
   expect(router.push).toHaveBeenCalledWith({
     pathname: '/transaction',

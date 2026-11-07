@@ -11,8 +11,19 @@ export default function TabsLayout() {
         headerShown: false,
         tabBarActiveTintColor: theme.accent,
         tabBarInactiveTintColor: theme.muted,
-        tabBarStyle: { backgroundColor: theme.surface, borderTopColor: theme.border },
-        tabBarLabelStyle: { fontFamily: 'DMSans', fontSize: 11 },
+        tabBarActiveBackgroundColor: theme.accentSoft,
+        tabBarStyle: {
+          backgroundColor: theme.surface,
+          borderTopWidth: theme.isDark ? 1 : 0,
+          borderTopColor: theme.border,
+          height: 72,
+          paddingTop: 8,
+          paddingBottom: 8,
+          paddingHorizontal: 6,
+          ...(theme.isDark ? {} : { boxShadow: `0px -6px 20px ${theme.shadow}0D` }),
+        },
+        tabBarItemStyle: { borderRadius: 18, marginHorizontal: 3, overflow: 'hidden' },
+        tabBarLabelStyle: { fontFamily: 'DMSansBold', fontSize: 11 },
         tabBarHideOnKeyboard: false,
       }}
     >
@@ -33,7 +44,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="ask"
         options={{
-          title: 'Finora AI',
+          title: 'Walleto AI',
           tabBarIcon: ({ color }) => <NavigationIcon name="ask" color={color} />,
         }}
       />

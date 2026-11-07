@@ -21,10 +21,8 @@ test('shows branded startup and stops animation on unmount', async () => {
   const stop = jest.fn();
   jest.spyOn(Animated, 'loop').mockReturnValue({ start, stop, reset: jest.fn() });
   const view = await render(<Startup />);
-  expect(screen.getByText('Finora AI')).toBeOnTheScreen();
-  expect(
-    screen.getByRole('progressbar', { name: 'Opening Finora AI Money Manager' }),
-  ).toBeOnTheScreen();
+  expect(screen.getByText('Walleto AI')).toBeOnTheScreen();
+  expect(screen.getByRole('progressbar', { name: 'Opening Walleto' })).toBeOnTheScreen();
   await waitFor(() => expect(start).toHaveBeenCalledTimes(1));
   await view.unmount();
   expect(stop).toHaveBeenCalled();

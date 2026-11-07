@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { Pressable, View } from 'react-native';
 import { AppText, Card, Choice, Feedback, Loading, Screen } from '../src/components/ui';
 import { EmptyState, Icon } from '../src/components/design';
-import { useTheme } from '../src/theme';
+import { elevation, glass, useTheme } from '../src/theme';
 import { accountsSchema, useMoney, useRead } from '../src/features/finance/shared';
 const types = {
   CASH: 'Cash',
@@ -113,11 +113,10 @@ export default function Accounts() {
       {!!accounts?.length && (
         <View
           style={{
-            borderWidth: 1,
-            borderColor: theme.border,
-            borderRadius: 18,
-            backgroundColor: theme.surface,
+            borderRadius: 20,
+            backgroundColor: glass(theme),
             overflow: 'hidden',
+            ...elevation(theme),
           }}
         >
           {accounts.map((account, index) => (

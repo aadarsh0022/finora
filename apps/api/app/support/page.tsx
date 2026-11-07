@@ -5,7 +5,7 @@ export default function Support() {
     <>
       <h1>Support & account deletion</h1>
       <p>
-        For help with Finora AI or a privacy/deletion request, email{' '}
+        For help with Walleto AI or a privacy/deletion request, email{' '}
         <a href={`mailto:${supportEmail}`}>{supportEmail}</a>. Include your app version and a brief
         description. Never send passwords, recovery links, financial backups or sensitive
         transaction details.
@@ -26,21 +26,21 @@ export default function Support() {
       </p>
       <h2>Profile and AI chat</h2>
       <p>
-        Tap your profile card in Settings to change your display name. In Finora AI, use the chat
+        Tap your profile card in Settings to change your display name. In Walleto AI, use the chat
         sidebar to reopen or delete a conversation. Starting a new chat keeps earlier conversations.
         AI chat needs an internet connection. Manual transaction entries are saved on your device
         when encrypted local storage is available.
       </p>
       <h2>Delete in the application</h2>
       <p>
-        Open Settings → Password and security → Delete Finora AI account. Enter your current
+        Open Settings → Password and security → Delete Walleto AI account. Enter your current
         password and the confirmation text DELETE, then confirm deletion. This permanently removes
         the profile, sessions and associated finance records. Export any records you want to keep
         first.
       </p>
       <h2>Delete without the app</h2>
       <p>
-        <a href="/delete-account">Delete your Finora AI account on this website</a> using your
+        <a href="/delete-account">Delete your Walleto AI account on this website</a> using your
         email, current password and explicit confirmation. You do not need to reinstall the app. If
         you cannot sign in, <a href="/recover-account">request a password reset</a> first.
       </p>

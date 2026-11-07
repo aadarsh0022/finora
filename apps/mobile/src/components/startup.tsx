@@ -47,7 +47,7 @@ export function Startup({ onReady }: { onReady?: () => void }) {
       accessible
       onLayout={onReady}
       accessibilityRole="progressbar"
-      accessibilityLabel="Opening Finora AI Money Manager"
+      accessibilityLabel="Opening Walleto"
       accessibilityState={{ busy: true }}
       style={{
         flex: 1,
@@ -77,7 +77,7 @@ export function Startup({ onReady }: { onReady?: () => void }) {
       </Animated.View>
       <View style={{ alignItems: 'center', gap: 6 }}>
         <Text style={{ color: theme.text, fontSize: 28, fontWeight: '700', letterSpacing: -0.7 }}>
-          Finora AI
+          Walleto AI
         </Text>
         <Text style={{ color: theme.muted, fontSize: 14 }}>Your personal money manager</Text>
       </View>

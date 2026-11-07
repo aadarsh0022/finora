@@ -160,8 +160,8 @@ export function DebtList({ receivables = false }: { receivables?: boolean }) {
             items.length
               ? 'Try another status or name.'
               : receivables
-                ? 'Track an expected receipt, then record each amount as it arrives. No money is transferred by Finora.'
-                : 'Add money borrowed or lent, then track repayments here. No money is transferred by Finora.'
+                ? 'Track an expected receipt, then record each amount as it arrives. No money is transferred by Walleto.'
+                : 'Add money borrowed or lent, then track repayments here. No money is transferred by Walleto.'
           }
         />
       )}

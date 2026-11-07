@@ -10,7 +10,7 @@ import {
 import { AppButton, AppText, Card, Feedback, Field } from '../../components/ui';
 import { useApp } from '../../providers/app-provider';
 import { useTheme } from '../../theme';
-import { ChatConfirmActions } from './confirmation';
+import { ActionBadge, ChatConfirmActions, SavedLine } from './confirmation';
 import type { RegisterDraftReply } from './transaction-conversation';
 export function ChangeConversation({
   change: initial,
@@ -98,7 +98,7 @@ export function ChangeConversation({
       });
       if (flight.current !== controller) return;
       setSaved(true);
-      onOutcome?.(`Saved: ${change.title}.`);
+      onOutcome?.(`Done. ${change.title}.`);
       void client.invalidateQueries({ queryKey: [user?.id] }).catch(() => undefined);
       if (change.input.operation === 'update_preferences')
         void refreshUser().catch(() => undefined);
@@ -112,16 +112,19 @@ export function ChangeConversation({
       }
     }
   }
-  if (cancelled) return <AppText tone="muted">Change cancelled.</AppText>;
-  if (saved)
-    return (
-      <AppText tone="accent" accessibilityLiveRegion="polite">
-        Saved.
-      </AppText>
-    );
+  if (cancelled) return <AppText tone="muted">Okay, nothing was changed.</AppText>;
+  if (saved) return <SavedLine text={`Done. ${change.title}.`} />;
+  const destructive = change.input.operation.startsWith('delete_');
   return (
-    <Card style={{ gap: 10, padding: 14 }}>
-      <AppText style={{ fontFamily: 'DMSansBold', fontSize: 14 }}>{change.title}</AppText>
+    <Card style={{ gap: 8, padding: 12, borderRadius: 16 }}>
+      <ActionBadge
+        icon={destructive ? 'info' : 'check'}
+        tone={destructive ? 'danger' : 'accent'}
+        label={question ? 'A quick question' : destructive ? 'Please confirm' : 'Review'}
+      />
+      <AppText style={{ fontFamily: 'DMSansBold', fontSize: 16, lineHeight: 22 }}>
+        {change.title}
+      </AppText>
       {question ? (
         <>
           <AppText>{question.label}</AppText>
@@ -188,11 +191,12 @@ export function ChangeConversation({
           <ChatConfirmActions
             busy={busy}
             disabled={!change.token}
-            destructive={change.input.operation.startsWith('delete_')}
+            destructive={destructive}
+            label={destructive ? 'Yes, delete' : 'Confirm'}
             onConfirm={() => void confirm()}
             onCancel={() => {
               setCancelled(true);
-              onOutcome?.('Cancelled.');
+              onOutcome?.('Cancelled. Nothing was changed.');
             }}
           />
         </>
@@ -205,7 +209,7 @@ export function ChangeConversation({
           disabled={busy}
           onPress={() => {
             setCancelled(true);
-            onOutcome?.('Cancelled.');
+            onOutcome?.('Cancelled. Nothing was changed.');
           }}
         />
       )}

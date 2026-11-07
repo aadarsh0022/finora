@@ -125,12 +125,12 @@ export function planReminders(
 // No amounts, names, merchants, notes or account identifiers on the lock screen.
 export function reminderContent(kind: ReminderPlan['kind']) {
   return {
-    title: 'Finora AI',
+    title: 'Walleto AI',
     body:
       kind === 'daily'
         ? 'Take a moment to record today’s activity.'
         : kind === 'budget'
-          ? 'Open Finora AI to review your budget progress.'
-          : 'Open Finora AI to review upcoming or pending items.',
+          ? 'Open Walleto AI to review your budget progress.'
+          : 'Open Walleto AI to review upcoming or pending items.',
   };
 }

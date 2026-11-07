@@ -174,9 +174,9 @@ export function TransactionCard({
       style={({ pressed }) => ({
         paddingVertical: 12,
         paddingHorizontal: 12,
-        backgroundColor: theme.surface,
+        backgroundColor: 'transparent',
         borderBottomWidth: 1,
-        borderBottomColor: theme.background,
+        borderBottomColor: theme.border,
         opacity: pressed ? 0.7 : 1,
         flexDirection: 'row',
         gap: 11,
@@ -198,7 +198,7 @@ export function TransactionCard({
       </View>
       <AppText
         accessibilityLabel={`${kind} ${money(item.amountMinor)}`}
-        tone={item.type === 'INCOME' ? 'accent' : 'text'}
+        tone={item.type === 'INCOME' ? 'success' : 'text'}
         style={{
           fontSize: 14,
           lineHeight: 21,

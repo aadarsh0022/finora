@@ -46,7 +46,7 @@ export async function openVault(origin: string, ownerId: string): Promise<Device
     const cipher = await db.getFirstAsync<Record<string, unknown>>('PRAGMA cipher_version');
     if (!cipher || !Object.values(cipher).some((v) => typeof v === 'string' && v.length > 0))
       throw new Error(
-        'This build does not support encrypted local storage. Install the latest Finora development build.',
+        'This build does not support encrypted local storage. Install the latest Walleto development build.',
       );
     // Only a generated and validated hexadecimal key is interpolated. Never log it.
     await db.execAsync(

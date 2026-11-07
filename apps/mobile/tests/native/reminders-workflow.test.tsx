@@ -15,6 +15,10 @@ import { saveReminderPreferences } from '../../src/notifications/reminders';
 import { Platform } from 'react-native';
 
 jest.mock('../../src/providers/app-provider', () => ({ useApp: jest.fn() }));
+jest.mock('expo-secure-store', () => ({
+  getItemAsync: jest.fn(async () => null),
+  setItemAsync: jest.fn(async () => undefined),
+}));
 jest.mock('expo-network', () => ({ useNetworkState: () => ({ isConnected: true }) }));
 jest.mock('expo', () => ({ requireOptionalNativeModule: jest.fn(() => ({})) }));
 jest.mock('expo-crypto', () => ({
@@ -100,7 +104,7 @@ test('asks permission only after an explicit save and schedules generic daily co
   expect(Notifications.scheduleNotificationAsync).toHaveBeenCalledWith(
     expect.objectContaining({
       content: {
-        title: 'Finora AI',
+        title: 'Walleto AI',
         body: 'Take a moment to record today’s activity.',
         sound: false,
       },

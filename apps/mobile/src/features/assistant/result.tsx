@@ -2,11 +2,9 @@ import type { AssistantToolResult } from '@finora/contracts';
 import { formatMoney } from '@finora/finance-core';
 import { router } from 'expo-router';
 import { Pressable, View } from 'react-native';
-import { useState, type ReactNode } from 'react';
-import { AppButton, AppText, Card } from '../../components/ui';
+import type { ReactNode } from 'react';
+import { AppText, Card } from '../../components/ui';
 import { useApp } from '../../providers/app-provider';
-import { useTheme } from '../../theme';
-import { Icon } from '../../components/design';
 
 function Row({
   label,
@@ -15,7 +13,7 @@ function Row({
 }: {
   label: string;
   value: string;
-  tone?: 'text' | 'accent' | 'danger';
+  tone?: 'text' | 'accent' | 'danger' | 'success';
 }) {
   return (
     <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 12 }}>
@@ -32,6 +30,21 @@ function Row({
   );
 }
 
+function Link({ title, onPress }: { title: string; onPress: () => void }) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={title}
+      onPress={onPress}
+      style={{ minHeight: 36, justifyContent: 'center', alignSelf: 'flex-start' }}
+    >
+      <AppText tone="accent" style={{ fontSize: 13, fontFamily: 'DMSansBold' }}>
+        {title} ›
+      </AppText>
+    </Pressable>
+  );
+}
+
 export function AssistantResult({
   result,
   actions,
@@ -40,8 +53,6 @@ export function AssistantResult({
   actions?: ReactNode;
 }) {
   const { user } = useApp();
-  const [expanded, setExpanded] = useState(false);
-  const theme = useTheme();
   const money = (value: string) =>
     formatMoney(value, result.currency, user?.preferences.locale ?? 'en-IN');
   let content;
@@ -70,43 +81,17 @@ export function AssistantResult({
     case 'get_balance':
       content = (
         <>
-          <Row
-            label={`Balance � ${result.currency}`}
-            value={money(result.data.totalBalanceMinor)}
-          />
-          {result.data.accounts.slice(0, 5).map((a) => (
-            <Pressable
-              key={a.id}
-              accessibilityRole="button"
-              accessibilityLabel={`View ${a.name} account`}
-              onPress={() => router.push({ pathname: '/account', params: { id: a.id } })}
-              style={{
-                padding: 14,
-                borderRadius: 17,
-                backgroundColor: theme.surface,
-                flexDirection: 'row',
-                alignItems: 'center',
-                gap: 10,
-                borderWidth: 1,
-                borderColor: theme.border,
-              }}
-            >
-              <Icon name="wallet" color={theme.text} />
-              <View style={{ flex: 1 }}>
+          {result.data.accounts.length > 1 &&
+            result.data.accounts
+              .slice(0, 3)
+              .map((a) => (
                 <Row
                   key={a.id}
                   label={`${a.name}${a.archived ? ' · archived' : ''}`}
                   value={money(a.balanceMinor)}
                 />
-              </View>
-              <Icon name="chevron" size={16} />
-            </Pressable>
-          ))}
-          <AppButton
-            title="View accounts"
-            trailingIcon={<Icon name="chevron" color={theme.onAccent} />}
-            onPress={() => router.push('/accounts')}
-          />
+              ))}
+          <Link title="Accounts" onPress={() => router.push('/accounts')} />
         </>
       );
       break;
@@ -116,21 +101,14 @@ export function AssistantResult({
           <AppText tone="muted">
             {result.data.from} to {result.data.to}
           </AppText>
-          <Row label="Income" value={money(result.data.incomeMinor)} tone="accent" />
+          <Row label="Income" value={money(result.data.incomeMinor)} tone="success" />
           <Row label="Expenses" value={money(result.data.expensesMinor)} tone="danger" />
           <Row
             label="Net cash flow"
             value={money(result.data.netMinor)}
-            tone={BigInt(result.data.netMinor) < 0n ? 'danger' : 'accent'}
+            tone={BigInt(result.data.netMinor) < 0n ? 'danger' : 'success'}
           />
-          <AppText tone="muted" style={{ fontSize: 12 }}>
-            Transfers and debt principal movements are excluded.
-          </AppText>
-          <AppButton
-            title="Open Insights"
-            variant="secondary"
-            onPress={() => router.push('/(tabs)/reports')}
-          />
+          <Link title="Open Insights" onPress={() => router.push('/(tabs)/reports')} />
         </>
       );
       break;
@@ -141,22 +119,13 @@ export function AssistantResult({
             {result.data.from} to {result.data.to}
           </AppText>
           <Row label="Total spending" value={money(result.data.totalExpensesMinor)} tone="danger" />
-          {result.data.categories.slice(0, 10).map((c) => (
+          {result.data.categories.slice(0, 5).map((c) => (
             <Row key={c.categoryId} label={c.name} value={money(c.amountMinor)} />
           ))}
           {!result.data.categories.length && (
             <AppText tone="muted">No expenses recorded for these dates.</AppText>
           )}
-          {result.data.categories.length > 10 && (
-            <AppText tone="muted">
-              Showing the first 10 categories. View the full breakdown in Insights.
-            </AppText>
-          )}
-          <AppButton
-            title="Open Insights"
-            variant="secondary"
-            onPress={() => router.push('/(tabs)/reports')}
-          />
+          <Link title="Open Insights" onPress={() => router.push('/(tabs)/reports')} />
         </>
       );
       break;
@@ -192,12 +161,8 @@ export function AssistantResult({
               </AppText>
             </View>
           ))}
-          <AppText tone="muted" style={{ fontSize: 12 }}>
-            Monthly and category limits are independent. Do not add them together.
-          </AppText>
-          <AppButton
+          <Link
             title="View budgets"
-            variant="secondary"
             onPress={() => router.push({ pathname: '/planning', params: { section: 'budgets' } })}
           />
         </>
@@ -206,76 +171,37 @@ export function AssistantResult({
     case 'get_debt_summary':
       content = (
         <>
-          <Row label="You owe" value={money(result.data.owedByYouMinor)} tone="danger" />
-          <Row
-            label="Personal loans owed to you"
-            value={money(result.data.personalLoansOwedToYouMinor)}
-          />
-          <Row label="Expected receipts" value={money(result.data.expectedReceiptsMinor)} />
-          <Row
-            label="Overdue · you owe"
-            value={money(result.data.overdueOwedByYouMinor)}
-            tone="danger"
-          />
-          <Row
-            label="Overdue · personal loans owed to you"
-            value={money(result.data.overduePersonalLoansOwedToYouMinor)}
-          />
-          <Row
-            label="Overdue · expected receipts"
-            value={money(result.data.overdueExpectedReceiptsMinor)}
-          />
-          <AppText tone="muted" style={{ fontSize: 12 }}>
-            Excludes archived, cancelled and settled records. Money owed to you is not available
-            cash.
-          </AppText>
-          <AppButton title="View debts" variant="secondary" onPress={() => router.push('/debts')} />
+          {(
+            [
+              ['You owe', result.data.owedByYouMinor, 'danger'],
+              ['Loans owed to you', result.data.personalLoansOwedToYouMinor, 'text'],
+              ['Expected receipts', result.data.expectedReceiptsMinor, 'text'],
+              ['Overdue · you owe', result.data.overdueOwedByYouMinor, 'danger'],
+              ['Overdue · owed to you', result.data.overduePersonalLoansOwedToYouMinor, 'text'],
+              ['Overdue · receipts', result.data.overdueExpectedReceiptsMinor, 'text'],
+            ] as const
+          )
+            .filter(([, value]) => BigInt(value) !== 0n)
+            .map(([label, value, tone]) => (
+              <Row key={label} label={label} value={money(value)} tone={tone} />
+            ))}
+          <Link title="Debts" onPress={() => router.push('/debts')} />
         </>
       );
       break;
   }
+  // Nothing to show beyond the sentence above, so no empty card.
+  const empty =
+    ((result.name === 'read_records' || result.name === 'plan_finances') &&
+      !result.data.facts.length &&
+      !result.data.items.length) ||
+    (result.name === 'get_debt_summary' && result.data.openRecordCount === 0) ||
+    (result.name === 'get_category_spending' && !result.data.categories.length);
+  if (empty && !actions) return null;
   return (
-    <View style={{ gap: 4 }}>
-      <View
-        style={{
-          flexDirection: 'row',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: 4,
-        }}
-      >
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={expanded ? 'Hide answer details' : 'Show answer details'}
-          accessibilityState={{ expanded }}
-          onPress={() => setExpanded(!expanded)}
-          style={{
-            minHeight: 44,
-            justifyContent: 'center',
-            alignSelf: 'flex-start',
-            paddingHorizontal: 8,
-          }}
-        >
-          <AppText tone="accent" style={{ fontSize: 13 }}>
-            {expanded ? 'Hide details' : 'View details'}
-          </AppText>
-        </Pressable>
-        {actions}
-      </View>
-      {expanded && (
-        <Card style={{ gap: 10, padding: 14, borderRadius: 16 }}>
-          {content}
-          <AppText tone="muted" style={{ fontSize: 11 }}>
-            As of{' '}
-            {new Date(result.retrievedAt).toLocaleString(user?.preferences.locale, {
-              timeZone: result.timezone,
-            })}
-            {result.name === 'get_balance'
-              ? '. Includes archived accounts. Recorded money, not a live bank balance.'
-              : ''}
-          </AppText>
-        </Card>
-      )}
+    <View style={{ gap: 6 }}>
+      {!empty && <Card style={{ gap: 6, padding: 12, borderRadius: 14 }}>{content}</Card>}
+      {actions}
     </View>
   );
 }

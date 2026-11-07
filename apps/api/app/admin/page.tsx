@@ -39,7 +39,7 @@ export default function AdminPage() {
     setError('');
     let accessToken = '';
     try {
-      const credentials = loginSchema.parse({ email, password, deviceName: 'Finora Admin' });
+      const credentials = loginSchema.parse({ email, password, deviceName: 'Walleto Admin' });
       const response = await fetch('/api/v1/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -84,7 +84,7 @@ export default function AdminPage() {
     <section className="admin-shell">
       <header className="admin-header">
         <div>
-          <span className="admin-kicker">FINORA / ADMINISTRATION</span>
+          <span className="admin-kicker">WALLETO / ADMINISTRATION</span>
           <h1>User overview</h1>
           <p>Manage visibility into user access and daily AI usage.</p>
         </div>

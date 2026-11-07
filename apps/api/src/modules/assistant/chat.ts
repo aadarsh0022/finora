@@ -11,7 +11,7 @@ import { authenticate, type AuthContext } from '../auth/service';
 import { ApiError } from '../../utils/http';
 import { selectAssistantTool } from './provider';
 import { runReadOnlyTool } from './tools';
-import { writeNarrative } from './narrative';
+import { shortenReply, writeNarrative } from './narrative';
 import { prepareChange } from './changes';
 import { prepareTransaction } from './transaction-draft';
 import { answerAgent } from './agent';
@@ -66,7 +66,7 @@ export async function answerQuestion(
       kind: selection.arguments.reason === 'unsupported' ? 'unsupported' : 'clarification',
       message:
         expanded && selection.arguments.message
-          ? selection.arguments.message.replace(/[—–]/g, ',')
+          ? shortenReply(selection.arguments.message.replace(/[—–]/g, ','))
           : followUps[selection.arguments.reason],
       result: null,
     });
@@ -120,15 +120,17 @@ export async function answerQuestion(
     }),
   );
   const result = results[0]!;
-  const narrative = expanded
-    ? await writeNarrative(
-        current,
-        { ...input, acceptedPolicyVersion: assistantPolicyVersion },
-        result,
-        request.signal,
-        results.slice(1),
-      )
-    : null;
+  const loneBalance = results.length === 1 && result.name === 'get_balance';
+  const narrative =
+    expanded && !loneBalance
+      ? await writeNarrative(
+          current,
+          { ...input, acceptedPolicyVersion: assistantPolicyVersion },
+          result,
+          request.signal,
+          results.slice(1),
+        )
+      : null;
   await authenticate(request);
   return assistantChatResponseSchema.parse({
     answerId,

@@ -139,13 +139,7 @@ export default function Onboarding() {
   ];
   return (
     <Screen
-      title={
-        step === 0
-          ? 'Finora AI Money Manager'
-          : step === 1
-            ? 'Make it yours'
-            : 'Start with one account'
-      }
+      title={step === 0 ? 'Walleto' : step === 1 ? 'Make it yours' : 'Start with one account'}
       subtitle={
         step === 0
           ? 'A clearer picture of your money, one step at a time.'
@@ -232,7 +226,7 @@ export default function Onboarding() {
             onPress={() => setStep(1)}
           />
           <ActionRow
-            title="Ask Finora AI"
+            title="Ask Walleto AI"
             subtitle="Get answers or prepare a transaction draft. AI is optional and asks for separate consent."
             icon="info"
             last

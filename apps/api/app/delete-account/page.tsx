@@ -22,7 +22,7 @@ export default function DeleteAccount() {
       await deleteWebAccount({ email, password, confirmation });
       setDone(true);
       setEmail('');
-      setMessage('Your Finora account and associated application data have been deleted.');
+      setMessage('Your Walleto account and associated application data have been deleted.');
     } catch (failure) {
       setMessage(
         failure instanceof Error && failure.name === 'Error'
@@ -40,7 +40,7 @@ export default function DeleteAccount() {
   return (
     <>
       <p className="eyebrow">Your account, your choice</p>
-      <h1>Delete your Finora account</h1>
+      <h1>Delete your Walleto account</h1>
       <p>You can delete your account here without installing or opening the Android app.</p>
       {!done && (
         <>
@@ -49,7 +49,7 @@ export default function DeleteAccount() {
             <p>
               This removes your profile, accounts, transactions, categories, budgets, goals,
               contributions, debts, repayments, recurring items, AI chat history and sessions from
-              Finora’s application database. Deletion cannot be undone. Files you previously
+              Walleto’s application database. Deletion cannot be undone. Files you previously
               exported or shared remain under your control; export anything you want to keep before
               continuing.
             </p>

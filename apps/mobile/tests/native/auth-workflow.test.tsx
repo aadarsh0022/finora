@@ -94,7 +94,7 @@ test('validates registration before sending and passes the chosen base currency 
       email: 'tester@example.com',
       name: 'Tester',
       preferences: { baseCurrency: 'USD' },
-      deviceName: 'Finora Android',
+      deviceName: 'Walleto Android',
     },
   });
   expect(calls[0]?.body).not.toHaveProperty('userId');

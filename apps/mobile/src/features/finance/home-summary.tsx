@@ -1,9 +1,10 @@
-import { Pressable, useWindowDimensions, View } from 'react-native';
+import { Pressable, View } from 'react-native';
 import { router } from 'expo-router';
 import type { Overview } from '@finora/contracts';
 import { AppText } from '../../components/ui';
 import { Icon } from '../../components/design';
-import { useTheme } from '../../theme';
+import { glass, useTheme } from '../../theme';
+import { SpendingPulse } from './spending-pulse';
 export function HomeSummary({
   data,
   hidden,
@@ -16,13 +17,11 @@ export function HomeSummary({
   amount: (value: string) => string;
 }) {
   const theme = useTheme();
-  const { width, fontScale } = useWindowDimensions();
-  const stacked = width < 320 || fontScale > 1.4;
   return (
-    <View style={{ gap: 12 }}>
+    <View>
       <View
         style={{
-          backgroundColor: theme.surface,
+          backgroundColor: glass(theme),
           borderWidth: 1,
           borderColor: theme.border,
           padding: 18,
@@ -91,6 +90,7 @@ export function HomeSummary({
         >
           {amount(data.totalBalanceMinor)}
         </AppText>
+        <SpendingPulse embedded amount={amount} />
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Accounts"
@@ -116,98 +116,6 @@ export function HomeSummary({
           </View>
         </Pressable>
       </View>
-      <View style={{ flexDirection: stacked ? 'column' : 'row', gap: 12 }}>
-        {(
-          [
-            ['Income', data.incomeMinor, false],
-            ['Spent', data.expensesMinor, true],
-          ] as const
-        ).map(([label, value, expense]) => (
-          <View
-            key={label}
-            style={{
-              flex: 1,
-              backgroundColor: theme.surface,
-              borderWidth: 1,
-              borderColor: theme.border,
-              borderRadius: 18,
-              padding: 15,
-              gap: 9,
-            }}
-          >
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <View
-                style={{
-                  width: 27,
-                  height: 27,
-                  borderRadius: 14,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  backgroundColor: expense ? theme.dangerSoft : theme.accentSoft,
-                }}
-              >
-                <AppText
-                  style={{
-                    fontSize: 18,
-                    lineHeight: 22,
-                    color: expense ? theme.danger : theme.accent,
-                  }}
-                >
-                  {expense ? '↗' : '↙'}
-                </AppText>
-              </View>
-              <AppText tone="muted" style={{ fontSize: 12, lineHeight: 18 }}>
-                {label}
-              </AppText>
-            </View>
-            <AppText
-              numberOfLines={1}
-              adjustsFontSizeToFit
-              minimumFontScale={0.6}
-              tone={expense ? 'danger' : 'accent'}
-              style={{
-                fontSize: 20,
-                lineHeight: 28,
-                fontFamily: 'DMSansBold',
-                fontVariant: ['tabular-nums'],
-              }}
-            >
-              {amount(value)}
-            </AppText>
-            <AppText tone="muted" style={{ fontSize: 11, lineHeight: 16 }}>
-              This month
-            </AppText>
-          </View>
-        ))}
-      </View>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="View spending reports"
-        onPress={() => router.push('/(tabs)/reports')}
-        style={{
-          minHeight: 48,
-          paddingHorizontal: 15,
-          borderRadius: 16,
-          backgroundColor: theme.surface,
-          borderWidth: 1,
-          borderColor: theme.border,
-          flexDirection: 'row',
-          alignItems: 'center',
-          gap: 8,
-        }}
-      >
-        <Icon name="activity" size={17} />
-        <AppText tone="muted" style={{ flex: 1, fontSize: 12 }}>
-          Net cash flow
-        </AppText>
-        <AppText
-          tone={BigInt(data.netMinor) < 0n ? 'danger' : 'accent'}
-          style={{ fontFamily: 'DMSansBold', fontSize: 14 }}
-        >
-          {amount(data.netMinor)}
-        </AppText>
-        <Icon name="chevron" size={15} />
-      </Pressable>
     </View>
   );
 }

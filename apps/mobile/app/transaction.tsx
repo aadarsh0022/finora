@@ -85,7 +85,7 @@ export default function TransactionScreen() {
       <Screen title="Draft unavailable" includeTopInset={false}>
         <AppText>
           This draft has expired, was already submitted or belongs to a different session. Ask
-          Finora to prepare a new one.
+          Walleto to prepare a new one.
         </AppText>
         <AppButton title="Back to chat" onPress={() => router.replace('/(tabs)/ask')} />
       </Screen>
@@ -172,9 +172,13 @@ function TransactionForm({
   const currency = user?.preferences.baseCurrency ?? 'INR';
   const original = duplicate ? undefined : source;
   const seed = source ?? preset;
-  const recent = lastUsed[seed?.type ?? 'EXPENSE'];
+  const { type: typeParam } = useLocalSearchParams<{ type?: string }>();
+  const requestedType = (['EXPENSE', 'INCOME', 'TRANSFER'] as const).find(
+    (value) => value === typeParam,
+  );
+  const recent = lastUsed[seed?.type ?? requestedType ?? 'EXPENSE'];
   const initial = useRef({
-    type: assistantDraft?.type ?? seed?.type ?? 'EXPENSE',
+    type: assistantDraft?.type ?? seed?.type ?? requestedType ?? 'EXPENSE',
     amount: assistantDraft
       ? assistantDraft.amountMinor === null
         ? ''
@@ -198,7 +202,7 @@ function TransactionForm({
           (item) =>
             item.id === recent?.categoryId &&
             !item.archived &&
-            item.type === (seed?.type ?? 'EXPENSE'),
+            item.type === (seed?.type ?? requestedType ?? 'EXPENSE'),
         )?.id ??
         ''),
     date:

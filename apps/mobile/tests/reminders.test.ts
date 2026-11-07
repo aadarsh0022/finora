@@ -129,7 +129,7 @@ describe('reminder reconciliation', () => {
     expect(state.delivered).toHaveLength(2);
   });
 
-  it('cancels obsolete Finora plans and aborts stale work before scheduling', async () => {
+  it('cancels obsolete Walleto plans and aborts stale work before scheduling', async () => {
     const state = fixture();
     state.scheduled.set(`${reminderPrefix}debt:old`, { id: 'unused', kind: 'due', at: 10 });
     state.scheduled.set('other', { id: 'other', kind: 'due', at: 20 });

@@ -137,7 +137,7 @@ export default function Security() {
           tone="danger"
           style={{ fontFamily: 'DMSansBold', fontSize: 22 }}
         >
-          Delete Finora account
+          Delete Walleto account
         </AppText>
         <AppText>
           Deletion permanently removes your account and associated application data. Export anything

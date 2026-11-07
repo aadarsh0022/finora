@@ -55,7 +55,7 @@ export class ApiClient {
     } catch {
       throw new ClientError(
         'CONFIGURATION',
-        'Configure EXPO_PUBLIC_API_URL before starting Finora.',
+        'Configure EXPO_PUBLIC_API_URL before starting Walleto.',
       );
     }
     if (
@@ -132,7 +132,7 @@ export class ApiClient {
         timedOut ? 'TIMEOUT' : 'NETWORK',
         timedOut
           ? 'The server took too long. Please retry.'
-          : 'Cannot reach Finora. Check your connection and retry.',
+          : 'Cannot reach Walleto. Check your connection and retry.',
       );
     } finally {
       clearTimeout(timer);

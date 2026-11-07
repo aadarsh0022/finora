@@ -18,13 +18,13 @@ const routes = {
   '(tabs)/budgets': () => <Text>Legacy budgets page</Text>,
   assistant: AssistantLink,
 };
-test('Finora AI is the middle tab and opens the assistant', async () => {
+test('Walleto AI is the middle tab and opens the assistant', async () => {
   const view = await renderRouter(routes, { initialUrl: '/(tabs)' });
   const labels = screen
     .getAllByRole('button')
     .map((tab) => String(tab.props.accessibilityLabel).split(',')[0]);
-  expect(labels).toEqual(['Home', 'Activity', 'Finora AI', 'Plan', 'Insights']);
-  await fireEvent.press(screen.getByRole('button', { name: 'Finora AI, tab, 3 of 5' }));
+  expect(labels).toEqual(['Home', 'Activity', 'Walleto AI', 'Plan', 'Insights']);
+  await fireEvent.press(screen.getByRole('button', { name: 'Walleto AI, tab, 3 of 5' }));
   expect(await screen.findByText('Assistant page')).toBeVisible();
   expect(view.getPathname()).toBe('/ask');
 });

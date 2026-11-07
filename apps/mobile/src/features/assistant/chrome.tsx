@@ -62,16 +62,13 @@ export function UserBubble({ question }: { question: string }) {
       style={{
         alignSelf: 'flex-end',
         maxWidth: '85%',
-        backgroundColor: theme.accent,
-        borderRadius: 24,
-        borderBottomRightRadius: 7,
+        backgroundColor: theme.accentSoft,
+        borderRadius: 22,
         paddingHorizontal: 16,
         paddingVertical: 11,
       }}
     >
-      <AppText style={{ lineHeight: 22, fontSize: 14, color: theme.background }}>
-        {question}
-      </AppText>
+      <AppText style={{ lineHeight: 22, fontSize: 14, color: theme.text }}>{question}</AppText>
     </View>
   );
 }

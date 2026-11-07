@@ -1,7 +1,7 @@
 import type { ExpoConfig } from 'expo/config';
 
 const config: ExpoConfig = {
-  name: 'Finora AI Money Manager',
+  name: 'Walleto',
   slug: 'finora',
   scheme: 'finora',
   version: '0.3.0',
@@ -45,7 +45,7 @@ const config: ExpoConfig = {
     'expo-sharing',
     [
       'expo-local-authentication',
-      { faceIDPermission: 'Use Face ID to unlock your Finora AI financial details.' },
+      { faceIDPermission: 'Use Face ID to unlock your Walleto AI financial details.' },
     ],
     './plugins/with-release-signing.cjs',
     './plugins/with-development-isolation.cjs',

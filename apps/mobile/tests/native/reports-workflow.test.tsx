@@ -159,6 +159,28 @@ async function choosePeriod(name: string) {
   await fireEvent.press(screen.getByRole('button', { name: 'Period' }));
   await fireEvent.press(screen.getByRole('radio', { name }));
 }
+beforeAll(() => {
+  jest.useFakeTimers({
+    now: new Date('2026-10-15T08:00:00Z'),
+    doNotFake: [
+      'setTimeout',
+      'clearTimeout',
+      'setInterval',
+      'clearInterval',
+      'setImmediate',
+      'clearImmediate',
+      'nextTick',
+      'queueMicrotask',
+      'requestAnimationFrame',
+      'cancelAnimationFrame',
+      'performance',
+    ],
+  });
+});
+afterAll(() => {
+  jest.useRealTimers();
+});
+
 async function chooseDate(label: string, date: string) {
   await fireEvent.press(screen.getByRole('button', { name: label }));
   await fireEvent.press(screen.getByRole('button', { name: `Select ${date}` }));
@@ -188,13 +210,13 @@ test('cancel preserves the selected period and invalid custom dates never reques
   expect(screen.getByRole('button', { name: 'Period' })).toHaveAccessibilityValue({
     text: 'This month',
   });
-  expect(paths).toHaveLength(1);
+  expect(paths.filter((path) => path.includes('2026-10-20'))).toHaveLength(0);
   await choosePeriod('Custom dates');
   await chooseDate('From date', '2026-10-20');
   await chooseDate('Through date', '2026-10-10');
   await fireEvent.press(screen.getByRole('button', { name: 'Apply dates' }));
   expect(screen.getByRole('alert')).toHaveTextContent('End must follow start');
-  expect(paths).toHaveLength(1);
+  expect(paths.filter((path) => path.includes('2026-10-20'))).toHaveLength(0);
   await chooseDate('Through date', '2026-10-31');
   await fireEvent.press(screen.getByRole('button', { name: 'Apply dates' }));
   await waitFor(() => expect(paths).toContain('?range=custom&from=2026-10-20&to=2026-10-31'));

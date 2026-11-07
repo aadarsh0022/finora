@@ -6,10 +6,20 @@ import { authenticate, type AuthContext } from '../auth/service';
 import { ApiError } from '../../utils/http';
 import { selectAssistantTool } from './provider';
 import { runReadOnlyTool } from './tools';
-import { narrativeFacts, writeNarrative } from './narrative';
+import { narrativeFacts, shortenReply, writeNarrative } from './narrative';
 import { prepareTransaction } from './transaction-draft';
 import { prepareChange } from './changes';
 import type { assistantProgressSchema } from '@finora/contracts';
+
+const readLabels = {
+  get_balance: 'accounts',
+  get_cashflow: 'income and spending',
+  get_category_spending: 'spending categories',
+  get_budget_status: 'budgets',
+  get_debt_summary: 'debts',
+  plan_finances: 'plan',
+  read_records: 'records',
+} as const;
 
 export async function answerAgent(
   context: AuthContext,
@@ -48,7 +58,7 @@ export async function answerAgent(
         answerId,
         kind: 'clarification',
         message:
-          selection.arguments.message?.replace(/[—–]/g, ',') ??
+          shortenReply(selection.arguments.message?.replace(/[—–]/g, ',') ?? '') ||
           'What would you like to log or check?',
         result: null,
       });
@@ -92,33 +102,33 @@ export async function answerAgent(
       });
     }
     const calls = selection.name === 'read_multiple' ? selection.arguments.calls : [selection];
-    let added = false;
+    // Choose the new reads first, then run them together. Order, the 12-result cap and the
+    // per-call authentication refresh are unchanged; only the waiting overlaps.
+    const fresh: typeof calls = [];
     for (const call of calls) {
       const key = JSON.stringify(call);
       if (seen.has(key)) continue;
-      if (results.length >= 12) break;
-      const id = `read-${results.length}`;
-      const labels = {
-        get_balance: 'accounts',
-        get_cashflow: 'income and spending',
-        get_category_spending: 'spending categories',
-        get_budget_status: 'budgets',
-        get_debt_summary: 'debts',
-        plan_finances: 'plan',
-        read_records: 'records',
-      };
-      const label =
-        call.name === 'read_records'
-          ? call.arguments.feature.replaceAll('_', ' ')
-          : labels[call.name];
-      progress({ id, state: 'checking', label });
-      const fresh = await authenticate(request);
-      results.push(await runReadOnlyTool(fresh, call));
+      if (results.length + fresh.length >= 12) break;
       seen.add(key);
-      added = true;
-      progress({ id, state: 'checked', label });
+      fresh.push(call);
     }
-    if (!added) break;
+    const first = results.length;
+    const finished = await Promise.all(
+      fresh.map(async (call, offset) => {
+        const id = `read-${first + offset}`;
+        const label =
+          call.name === 'read_records'
+            ? call.arguments.feature.replaceAll('_', ' ')
+            : readLabels[call.name];
+        progress({ id, state: 'checking', label });
+        const current = await authenticate(request);
+        const result = await runReadOnlyTool(current, call);
+        progress({ id, state: 'checked', label });
+        return result;
+      }),
+    );
+    results.push(...finished);
+    if (!finished.length) break;
   }
   if (!results.length)
     throw new ApiError(
@@ -127,13 +137,11 @@ export async function answerAgent(
       'I couldn’t finish that reply. Please try again.',
     );
   const current = await authenticate(request);
-  const message = await writeNarrative(
-    current,
-    input,
-    results[0]!,
-    request.signal,
-    results.slice(1),
-  );
+  // The app shows exact local text for a lone balance, so a model-written reply would be unused.
+  const loneBalance = results.length === 1 && results[0]!.name === 'get_balance';
+  const message = loneBalance
+    ? null
+    : await writeNarrative(current, input, results[0]!, request.signal, results.slice(1));
   await authenticate(request);
   return assistantChatResponseSchema.parse({
     answerId,
