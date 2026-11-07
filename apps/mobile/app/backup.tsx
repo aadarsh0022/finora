@@ -135,6 +135,7 @@ export default function BackupScreen() {
   return (
     <Screen
       title="Your records, with you"
+      includeTopInset={false}
       subtitle="Export a private copy or merge a Walleto backup."
     >
       <Card>
