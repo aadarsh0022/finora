@@ -158,14 +158,14 @@ async function mount(
 test('asks for the missing category before showing confirmation, then saves inline exactly once', async () => {
   await mount();
   expect(screen.getByText(/Which category was/)).toBeOnTheScreen();
-  expect(screen.queryByRole('button', { name: 'Confirm and save' })).toBeNull();
+  expect(screen.queryByRole('button', { name: /^Save (expense|income|transfer)$/ })).toBeNull();
   expect(writes).toHaveLength(0);
   await fireEvent.press(await screen.findByRole('button', { name: 'Use Food' }));
-  const save = await screen.findByRole('button', { name: 'Confirm and save' });
+  const save = await screen.findByRole('button', { name: /^Save (expense|income|transfer)$/ });
   expect(writes).toHaveLength(0);
   await fireEvent.press(save);
-  await screen.findByText(/^Saved ·/);
-  expect(screen.queryByRole('button', { name: 'Confirm and save' })).toBeNull();
+  await screen.findByText(/^Saved your /);
+  expect(screen.queryByRole('button', { name: /^Save (expense|income|transfer)$/ })).toBeNull();
   expect(writes).toHaveLength(1);
   expect(writes[0]?.body).toMatchObject({
     amountMinor: '10000',
@@ -181,9 +181,9 @@ test('accepts typed details and asks one missing question at a time without gues
   await screen.findByRole('button', { name: 'Use Food' });
   await act(async () => reply('Food'));
   await screen.findByText('Which account should I use?');
-  expect(screen.queryByRole('button', { name: 'Confirm and save' })).toBeNull();
+  expect(screen.queryByRole('button', { name: /^Save (expense|income|transfer)$/ })).toBeNull();
   await fireEvent.press(await screen.findByRole('button', { name: 'Use Main' }));
-  await screen.findByRole('button', { name: 'Confirm and save' });
+  await screen.findByRole('button', { name: /^Save (expense|income|transfer)$/ });
   expect(writes).toHaveLength(0);
 });
 
@@ -191,22 +191,24 @@ test('rejects an invalid amount, supports cancellation and never creates a trans
   await mount({ missingAmount: true });
   await act(async () => reply('0'));
   await screen.findByRole('alert');
-  expect(screen.queryByRole('button', { name: 'Confirm and save' })).toBeNull();
+  expect(screen.queryByRole('button', { name: /^Save (expense|income|transfer)$/ })).toBeNull();
   await act(async () => reply('100'));
   await screen.findByText(/Which category was/);
   await fireEvent.press(screen.getByRole('button', { name: 'Cancel transaction draft' }));
-  await screen.findByText('Transaction cancelled. Nothing was saved.');
+  await screen.findByText('Okay, nothing was saved.');
   expect(writes).toHaveLength(0);
 });
 
 test('retrying a failed confirmed save reuses its operation key', async () => {
   await mount({ failOnce: true });
   await fireEvent.press(await screen.findByRole('button', { name: 'Use Food' }));
-  await fireEvent.press(await screen.findByRole('button', { name: 'Confirm and save' }));
+  await fireEvent.press(
+    await screen.findByRole('button', { name: /^Save (expense|income|transfer)$/ }),
+  );
   await screen.findByText('Please retry saving.');
-  await fireEvent.press(screen.getByRole('button', { name: 'Confirm and save' }));
-  await screen.findByText(/^Saved ·/);
-  expect(screen.queryByRole('button', { name: 'Confirm and save' })).toBeNull();
+  await fireEvent.press(screen.getByRole('button', { name: /^Save (expense|income|transfer)$/ }));
+  await screen.findByText(/^Saved your /);
+  expect(screen.queryByRole('button', { name: /^Save (expense|income|transfer)$/ })).toBeNull();
   expect(writes).toHaveLength(2);
   expect(writes[0]?.key).toBe(writes[1]?.key);
   expect(writes[0]?.body).toEqual(writes[1]?.body);

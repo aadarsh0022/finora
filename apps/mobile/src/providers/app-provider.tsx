@@ -18,6 +18,8 @@ import { drainSetup, readSetup, saveSetup } from '../storage/setup';
 import { retryDelay, shouldRetrySync } from '../storage/sync-retry';
 import { refreshDeviceLedger } from '../storage/ledger';
 import { warmReads } from '../storage/warm';
+import { pushAccentColor } from '../storage/accent-sync';
+import { useAppearance } from '../stores/appearance';
 import * as Crypto from 'expo-crypto';
 import { cancelLocalReminders, refreshLocalReminders } from '../notifications/reminders';
 
@@ -164,6 +166,21 @@ export function AppProvider({ children }: { children: ReactNode }) {
           () => vaultRef.current === current && verified.current,
         );
         if (setupUser && vaultRef.current === current) setUser(setupUser);
+        const appearance = useAppearance.getState();
+        if (appearance.dirty && appearance.accent && vaultRef.current === current) {
+          const sent = appearance.accent;
+          try {
+            const saved = await pushAccentColor(api, sent);
+            if (vaultRef.current === current) {
+              useAppearance.getState().markSynced(sent);
+              setUser((existing) =>
+                existing ? { ...existing, preferences: saved.preferences } : existing,
+              );
+            }
+          } catch {
+            // Keep the device choice and try again on the next sync.
+          }
+        }
         try {
           await refreshDeviceLedger(
             current,
@@ -306,8 +323,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   }
   useEffect(() => {
+    void useAppearance.getState().hydrate();
     void restore();
   }, []);
+  const accountAccent = user?.preferences.accentColor;
+  useEffect(() => {
+    if (accountAccent) useAppearance.getState().followAccount();
+  }, [accountAccent]);
   useEffect(() => {
     if (user && vault && verifiedOnline)
       void refreshLocalReminders(vault, api, user).catch(() => undefined);
@@ -336,6 +358,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     await cancelLocalReminders().catch(() => undefined);
     verified.current = false;
     setVerifiedOnline(false);
+    useAppearance.getState().reset();
     await rememberOwner(origin, null);
     await api.setSession(tokens);
     queryClient.clear();

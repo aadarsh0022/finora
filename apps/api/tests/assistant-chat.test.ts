@@ -104,7 +104,8 @@ it('uses one Luna request to select a tool and keeps identity and financial resu
     kind: 'answer',
     result: { name: 'get_balance', data: { totalBalanceMinor: '900719925474099301' } },
   });
-  expect(upstream).toHaveBeenCalledTimes(2);
+  // A lone balance is shown from exact local text, so no reply-writing request is made.
+  expect(upstream).toHaveBeenCalledTimes(1);
   const request = (upstream.mock.calls as unknown as [string, RequestInit][])[0]!;
   expect(request[0]).toBe('https://api.openai.com/v1/responses');
   const body = JSON.parse(String(request[1].body)) as Record<string, unknown>;

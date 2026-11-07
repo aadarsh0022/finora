@@ -17,6 +17,7 @@ import { exportsRoute } from './modules/exports/router';
 import { reportsRoute } from './modules/reports/router';
 import { entitlementsRoute } from './modules/entitlements/router';
 import { debtsRoute } from './modules/debts/router';
+import { emiRoute } from './modules/emi/router';
 import { adminRoute } from './modules/assistant/admin';
 import { assistantRoute } from './modules/assistant/router';
 import { ApiError, handle, readBody, success } from './utils/http';
@@ -35,6 +36,7 @@ export function dispatch(
       (await adminRoute(request, requestId)) ??
       (await assistantRoute(request, requestId)) ??
       (await debtsRoute(request, requestId)) ??
+      (await emiRoute(request, requestId)) ??
       (await reportsRoute(request, requestId)) ??
       (await entitlementsRoute(request, requestId)) ??
       (await financeRoute(request, requestId)) ??

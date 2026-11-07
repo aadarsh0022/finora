@@ -85,6 +85,10 @@ async function ensureIndexes(db: Db) {
     'transactions',
     'debts',
     'debt_events',
+    'emi_loans',
+    'emi_payments',
+    'emi_extra_payments',
+    'emi_income_periods',
     'budgets',
     'monthly_budget_limits',
     'savings_goals',
@@ -112,6 +116,9 @@ async function ensureIndexes(db: Db) {
   });
   indexes.import_previews!.push({ key: { expiresAt: 1 }, expireAfterSeconds: 0 });
   indexes.debt_events!.push({ key: { userId: 1, debtId: 1, date: -1 } });
+  // One payment per loan and month; payment history is read per loan.
+  indexes.emi_payments!.push({ key: { userId: 1, loanId: 1, monthKey: 1 }, unique: true });
+  indexes.emi_extra_payments!.push({ key: { userId: 1, loanId: 1 } });
   indexes.monthly_budget_limits!.push({ key: { userId: 1, month: 1 }, unique: true });
   // One command per collection. Independent collections initialize concurrently;
   // the shared connection pool bounds network concurrency. Every caller still waits

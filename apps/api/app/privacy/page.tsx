@@ -3,10 +3,10 @@ import { supportEmail } from '../../src/config/public';
 export default function Privacy() {
   return (
     <>
-      <h1>Finora AI Money Manager privacy policy</h1>
+      <h1>Walleto privacy policy</h1>
       <p>
-        Last updated: 29 October 2026. This policy describes Finora AI’s Android application and its
-        hosted account services. For privacy questions or requests, contact{' '}
+        Last updated: 29 October 2026. This policy describes Walleto AI’s Android application and
+        its hosted account services. For privacy questions or requests, contact{' '}
         <a href={`mailto:${supportEmail}`}>{supportEmail}</a>.
       </p>
       <h2>Information stored</h2>
@@ -31,8 +31,8 @@ export default function Privacy() {
         process network metadata, including IP addresses, for delivery, security and operations.
       </p>
       <p>
-        Account and financial records are retained while you use Finora AI, until you delete them or
-        your account. Sessions expire after 30 days; recovery links expire after 30 minutes.
+        Account and financial records are retained while you use Walleto AI, until you delete them
+        or your account. Sessions expire after 30 days; recovery links expire after 30 minutes.
         Abuse-prevention counters expire automatically. Support messages remain in the support inbox
         until the conversation is resolved and removed. Provider-held operational records and
         infrastructure backups have separate retention from the active application database. Contact
@@ -41,8 +41,8 @@ export default function Privacy() {
       <h2>Your device and exports</h2>
       <p>
         Session tokens are kept in the operating system’s secure storage. Optional biometric app
-        lock uses the device’s authentication prompt; Finora AI does not collect biometric
-        templates. Files you export or share are unencrypted and remain under your control. Finora
+        lock uses the device’s authentication prompt; Walleto AI does not collect biometric
+        templates. Files you export or share are unencrypted and remain under your control. Walleto
         AI accesses import files only when you select them. Android automatic application backup is
         disabled. Supported records and pending entries are stored in an encrypted local SQLite
         database when secure device storage is available. New transactions can appear locally before
@@ -51,22 +51,22 @@ export default function Privacy() {
       </p>
       <h2>Optional AI chat</h2>
       <p>
-        When AI chat is enabled, Finora AI asks for your agreement before sending a question. OpenAI
-        processes at most the latest 10 messages in the current chat, selected by our server, your
-        currency and timezone, and tool descriptions. After you agree to the expanded chat
+        When AI chat is enabled, Walleto AI asks for your agreement before sending a question.
+        OpenAI processes at most the latest 10 messages in the current chat, selected by our server,
+        your currency and timezone, and tool descriptions. After you agree to the expanded chat
         disclosure, relevant financial summaries and explicit planning assumptions may also be sent
         to compose a conversational answer. Avoid including passwords, bank credentials or
-        information you do not want sent to OpenAI. Finora AI excludes credentials, account
+        information you do not want sent to OpenAI. Walleto AI excludes credentials, account
         identifiers, individual merchants and notes from those tool summaries. Your question itself
         may contain personal or financial information if you type it.
       </p>
       <p>
-        Finora AI calculates the answer from your signed-in account and displays recorded figures
+        Walleto AI calculates the answer from your signed-in account and displays recorded figures
         directly. The assistant can prepare supported creates, edits, deletions and other changes.
         An inline review requires your explicit confirmation before the authenticated service
         changes a record. It cannot move money through a bank. It excludes local entries that have
         not reached the server and does not provide professional financial advice. Chat questions
-        and replies are stored privately in your Finora account, with up to 40 exchanges per chat.
+        and replies are stored privately in your Walleto account, with up to 40 exchanges per chat.
         They are not written to operational application logs. A local encrypted copy may be kept for
         displaying recent chats. Deleting a chat removes its account history and the local copy on
         the requesting device, without deleting your financial entries. Other devices may retain
@@ -100,7 +100,7 @@ export default function Privacy() {
       <h2>Your choices</h2>
       <p>
         You can review, correct and export your records in the app, change your password, revoke
-        sessions and delete your account. Finora AI is intended for adults and is not directed at
+        sessions and delete your account. Walleto AI is intended for adults and is not directed at
         children. Material changes to this policy will be reflected on this page with an updated
         date.
       </p>

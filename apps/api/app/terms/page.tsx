@@ -3,14 +3,14 @@ import { supportEmail } from '../../src/config/public';
 export default function Terms() {
   return (
     <>
-      <h1>Finora AI Money Manager terms of use</h1>
+      <h1>Walleto terms of use</h1>
       <p>
-        Last updated: 29 October 2026. These terms describe use of Finora AI’s personal finance
+        Last updated: 29 October 2026. These terms describe use of Walleto AI’s personal finance
         tracking application and hosted services. Questions can be sent to{' '}
         <a href={`mailto:${supportEmail}`}>{supportEmail}</a>.
       </p>
       <p>
-        Finora AI records financial information you enter manually. It does not connect to banks,
+        Walleto AI records financial information you enter manually. It does not connect to banks,
         move money or provide investment, tax or lending advice. Verify your records against
         original statements.
       </p>
@@ -34,18 +34,18 @@ export default function Terms() {
         unencrypted information. Premium purchasing and live billing are not enabled.
       </p>
       <p>
-        Use Finora AI only for records you are authorized to manage. Do not attempt to access
-        another user’s data, interfere with the service, or use it for unlawful activity. Finora AI
+        Use Walleto AI only for records you are authorized to manage. Do not attempt to access
+        another user’s data, interfere with the service, or use it for unlawful activity. Walleto AI
         is intended for adults. You remain responsible for the records you enter and the files you
         share.
       </p>
       <p>
         Service availability and error-free operation are not guaranteed. Keep independent copies of
-        important records. Finora AI is not a substitute for bank statements or professional advice.
-        Nothing here limits rights or remedies that applicable law requires.
+        important records. Walleto AI is not a substitute for bank statements or professional
+        advice. Nothing here limits rights or remedies that applicable law requires.
       </p>
       <p>
-        You can stop using Finora AI and <a href="/delete-account">delete your account</a> at any
+        You can stop using Walleto AI and <a href="/delete-account">delete your account</a> at any
         time. Read the <a href="/privacy">privacy policy</a> for data handling and deletion details.
       </p>
     </>

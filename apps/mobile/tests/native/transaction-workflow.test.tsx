@@ -349,7 +349,7 @@ test('shows a network failure and retries the same operation key without abandon
   failNextWrite = true;
   await fireEvent.press(screen.getByRole('button', { name: /^Save (expense|income|transfer)$/ }));
   expect(
-    await screen.findByText('Cannot reach Finora. Check your connection and retry.'),
+    await screen.findByText('Cannot reach Walleto. Check your connection and retry.'),
   ).toBeOnTheScreen();
   expect(router.back).not.toHaveBeenCalled();
   await fireEvent.press(screen.getByRole('button', { name: /^Save (expense|income|transfer)$/ }));

@@ -10,7 +10,7 @@ import { DateField, FlowSheet, SelectField } from '../../components/flow';
 import { accountsSchema, categoriesSchema, useMoney, TransactionCard, useRead } from './shared';
 import { activityQuery, emptyActivityFilters, type ActivityFilters } from './filters';
 import { useApp } from '../../providers/app-provider';
-import { useTheme } from '../../theme';
+import { elevation, glass, useTheme } from '../../theme';
 
 export default function Transactions() {
   const { user } = useApp();
@@ -324,7 +324,12 @@ export default function Transactions() {
                 </AppText>
               </View>
               <View
-                style={{ backgroundColor: theme.surface, borderRadius: 16, overflow: 'hidden' }}
+                style={{
+                  backgroundColor: glass(theme),
+                  borderRadius: 20,
+                  overflow: 'hidden',
+                  ...elevation(theme),
+                }}
               >
                 {records.map((item) => (
                   <TransactionCard

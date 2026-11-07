@@ -106,10 +106,8 @@ test('hides financial content immediately while reading enabled policy and requi
   );
   await mount();
   expectHidden(false);
-  expect(screen.queryByText('Finora is locked')).toBeNull();
-  expect(
-    screen.getByRole('progressbar', { name: 'Opening Finora AI Money Manager' }),
-  ).toBeOnTheScreen();
+  expect(screen.queryByText('Walleto is locked')).toBeNull();
+  expect(screen.getByRole('progressbar', { name: 'Opening Walleto' })).toBeOnTheScreen();
   await act(() => complete('enabled'));
   const unlock = await screen.findByRole('button', { name: 'Unlock with biometrics' });
   expectHidden();
@@ -212,7 +210,7 @@ test.each([null, 'disabled'])(
     for (const state of ['inactive', 'background', 'active', 'background', 'active'] as const) {
       await act(() => lifecycle(state));
       expect(screen.getByText('Private balance ₹100')).toBeVisible();
-      expect(screen.queryByText('Finora is locked')).toBeNull();
+      expect(screen.queryByText('Walleto is locked')).toBeNull();
       expect(screen.queryByRole('button', { name: 'Sign out and reset app lock' })).toBeNull();
     }
     expect(LocalAuthentication.authenticateAsync).not.toHaveBeenCalled();
@@ -224,7 +222,7 @@ test('an initially inactive app with lock disabled becomes usable without a biom
   jest.mocked(SecureStore.getItemAsync).mockResolvedValue('disabled');
   await mount();
   await waitFor(() => expect(screen.getByText('Private balance ₹100')).toBeVisible());
-  expect(screen.queryByText('Finora is locked')).toBeNull();
+  expect(screen.queryByText('Walleto is locked')).toBeNull();
   expect(LocalAuthentication.authenticateAsync).not.toHaveBeenCalled();
   expect(clearSession).not.toHaveBeenCalled();
 });

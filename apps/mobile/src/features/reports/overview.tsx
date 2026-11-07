@@ -7,6 +7,7 @@ import {
   goalProgressSchema,
   recurringOccurrenceSchema,
   recurringRuleSchema,
+  reportSummarySchema,
   transactionPageSchema,
   type ReportSummary,
 } from '@finora/contracts';
@@ -18,6 +19,8 @@ import { useApp } from '../../providers/app-provider';
 import { categoriesSchema, useMoney, useRead } from '../finance/shared';
 import { activityQuery, emptyActivityFilters } from '../finance/filters';
 import { chartRatio } from './values';
+import { SpendingPulse } from '../finance/spending-pulse';
+import { comparisonPeriod, percentChange } from './comparison';
 
 const colors = ['#00845D', '#28A77C', '#63C39D', '#A0DCBD', '#A7ABB5'];
 function Heading({
@@ -61,6 +64,45 @@ function Heading({
     </Pressable>
   );
 }
+/** Percentage change against the previous period; hidden until that period has loaded. */
+function ChangeNote({
+  current,
+  previous,
+  label,
+  higherIsBetter,
+}: {
+  current: string;
+  previous: string | undefined;
+  label: string;
+  higherIsBetter: boolean;
+}) {
+  const theme = useTheme();
+  if (previous === undefined) return null;
+  const change = percentChange(current, previous);
+  if (change.kind === 'none') return null;
+  if (change.kind === 'new' || change.kind === 'flat')
+    return (
+      <AppText tone="muted" style={{ fontSize: 11, lineHeight: 16 }}>
+        {change.kind === 'new' ? `Nothing recorded ${label}` : `No change vs ${label}`}
+      </AppText>
+    );
+  const color = (change.kind === 'up') === higherIsBetter ? theme.success : theme.danger;
+  return (
+    <View
+      accessible
+      accessibilityLabel={`${change.kind === 'up' ? 'Up' : 'Down'} ${change.text} compared with ${label}`}
+      style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 4 }}
+    >
+      <Icon name={change.kind === 'up' ? 'trendUp' : 'trendDown'} size={14} color={color} />
+      <AppText style={{ color, fontSize: 12, lineHeight: 16, fontFamily: 'DMSansBold' }}>
+        {change.text}
+      </AppText>
+      <AppText tone="muted" style={{ fontSize: 11, lineHeight: 16 }}>
+        vs {label}
+      </AppText>
+    </View>
+  );
+}
 function Progress({ amount, target }: { amount: string; target: string }) {
   const theme = useTheme();
   return (
@@ -96,6 +138,15 @@ export function InsightsOverview({
     'recurring-occurrences?status=PENDING',
     z.array(recurringOccurrenceSchema),
   );
+  const comparison = comparisonPeriod(data.period, calendarDate(new Date(), data.period.timezone));
+  const previous = useRead(
+    comparison
+      ? `reports/summary?range=custom&from=${comparison.from}&to=${comparison.to}`
+      : 'reports/summary?range=current-month',
+    reportSummarySchema,
+    !!comparison,
+  );
+  const earlier = comparison ? previous.data?.cashflow : undefined;
   const countPath = (type: 'INCOME' | 'EXPENSE') =>
     `transactions?${activityQuery({ ...emptyActivityFilters, type, from: data.period.from, to: data.period.to }, data.period.currency, data.period.timezone)}&page=1&pageSize=1`;
   const incomeCount = useRead(countPath('INCOME'), transactionPageSchema);
@@ -153,14 +204,14 @@ export function InsightsOverview({
   }
   return (
     <>
-      <Card style={{ backgroundColor: theme.surface, padding: 18, gap: 20 }}>
+      <Card style={{ padding: 18, gap: 20 }}>
         <Heading
           title={singleMonth ? 'Monthly summary' : 'Period summary'}
           subtitle={`${dateLabel(data.period.from)} to ${dateLabel(data.period.to)}`}
-          icon="activity"
+          icon="chart"
           onPress={onDetails}
         />
-        <View style={{ flexDirection: 'row', gap: 12, paddingHorizontal: 4 }}>
+        <View style={{ flexDirection: 'row', gap: 12 }}>
           {(
             [
               ['Income', data.cashflow.incomeMinor, incomeCount.data?.total, false],
@@ -171,48 +222,89 @@ export function InsightsOverview({
               key={title}
               style={{
                 flex: 1,
-                flexDirection: 'column',
-                gap: 8,
-                borderLeftWidth: expense ? 1 : 0,
-                borderColor: theme.border,
-                paddingLeft: expense ? 12 : 0,
+                gap: 10,
+                padding: 14,
+                borderRadius: 18,
+                backgroundColor: expense ? theme.dangerSoft : theme.successSoft,
+              }}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <View
+                  style={{
+                    width: 28,
+                    height: 28,
+                    borderRadius: 14,
+                    backgroundColor: theme.surface,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <Icon
+                    name={expense ? 'expense' : 'income'}
+                    color={expense ? theme.danger : theme.success}
+                    size={16}
+                  />
+                </View>
+                <AppText tone="muted" style={{ fontSize: 12 }}>
+                  {title}
+                </AppText>
+              </View>
+              <AppText
+                tone={expense ? 'danger' : 'success'}
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.7}
+                style={{
+                  fontSize: 22,
+                  lineHeight: 28,
+                  fontFamily: 'DMSansBold',
+                  fontVariant: ['tabular-nums'],
+                }}
+              >
+                {money(value)}
+              </AppText>
+              {count !== undefined && (
+                <AppText tone="muted" style={{ fontSize: 11, lineHeight: 16 }}>
+                  {count} {count === 1 ? 'transaction' : 'transactions'}
+                </AppText>
+              )}
+              {comparison && (
+                <ChangeNote
+                  current={value}
+                  previous={expense ? earlier?.expensesMinor : earlier?.incomeMinor}
+                  label={comparison.label}
+                  higherIsBetter={!expense}
+                />
+              )}
+            </View>
+          ))}
+        </View>
+        {BigInt(data.cashflow.incomeMinor) > 0n && (
+          <View style={{ gap: 8 }}>
+            <View
+              style={{
+                height: 8,
+                borderRadius: 4,
+                backgroundColor: theme.successSoft,
+                overflow: 'hidden',
               }}
             >
               <View
                 style={{
-                  width: 30,
-                  height: 30,
-                  borderRadius: 10,
-                  backgroundColor: expense ? theme.dangerSoft : '#D3F2E1',
-                  alignItems: 'center',
-                  justifyContent: 'center',
+                  width: `${Math.min(100, chartRatio(data.cashflow.expensesMinor, data.cashflow.incomeMinor) * 100)}%`,
+                  height: 8,
+                  borderRadius: 4,
+                  backgroundColor: theme.danger,
                 }}
-              >
-                <AppText tone={expense ? 'danger' : 'accent'} style={{ fontSize: 22 }}>
-                  {expense ? '↓' : '↑'}
-                </AppText>
-              </View>
-              <View style={{ flex: 1 }}>
-                <AppText tone="muted" style={{ fontSize: 12 }}>
-                  {title}
-                </AppText>
-                <AppText
-                  tone={expense ? 'danger' : 'accent'}
-                  numberOfLines={1}
-                  adjustsFontSizeToFit
-                  style={{ fontSize: 24, lineHeight: 32, fontFamily: 'DMSansBold' }}
-                >
-                  {money(value)}
-                </AppText>
-                {count !== undefined && (
-                  <AppText tone="muted" style={{ fontSize: 10 }}>
-                    {count} {count === 1 ? 'transaction' : 'transactions'}
-                  </AppText>
-                )}
-              </View>
+              />
             </View>
-          ))}
-        </View>
+            <AppText tone="muted" style={{ fontSize: 12 }}>
+              {BigInt(data.cashflow.expensesMinor) > BigInt(data.cashflow.incomeMinor)
+                ? 'Spending is above your income this period'
+                : `Spent ${Math.round(chartRatio(data.cashflow.expensesMinor, data.cashflow.incomeMinor) * 100)}% of your income`}
+            </AppText>
+          </View>
+        )}
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="View net cash flow"
@@ -220,23 +312,34 @@ export function InsightsOverview({
           style={{
             flexDirection: 'row',
             alignItems: 'center',
-            gap: 12,
+            gap: 10,
             backgroundColor: theme.background,
-            borderRadius: 13,
-            padding: 14,
+            borderRadius: 16,
+            paddingVertical: 14,
+            paddingHorizontal: 16,
           }}
         >
-          <Icon name="activity" color={theme.accent} />
-          <AppText style={{ flex: 1, fontSize: 13 }}>Net cash flow</AppText>
+          <View style={{ flex: 1, gap: 2 }}>
+            <AppText style={{ fontSize: 14 }}>Net cash flow</AppText>
+            {comparison && (
+              <ChangeNote
+                current={data.cashflow.netMinor}
+                previous={earlier?.netMinor}
+                label={comparison.label}
+                higherIsBetter
+              />
+            )}
+          </View>
           <AppText
-            tone={BigInt(data.cashflow.netMinor) < 0n ? 'danger' : 'accent'}
-            style={{ fontFamily: 'DMSansBold', fontSize: 18 }}
+            tone={BigInt(data.cashflow.netMinor) < 0n ? 'danger' : 'success'}
+            style={{ fontFamily: 'DMSansBold', fontSize: 18, fontVariant: ['tabular-nums'] }}
           >
             {money(data.cashflow.netMinor)}
           </AppText>
           <Icon name="chevron" size={16} />
         </Pressable>
       </Card>
+      <SpendingPulse />
       <Card style={{ padding: 18, gap: 16 }}>
         <Heading
           title="Spending overview"

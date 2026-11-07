@@ -128,7 +128,7 @@ export function TransactionConversation({
     reply.current = handler;
     return register(handler);
   }, [draft, field, cancelled, accounts.data, categories.data, question, register]);
-  if (cancelled) return <AppText tone="muted">Transaction cancelled. Nothing was saved.</AppText>;
+  if (cancelled) return <AppText tone="muted">Okay, nothing was saved.</AppText>;
   return (
     <View style={{ gap: 14 }}>
       {history.map((entry, index) => (

@@ -11,6 +11,7 @@ import { router } from 'expo-router';
 import { openURL } from 'expo-linking';
 import { useState, type ReactNode } from 'react';
 import { Alert, Pressable, View } from 'react-native';
+import { Icon } from '../src/components/design';
 import Svg, { Path } from 'react-native-svg';
 import { z } from 'zod';
 import {
@@ -28,6 +29,9 @@ import { messageSchema, useRead } from '../src/features/finance/shared';
 import { useFinanceMutation, useUnsavedChanges } from '../src/hooks/finance';
 import { useApp } from '../src/providers/app-provider';
 import { useTheme } from '../src/theme';
+import { palettes } from '../src/theme/palettes';
+import { useAppearance } from '../src/stores/appearance';
+import { accentColors, type AccentColor } from '@finora/contracts';
 import { confirmDiscard } from '../src/features/planning/common';
 import { publicPageUrl } from '../src/public-site';
 
@@ -224,8 +228,68 @@ export default function Settings() {
     </Screen>
   );
 }
+function AccentPicker({
+  value,
+  onChange,
+}: {
+  value: AccentColor;
+  onChange: (value: AccentColor) => void;
+}) {
+  const theme = useTheme();
+  return (
+    <View style={{ gap: 10 }}>
+      <AppText style={{ fontSize: 14, fontFamily: 'DMSansBold' }}>Theme colour</AppText>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
+        {accentColors.map((id) => {
+          const selected = id === value;
+          const swatch = palettes[id].light.accent;
+          return (
+            <Pressable
+              key={id}
+              accessibilityRole="radio"
+              accessibilityLabel={`${palettes[id].label} theme`}
+              accessibilityState={{ checked: selected }}
+              onPress={() => onChange(id)}
+              style={({ pressed }) => ({
+                width: '30%',
+                flexGrow: 1,
+                alignItems: 'center',
+                gap: 8,
+                paddingVertical: 12,
+                borderRadius: 18,
+                borderWidth: 2,
+                borderColor: selected ? swatch : theme.border,
+                backgroundColor: selected ? palettes[id].light.accentSoft : theme.surface,
+                opacity: pressed ? 0.7 : 1,
+              })}
+            >
+              <View
+                style={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: 20,
+                  backgroundColor: swatch,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                {selected && <Icon name="check" color="#FFFFFF" size={20} />}
+              </View>
+              <AppText style={{ fontSize: 13, fontFamily: 'DMSansBold' }}>
+                {palettes[id].label}
+              </AppText>
+            </Pressable>
+          );
+        })}
+      </View>
+      <AppText tone="muted" style={{ fontSize: 12 }}>
+        Applies instantly and is saved to your account for every device.
+      </AppText>
+    </View>
+  );
+}
 function PreferencesForm({ initial }: { initial: z.infer<typeof settingsSchema> }) {
-  const { refreshUser } = useApp();
+  const { refreshUser, api, syncPending } = useApp();
   const [saved, setSaved] = useState(initial);
   const [form, setForm] = useState<Preferences>(initial.preferences);
   const [error, setError] = useState('');
@@ -243,6 +307,16 @@ function PreferencesForm({ initial }: { initial: z.infer<typeof settingsSchema> 
       setOpen(false);
     });
   }
+  function chooseAccent(next: AccentColor) {
+    // Applies at once and syncs quietly; it is not part of the form's unsaved changes.
+    useAppearance.getState().choose(next);
+    setSaved((current) => ({
+      ...current,
+      preferences: { ...current.preferences, accentColor: next },
+    }));
+    setForm((current) => ({ ...current, accentColor: next }));
+    void syncPending?.().catch(() => undefined);
+  }
   function set<K extends keyof Preferences>(key: K, value: Preferences[K]) {
     setNotice('');
     setForm((current) => ({ ...current, [key]: value }));
@@ -251,8 +325,23 @@ function PreferencesForm({ initial }: { initial: z.infer<typeof settingsSchema> 
     setError('');
     setNotice('');
     try {
+      // A background colour save raises the account version; reuse it only if nothing else changed.
+      let version = saved.version;
+      try {
+        const latest = await api.request('settings', settingsSchema);
+        const rest = (value: Preferences) => JSON.stringify({ ...value, accentColor: null });
+        if (rest(latest.preferences) === rest(saved.preferences)) version = latest.version;
+      } catch {
+        // Offline or unavailable: the save below reports the connection problem.
+      }
       const next = await save.mutateAsync(
-        settingsUpdateSchema.parse({ preferences: form, version: saved.version }),
+        settingsUpdateSchema.parse({
+          preferences: {
+            ...form,
+            accentColor: useAppearance.getState().accent ?? form.accentColor,
+          },
+          version,
+        }),
       );
       setSaved(next);
       setForm(next.preferences);
@@ -313,6 +402,7 @@ function PreferencesForm({ initial }: { initial: z.infer<typeof settingsSchema> 
             { value: 'dark', label: 'Dark' },
           ]}
         />
+        <AccentPicker value={form.accentColor} onChange={chooseAccent} />
         <SelectField
           label="Base currency"
           value={form.baseCurrency}
@@ -355,6 +445,24 @@ function PreferencesForm({ initial }: { initial: z.infer<typeof settingsSchema> 
           options={[
             { value: '1', label: 'Monday' },
             { value: '0', label: 'Sunday' },
+          ]}
+        />
+        <Choice
+          label="Loan EMIs"
+          value={form.keepDebtSeparate ? 'separate' : 'ledger'}
+          onChange={(value) => set('keepDebtSeparate', value === 'separate')}
+          presentation="list"
+          options={[
+            {
+              value: 'ledger',
+              label: 'Pay from my balance',
+              description: 'Marking an EMI paid also adds a normal expense from an account.',
+            },
+            {
+              value: 'separate',
+              label: 'Keep debt separate',
+              description: 'EMI payments stay in Loans & EMIs only. Your balance is not changed.',
+            },
           ]}
         />
         {error && <Feedback error={new Error(error)} />}

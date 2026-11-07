@@ -29,7 +29,7 @@ export default function ResetPassword() {
       if (!response.ok) throw new Error(data.error?.message ?? 'Unable to reset password.');
       setPassword('');
       setDone(true);
-      setMessage('Your password is reset. Sign in again in Finora.');
+      setMessage('Your password is reset. Sign in again in Walleto.');
       window.history.replaceState({}, '', '/reset-password');
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Connection failed. Please retry.');

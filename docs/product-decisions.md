@@ -142,3 +142,22 @@ Consulted 20 October 2026; exact installed versions are recorded in the lockfile
   undecided. No ad SDK, billing, entitlement UI or Play action is implemented or
   authorized by this note; the earlier no-ads/no-billing constraints stay in force
   until the owner decides details. Any ad/analytics SDK needs a Data safety review.
+
+- 7 November: the user-facing app name is now **Walleto** (assistant: Walleto AI,
+  wordmark: Walleto; chosen after Unfold Money overlapped Fold Money). Only visible text changed. The Android package/bundle ID
+  `app.finora.money`, Expo slug and `finora` URL scheme, `@finora/*` workspace names,
+  signing environment variables and the support email domain are unchanged on purpose:
+  changing them would break the Play listing, installed apps and links. Not yet done:
+  logo/icon/splash artwork, store listing text, hosted domain and support email, and
+  trademark/availability checks for the new name (web search found near neighbours Walletto, Waleeto and Wallety). Historical docs still say Finora.
+
+- 7 November: owner asked to bring the EMI/loan tracker from the owner's finance-track-pro
+  project (`lib/debt-engine`, `Debt`/`DebtPayment`/`DebtExtraPayment`/`IncomePeriod` models, the
+  `/debt` screens) into the app as it is. Scope: recurring monthly EMIs by month range, partial
+  and full payments, prepayments, remaining/principal totals, snowball/avalanche order, upcoming
+  and overdue lookahead, income periods and a 12-month forecast. Money stays exact integer minor
+  units. New preference `keepDebtSeparate`: on, EMI payments live only in the tracker; off
+  (proposed default), marking an EMI paid also records a normal expense from a chosen account,
+  linked to the payment so undoing the payment removes it. Done: the pure engine
+  (`packages/finance-core/src/emi.ts`, 49 ported tests). Not yet done: models and API, offline
+  sync, the preference, mobile screens, AI tools.

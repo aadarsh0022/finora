@@ -53,10 +53,10 @@ function DemoHome() {
     </>
   );
 }
-const Login = () => <Text>Sign in to Finora</Text>;
+const Login = () => <Text>Sign in to Walleto</Text>;
 const Register = () => (
   <>
-    <Text>Create a Finora account</Text>
+    <Text>Create a Walleto account</Text>
     <Link href="/(auth)/login">Already have an account? Sign in</Link>
   </>
 );
@@ -110,7 +110,7 @@ test('sign-out reaches signup without restarting and authentication restores the
   await mount(demo, '/(tabs)');
   expect(await screen.findByText('Private dashboard')).toBeVisible();
   await fireEvent.press(screen.getByRole('button', { name: 'Sign out' }));
-  expect(await screen.findByText('Create a Finora account')).toBeVisible();
+  expect(await screen.findByText('Create a Walleto account')).toBeVisible();
   expect(screen.queryByText('Private dashboard')).not.toBeVisible();
   await act(() => selectSession(demo));
   await waitFor(() => expect(screen.getByText('Private dashboard')).toBeVisible());
@@ -118,13 +118,13 @@ test('sign-out reaches signup without restarting and authentication restores the
 
 test('an unauthenticated private deep link resolves to signup', async () => {
   await mount(null, '/transaction');
-  expect(await screen.findByText('Create a Finora account')).toBeVisible();
+  expect(await screen.findByText('Create a Walleto account')).toBeVisible();
   expect(screen.queryByText('Private financial record')).not.toBeVisible();
 });
 
 test('first launch opens signup and an existing user can choose sign in', async () => {
   await mount(null, '/');
-  expect(await screen.findByText('Create a Finora account')).toBeVisible();
+  expect(await screen.findByText('Create a Walleto account')).toBeVisible();
   await fireEvent.press(screen.getByText('Already have an account? Sign in'));
-  expect(await screen.findByText('Sign in to Finora')).toBeVisible();
+  expect(await screen.findByText('Sign in to Walleto')).toBeVisible();
 });

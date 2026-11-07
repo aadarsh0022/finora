@@ -32,6 +32,7 @@ import { assistantStreamEventSchema } from '@finora/contracts';
 import { ClientError } from '../../api/client';
 import { FlowSheet } from '../../components/flow';
 import { AssistantResult, answerText } from './result';
+import { FadeIn } from '../../components/motion';
 import { ChangeConversation } from './change-conversation';
 import { TransactionConversation, type DraftReply } from './transaction-conversation';
 import { useApp } from '../../providers/app-provider';
@@ -46,6 +47,13 @@ type Turn = ChatTurn;
 export default function AssistantScreen() {
   const { user } = useApp();
   return <AssistantSession key={user?.id ?? 'signed-out'} />;
+}
+
+/** Repeated lookups of the same thing read as one line, such as two debt checks. */
+function uniqueSteps<T extends { label: string }>(steps: T[]) {
+  return steps.filter(
+    (step, index) => steps.findIndex((other) => other.label === step.label) === index,
+  );
 }
 
 function AssistantSession() {
@@ -438,7 +446,7 @@ function AssistantSession() {
                   letterSpacing: -0.8,
                 }}
               >
-                Finora AI
+                Walleto AI
               </AppText>
             </View>
             <AppText tone="muted" style={{ fontSize: 14 }}>
@@ -522,7 +530,7 @@ function AssistantSession() {
                 }}
               />
               <AppButton
-                title="Enable Finora AI"
+                title="Enable Walleto AI"
                 disabled={offline}
                 loading={accepting}
                 onPress={() => {
@@ -564,57 +572,55 @@ function AssistantSession() {
                         textAlign: 'center',
                       }}
                     >
-                      How can I help with your money?
+                      What can I help with?
                     </AppText>
                     <AppText tone="muted" style={{ textAlign: 'center', fontSize: 14 }}>
-                      Log, fix or ask in plain words.
+                      Ask anything, log or fix an entry, or plan your money.
                     </AppText>
                   </View>
-                  <View style={{ width: '100%', flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
+                  <View style={{ width: '100%', gap: 8 }}>
                     {(
                       [
-                        ['plus', 'Log an expense', 'Spent 450 on pizza'],
-                        ['wallet', 'Check my balance', 'What is my current balance?'],
-                        ['activity', 'Fix a mistake', 'Undo my last expense'],
-                        ['calendar', 'What’s due', 'What’s due this week?'],
-                        ['goal', 'Ask about debts', 'What do I owe?'],
-                        ['plan', 'Review a month', 'How did last month go?'],
+                        ['plus', 'Spent 450 on pizza'],
+                        ['wallet', 'What is my current balance?'],
+                        ['plan', 'How did last month go?'],
+                        ['calendar', 'What’s due this week?'],
+                        ['goal', 'Help me plan a monthly budget'],
                       ] as const
-                    ).map(([icon, label, question]) => (
-                      <Pressable
-                        key={question}
-                        accessibilityRole="button"
-                        accessibilityLabel={question}
-                        disabled={offline}
-                        onPress={() => {
-                          setDraft(question);
-                        }}
-                        style={({ pressed }) => ({
-                          width: '48%',
-                          minHeight: 104,
-                          borderWidth: 1,
-                          borderColor: theme.border,
-                          borderRadius: 16,
-                          padding: 13,
-                          gap: 8,
-                          backgroundColor: theme.surface,
-                          opacity: offline || pressed ? 0.5 : 1,
-                        })}
-                      >
-                        <Icon name={icon} size={20} color={theme.accent} />
-                        <AppText style={{ fontSize: 13, fontFamily: 'DMSansBold' }}>
-                          {label}
-                        </AppText>
-                        <AppText tone="muted" numberOfLines={1} style={{ fontSize: 11 }}>
-                          {question}
-                        </AppText>
-                      </Pressable>
+                    ).map(([icon, question], index) => (
+                      <FadeIn key={question} delay={index * 70}>
+                        <Pressable
+                          accessibilityRole="button"
+                          accessibilityLabel={question}
+                          disabled={offline}
+                          onPress={() => {
+                            void send(question);
+                          }}
+                          style={({ pressed }) => ({
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            gap: 12,
+                            minHeight: 52,
+                            borderWidth: 1,
+                            borderColor: theme.border,
+                            borderRadius: 18,
+                            paddingHorizontal: 16,
+                            backgroundColor: theme.surface,
+                            opacity: offline || pressed ? 0.55 : 1,
+                          })}
+                        >
+                          <Icon name={icon} size={19} color={theme.muted} />
+                          <AppText style={{ flex: 1, fontSize: 14 }} numberOfLines={1}>
+                            {question}
+                          </AppText>
+                        </Pressable>
+                      </FadeIn>
                     ))}
                   </View>
                 </View>
               )}
               {turns.map(({ question, answer, steps, restored }, turnIndex) => (
-                <View key={answer.answerId} style={{ gap: 12 }}>
+                <FadeIn key={answer.answerId} style={{ gap: 12 }}>
                   <Pressable
                     accessibilityHint="Long press to edit your message"
                     onLongPress={() => {
@@ -627,7 +633,7 @@ function AssistantSession() {
                   >
                     <UserBubble question={question} />
                   </Pressable>
-                  {steps?.map((step) => (
+                  {uniqueSteps(steps ?? []).map((step) => (
                     <ToolActivity key={step.id} label={step.label} done />
                   ))}
                   {!answer.draft && !answer.change && !answer.prepared?.length && (
@@ -700,7 +706,7 @@ function AssistantSession() {
                         )}
                       </View>
                     ))}
-                </View>
+                </FadeIn>
               ))}
               {!!turns.length &&
                 !busy &&
@@ -759,15 +765,13 @@ function AssistantSession() {
               {busy && (
                 <View style={{ gap: 18 }}>
                   <UserBubble question={pendingQuestion} />
-                  {progress
-                    .filter((step) => step.state !== 'thinking')
-                    .map((step) => (
-                      <ToolActivity
-                        key={step.id}
-                        label={step.label}
-                        done={step.state === 'checked'}
-                      />
-                    ))}
+                  {uniqueSteps(progress.filter((step) => step.state !== 'thinking')).map((step) => (
+                    <ToolActivity
+                      key={step.id}
+                      label={step.label}
+                      done={step.state === 'checked'}
+                    />
+                  ))}
                   {!progress.some((step) => step.state === 'checking') && <ChatThinking />}
                 </View>
               )}
@@ -884,7 +888,7 @@ function AssistantSession() {
                   width: 44,
                   height: 44,
                   borderRadius: 22,
-                  backgroundColor: theme.accent,
+                  backgroundColor: theme.text,
                   justifyContent: 'center',
                   alignItems: 'center',
                   opacity:
@@ -899,11 +903,11 @@ function AssistantSession() {
                       width: 14,
                       height: 14,
                       borderRadius: 3,
-                      backgroundColor: theme.background,
+                      backgroundColor: theme.surface,
                     }}
                   />
                 ) : (
-                  <Icon name="send" size={23} color={theme.background} />
+                  <Icon name="send" size={23} color={theme.surface} />
                 )}
               </Pressable>
             </View>

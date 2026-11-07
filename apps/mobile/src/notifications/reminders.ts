@@ -97,7 +97,7 @@ export async function saveReminderPreferences(vault: DeviceVault, input: Reminde
   if (preferences.daily || preferences.dueDates || preferences.budgets) {
     const notifications = notificationModule();
     await notifications.setNotificationChannelAsync('finora-reminders', {
-      name: 'Finora AI reminders',
+      name: 'Walleto AI reminders',
       importance: notifications.AndroidImportance.DEFAULT,
       lockscreenVisibility: notifications.AndroidNotificationVisibility.PRIVATE,
       sound: null,
@@ -108,7 +108,7 @@ export async function saveReminderPreferences(vault: DeviceVault, input: Reminde
     if (!permission.granted) permission = await notifications.requestPermissionsAsync();
     if (!permission.granted)
       throw new Error(
-        'Notifications are blocked. Allow notifications for Finora AI in device settings, then refresh reminders.',
+        'Notifications are blocked. Allow notifications for Walleto AI in device settings, then refresh reminders.',
       );
   }
   await vault.write(reminderPreferencesKey, preferences);

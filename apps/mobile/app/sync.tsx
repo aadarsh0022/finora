@@ -48,7 +48,7 @@ export default function SyncStatus() {
         <Feedback
           error={
             new Error(
-              'Device storage is unavailable. Reopen Finora before checking pending entries.',
+              'Device storage is unavailable. Reopen Walleto before checking pending entries.',
             )
           }
         />

@@ -205,7 +205,7 @@ export async function assistantRoute(
       { upsert: true },
     );
     return success(
-      { message: 'Report received. Thank you for helping improve Finora.' },
+      { message: 'Report received. Thank you for helping improve Walleto.' },
       requestId,
     );
   }

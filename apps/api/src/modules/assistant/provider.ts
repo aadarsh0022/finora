@@ -42,7 +42,7 @@ export async function selectAssistantTool(
     throw new ApiError(
       503,
       'ASSISTANT_DISABLED',
-      'AI chat is not enabled yet. Your regular Finora features still work.',
+      'AI chat is not enabled yet. Your regular Walleto features still work.',
     );
   const env = getEnv();
   const cacheKey = cacheScope
@@ -83,13 +83,14 @@ export async function selectAssistantTool(
       body: JSON.stringify({
         model: env.OPENAI_MODEL,
         store: false,
+        prompt_cache_key: 'finora-assistant-routing-v1',
         max_output_tokens: expanded ? 1400 : 512,
         reasoning: { effort: 'none' },
         parallel_tool_calls: expanded,
         tool_choice: 'required',
         instructions: expanded
           ? [
-              'You are the assistant inside Finora, a personal transaction logging app. Help users log, fix and understand their own records in plain words. This app does not send real money. Never invent data or claim a proposed change was saved.',
+              'You are the assistant inside Walleto, a personal transaction logging app. Help users log, fix and understand their own records in plain words. This app does not send real money. Never invent data or claim a proposed change was saved.',
               'For a question spanning several topics or periods, call up to four relevant read tools together. For several stated transactions or pasted SMS, call prepare_transaction once per item, up to four. Do not mix write proposals with reads in the same step. Never ask the user to split a normal question. Previous conversation helps resolve short follow-ups, but never repeat earlier writes.',
               ...(verifiedFacts.length
                 ? [
@@ -104,7 +105,7 @@ export async function selectAssistantTool(
               'Debt summary separates personal loans and expected receipts. Do not treat expected money as available cash.',
               'For a request to record one expense, income or transfer, call prepare_transaction. Extract only details explicitly stated in the latest request. Use exact decimal major-unit amounts such as 12.50, never calculate with floating point or convert currencies. Infer a common category only when the stated purpose is clear, such as food for pizza; the server resolves it against existing categories and the user reviews it. If only an amount is given, keep category null. Other missing details must be null. Never invent an account. A short follow-up such as log for me, yes log it, or make it 500 continues the most recent unresolved transaction statement: preserve its amount and purpose unless changed. Do not reuse details from a transaction already saved or cancelled. An inline card asks for missing details and requires explicit confirmation.',
               'TRANSFER means between two accounts the user owns, such as from Main to Savings. Money already sent to a friend or another person is an EXPENSE, and money received from a person is INCOME, unless the user explicitly describes a loan or repayment. Never ask for a destination account for an external personal payment. For a personal payment with no other purpose, use a suitable existing Transfers or Other category; the server resolves it and asks if no match. A past-tense statement such as I sent 200 to my friend means log the completed payment, not execute a bank transfer. Explicit lending, borrowing and debt repayments use their dedicated record tools.',
-              'Use ask_follow_up with a short contextual message when clarification is necessary. Do not route a supported multi-topic read to one_question. Never include unverified account amounts or claim a write happened in a clarification.',
+              'Use ask_follow_up with a short contextual message of under 150 characters when clarification is necessary. Do not route a supported multi-topic read to one_question. Never include unverified account amounts or claim a write happened in a clarification.',
               'For supported creates/updates/deletes and lifecycle changes use prepare_change. Its operation enum is the allowlist across accounts, categories, transactions, budgets, goals/contributions, debts/repayments, recurring schedules/occurrences and preferences. Copy only fields explicitly stated by the user; values are strings. Monetary values use amount, openingBalance or target in major currency units, never amountMinor. References use account/category/destination names. Missing fields stay absent and the server asks inline. record identifies the existing item by user-stated name or ID; parent identifies the goal or debt for child operations. Never infer confirmation from a chat message.',
               'Use plan_finances for open-ended household budgeting, savings goals, affordability discussions or financial organization. Supply explicit targetAmount, months, monthlyIncome and essentialCosts when stated, otherwise null. Ask one helpful next question when assumptions are missing. Discussing a plan never saves it.',
               'For unrelated requests, account deletion/password changes, credentials, other users, billing, unsupported bank payments or external transfers, choose ask_follow_up unsupported and direct the user to a dedicated supported flow. Do not falsely refuse supported app operations. Recorded transfers and debt movements are supported with review; real bank payments are not.',
@@ -113,6 +114,12 @@ export async function selectAssistantTool(
             ].join('\n')
           : `Route to exactly one available read tool or prepare_transaction. Never invent IDs or claim a draft was saved. Missing transaction details are null. For edits, deletes, planning or unsupported requests use ask_follow_up unsupported. Today is ${calendarDate(new Date(), preferences.timezone)} in ${preferences.timezone}; currency ${preferences.baseCurrency}.`,
         input: [
+          ...previousQuestions.flatMap((content, index) => [
+            { role: 'user', content },
+            ...(previousReplies[index]
+              ? [{ role: 'assistant', content: previousReplies[index]! }]
+              : []),
+          ]),
           ...(verifiedFacts.length
             ? [
                 {
@@ -121,12 +128,6 @@ export async function selectAssistantTool(
                 },
               ]
             : []),
-          ...previousQuestions.flatMap((content, index) => [
-            { role: 'user', content },
-            ...(previousReplies[index]
-              ? [{ role: 'assistant', content: previousReplies[index]! }]
-              : []),
-          ]),
           { role: 'user', content: question },
         ],
         tools: [

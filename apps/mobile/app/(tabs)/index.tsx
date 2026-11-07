@@ -4,6 +4,7 @@ import { Redirect, router } from 'expo-router';
 import { useEffect } from 'react';
 import { View } from 'react-native';
 import { AppButton, AppText, Card, Feedback, Loading, Screen } from '../../src/components/ui';
+import { Backdrop } from '../../src/components/backdrop';
 import { AddTransactionAction, ProfileAction, SectionHeading } from '../../src/components/design';
 import {
   useRead,
@@ -15,7 +16,7 @@ import {
 import { useApp } from '../../src/providers/app-provider';
 import { HomeDetails } from '../../src/features/finance/home-details';
 import { HomeSummary } from '../../src/features/finance/home-summary';
-import { useTheme } from '../../src/theme';
+import { elevation, glass, useTheme } from '../../src/theme';
 import { FinoraWordmark } from '../../src/components/brand';
 import { useFinanceMutation } from '../../src/hooks/finance';
 import { useUi } from '../../src/stores/ui';
@@ -45,6 +46,8 @@ export default function Home() {
       subtitle="Your money at a glance."
       titleSize={28}
       showPendingStatus={false}
+      backdrop={<Backdrop />}
+      floatingAction={<AddTransactionAction />}
       topContent={
         <View
           style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}
@@ -53,7 +56,6 @@ export default function Home() {
           <ProfileAction />
         </View>
       }
-      floatingAction={<AddTransactionAction />}
       onRefresh={() => Promise.all([overview.refetch(), categories.refetch()])}
     >
       {seed.isPending && <AppText tone="muted">Preparing your suggested categories…</AppText>}
@@ -94,7 +96,14 @@ export default function Home() {
               actionLabel="View all transactions"
               onPress={() => router.push('/(tabs)/transactions')}
             />
-            <View style={{ backgroundColor: theme.surface, borderRadius: 16, overflow: 'hidden' }}>
+            <View
+              style={{
+                backgroundColor: glass(theme),
+                borderRadius: 22,
+                overflow: 'hidden',
+                ...elevation(theme),
+              }}
+            >
               {data.recentTransactions.length ? (
                 data.recentTransactions
                   .slice(0, 3)
@@ -110,7 +119,9 @@ export default function Home() {
                     />
                   ))
               ) : (
-                <AppText tone="muted">Your transactions will appear here.</AppText>
+                <AppText tone="muted" style={{ padding: 18 }}>
+                  Your transactions will appear here.
+                </AppText>
               )}
             </View>
           </View>

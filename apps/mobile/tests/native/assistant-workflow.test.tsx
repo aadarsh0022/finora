@@ -124,7 +124,7 @@ async function mount(
   return { ...view, content, api };
 }
 async function allow() {
-  await fireEvent.press(screen.getByRole('button', { name: 'Enable Finora AI' }));
+  await fireEvent.press(screen.getByRole('button', { name: 'Enable Walleto AI' }));
   await screen.findByLabelText('Your question');
 }
 async function ask() {
@@ -135,7 +135,7 @@ async function ask() {
 test('does not send questions before consent and honestly shows disabled configuration', async () => {
   await mount({ enabled: false });
   expect(screen.queryByLabelText('Your question')).toBeNull();
-  expect(screen.queryByRole('button', { name: 'Enable Finora AI' })).toBeNull();
+  expect(screen.queryByRole('button', { name: 'Enable Walleto AI' })).toBeNull();
   expect(requests).toHaveLength(0);
 });
 
@@ -146,12 +146,7 @@ test('consents explicitly, sends only bounded question context and renders exact
   await allow();
   await ask();
   await screen.findByText(balanceReply);
-  expect(screen.queryByText('Includes archived accounts.')).toBeNull();
-  expect(screen.queryByText('View accounts')).toBeNull();
-  await fireEvent.press(screen.getByRole('button', { name: 'Show answer details' }));
-  expect(screen.getByText(formatMoney('900719925474099301', 'INR', 'en-IN'))).toBeOnTheScreen();
-  await fireEvent.press(screen.getByRole('button', { name: 'Hide answer details' }));
-  expect(screen.queryByText('View accounts')).toBeNull();
+  expect(screen.queryByRole('button', { name: 'Show answer details' })).toBeNull();
   expect(requests).toEqual([
     {
       path: 'assistant/v4/chat',
@@ -166,7 +161,7 @@ test('consents explicitly, sends only bounded question context and renders exact
   ]);
   await fireEvent.press(screen.getByRole('button', { name: 'Clear chat' }));
   expect(screen.queryByText(balanceReply)).toBeNull();
-  expect(screen.queryByRole('button', { name: 'Enable Finora AI' })).toBeNull();
+  expect(screen.queryByRole('button', { name: 'Enable Walleto AI' })).toBeNull();
   expect(screen.getByLabelText('Your question')).toBeOnTheScreen();
 });
 
@@ -207,7 +202,7 @@ test('clearing a pending request discards its late answer', async () => {
     resolve(Response.json({ success: true, data: answer }));
   });
   expect(screen.queryByText(balanceReply)).toBeNull();
-  expect(screen.queryByRole('button', { name: 'Enable Finora AI' })).toBeNull();
+  expect(screen.queryByRole('button', { name: 'Enable Walleto AI' })).toBeNull();
   expect(screen.getByLabelText('Your question')).toBeOnTheScreen();
 });
 
@@ -257,7 +252,7 @@ test('a changed signed-in user sees neither the prior chat nor its consent', asy
     user: { ...user, id: '33333333-3333-4333-8333-333333333333' },
   } as ReturnType<typeof useApp>);
   await view.rerender(view.content());
-  await screen.findByRole('button', { name: 'Enable Finora AI' });
+  await screen.findByRole('button', { name: 'Enable Walleto AI' });
   expect(screen.queryByText(balanceReply)).toBeNull();
   expect(screen.queryByLabelText('Your question')).toBeNull();
 });
@@ -329,7 +324,7 @@ test('dated answers work on Hermes without Intl formatRange', () => {
 
 test('remembers accepted privacy notice after reopening without sending a question', async () => {
   await mount({ remembered: true });
-  expect(screen.queryByRole('button', { name: 'Enable Finora AI' })).toBeNull();
+  expect(screen.queryByRole('button', { name: 'Enable Walleto AI' })).toBeNull();
   expect(screen.getByLabelText('Your question')).toBeOnTheScreen();
   expect(requests).toHaveLength(0);
 });

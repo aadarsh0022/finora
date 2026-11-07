@@ -54,7 +54,7 @@ export default function BackupScreen() {
       file.write(text);
       await Sharing.shareAsync(file.uri, {
         mimeType: kind === 'backup' ? 'application/json' : 'text/csv',
-        dialogTitle: 'Save your Finora export',
+        dialogTitle: 'Save your Walleto export',
       });
       setMessage('Export created and shared with the system. Save it in a private location.');
     } catch (failure) {
@@ -135,7 +135,7 @@ export default function BackupScreen() {
   return (
     <Screen
       title="Your records, with you"
-      subtitle="Export a private copy or merge a Finora backup."
+      subtitle="Export a private copy or merge a Walleto backup."
     >
       <Card>
         <AppText style={{ fontFamily: 'DMSansBold' }}>Keep your files private</AppText>

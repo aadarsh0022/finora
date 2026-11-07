@@ -10,14 +10,14 @@ import { chartRatio } from './values';
 import { useApp } from '../../providers/app-provider';
 
 const palette = [
-  '#187A5A',
-  '#4579BD',
+  '#D9480F',
+  '#2F9E73',
   '#B27222',
   '#9D5EA3',
   '#238A9B',
   '#C45E46',
   '#7E8043',
-  '#6E6AC0',
+  '#4579BD',
 ];
 export function ExpenseDonut({ categories }: { categories: ReportSummary['categories'] }) {
   const theme = useTheme();
@@ -320,7 +320,7 @@ function AccountRow({
                   label === 'Expenses' || BigInt(value) < 0n
                     ? 'danger'
                     : label === 'Income'
-                      ? 'accent'
+                      ? 'success'
                       : 'text'
                 }
                 style={{ fontSize: 14 }}

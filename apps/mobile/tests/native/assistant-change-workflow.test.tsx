@@ -74,7 +74,7 @@ test('asks for missing information inline and writes only after explicit confirm
   expect(requests).toHaveLength(1);
   expect(requests[0]?.path).toContain('/prepare');
   await fireEvent.press(screen.getByRole('button', { name: 'Confirm' }));
-  await waitFor(() => expect(screen.getByText('Saved.')).toBeVisible());
+  await waitFor(() => expect(screen.getByText(/^Done\. /)).toBeVisible());
   expect(requests).toHaveLength(2);
   expect(requests[1]?.body).toEqual({ token: 'signed-test-review-token', confirmed: true });
 });
@@ -89,6 +89,6 @@ test('cancelling an incomplete review makes no requests', async () => {
     </QueryClientProvider>,
   );
   await fireEvent.press(screen.getByRole('button', { name: 'Cancel' }));
-  expect(screen.getByText('Change cancelled.')).toBeVisible();
+  expect(screen.getByText('Okay, nothing was changed.')).toBeVisible();
   expect(request).not.toHaveBeenCalled();
 });

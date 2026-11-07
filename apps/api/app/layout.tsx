@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
 import './style.css';
 
 export const metadata: Metadata = {
-  title: 'Finora AI Money Manager',
+  title: 'Walleto',
   description: 'Thoughtful personal finance tracking.',
 };
 export default function Layout({ children }: { children: ReactNode }) {
@@ -12,7 +12,7 @@ export default function Layout({ children }: { children: ReactNode }) {
       <body>
         <main>
           <a className="brand" href="/">
-            Finora AI<span> / Money Manager</span>
+            Walleto AI<span> / Money Manager</span>
           </a>
           {children}
           <footer>

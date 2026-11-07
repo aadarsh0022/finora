@@ -201,7 +201,7 @@ describe('password recovery and account lifecycle', () => {
     const first = await createUser();
     vi.stubEnv('EMAIL_TRANSPORT', 'resend');
     vi.stubEnv('RESEND_API_KEY', 'unit-resend-key-not-real');
-    vi.stubEnv('EMAIL_FROM', 'Finora <no-reply@example.com>');
+    vi.stubEnv('EMAIL_FROM', 'Walleto <no-reply@example.com>');
     const logs = vi.spyOn(console, 'error').mockImplementation(() => {});
     try {
       for (const failure of ['http', 'network']) {

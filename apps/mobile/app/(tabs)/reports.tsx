@@ -88,7 +88,7 @@ export default function Reports() {
         file.write(reportCsv(data));
         await Sharing.shareAsync(file.uri, {
           mimeType: 'text/csv',
-          dialogTitle: 'Save your Finora report',
+          dialogTitle: 'Save your Walleto report',
         });
         setExportNotice(
           'Report created and shared with the system. Save it in a private location.',
@@ -193,7 +193,7 @@ export default function Reports() {
                 Net cash flow
               </AppText>
               <AppText
-                tone={BigInt(data.cashflow.netMinor) < 0n ? 'danger' : 'accent'}
+                tone={BigInt(data.cashflow.netMinor) < 0n ? 'danger' : 'success'}
                 style={{
                   fontFamily: 'DMSansBold',
                   fontSize: 32,

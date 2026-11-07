@@ -45,7 +45,7 @@ export default function RecoverAccount() {
   }
   return (
     <>
-      <h1>Recover your Finora account</h1>
+      <h1>Recover your Walleto account</h1>
       <p>
         Request a password reset to access or delete your account. We never ask you to email your
         password.

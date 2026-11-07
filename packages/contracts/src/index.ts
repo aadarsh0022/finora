@@ -7,6 +7,7 @@ export * from './primitives';
 export * from './advanced';
 export * from './backup';
 export * from './debts';
+export * from './emi';
 
 export const emailSchema = z.string().trim().toLowerCase().pipe(z.email().max(254));
 export const passwordSchema = z.string().min(12, 'Use at least 12 characters').max(128);
@@ -31,6 +32,9 @@ export const localeSchema = z
       return false;
     }
   }, 'Choose a supported locale');
+export const accentColors = ['green', 'orange', 'purple', 'blue', 'teal', 'rose'] as const;
+export const accentColorSchema = z.enum(accentColors);
+export type AccentColor = z.infer<typeof accentColorSchema>;
 export const preferencesSchema = z
   .object({
     baseCurrency: currencySchema.default('INR'),
@@ -39,6 +43,9 @@ export const preferencesSchema = z
     preferredDateFormat: z.enum(['DD/MM/YYYY', 'MM/DD/YYYY', 'YYYY-MM-DD']).default('DD/MM/YYYY'),
     firstDayOfWeek: z.union([z.literal(0), z.literal(1)]).default(1),
     preferredTheme: z.enum(['system', 'light', 'dark']).default('light'),
+    accentColor: accentColorSchema.default('orange'),
+    /** Off: paying an EMI also records a normal expense. On: it stays only in the EMI tracker. */
+    keepDebtSeparate: z.boolean().default(false),
   })
   .strict();
 export const registerSchema = z

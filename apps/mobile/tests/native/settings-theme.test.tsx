@@ -116,26 +116,26 @@ test('saves the selected theme through the real versioned mutation before refres
   ]);
   expect(refreshUser).toHaveBeenCalledTimes(1);
   expect(screen.getByRole('radio', { name: 'Dark' })).toBeChecked();
-  expect(screen.getByText('Appearance')).toHaveStyle({ color: '#EDF5EF' });
+  expect(screen.getByText('Appearance')).toHaveStyle({ color: '#EEF0F4' });
 });
 
 test('uses the system scheme when selected and explicit theme preferences override it', async () => {
   await mount();
   const theme = await renderHook(() => useTheme());
-  expect(theme.result.current.text).toBe('#101322');
+  expect(theme.result.current.text).toBe('#16181F');
   currentUser = {
     ...currentUser,
     preferences: { ...currentUser.preferences, preferredTheme: 'system' },
   };
   jest.mocked(useColorScheme).mockReturnValue('dark');
   await theme.rerender(undefined);
-  expect(theme.result.current.text).toBe('#EDF5EF');
+  expect(theme.result.current.text).toBe('#EEF0F4');
   currentUser = {
     ...currentUser,
     preferences: { ...currentUser.preferences, preferredTheme: 'light' },
   };
   await theme.rerender(undefined);
-  expect(theme.result.current.text).toBe('#101322');
+  expect(theme.result.current.text).toBe('#16181F');
 });
 
 test('settings navigation opens connected management, planning, backup and security destinations', async () => {

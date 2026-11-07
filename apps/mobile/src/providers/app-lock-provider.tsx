@@ -49,7 +49,7 @@ export function AppLockProvider({ children }: { children: ReactNode }) {
         async authenticate() {
           return (
             await LocalAuthentication.authenticateAsync({
-              promptMessage: 'Unlock Finora',
+              promptMessage: 'Unlock Walleto',
               cancelLabel: 'Cancel',
               disableDeviceFallback: true,
               biometricsSecurityLevel: 'strong',
@@ -168,7 +168,7 @@ export function AppLockProvider({ children }: { children: ReactNode }) {
                       textAlign: 'center',
                     }}
                   >
-                    Finora is locked
+                    Walleto is locked
                   </AppText>
                   <AppText
                     tone="muted"
@@ -233,8 +233,8 @@ export function AppLockSettings() {
         App lock
       </AppText>
       <AppText tone="muted">
-        Optional device protection. Require a strong biometric when reopening Finora after it enters
-        the background. This setting applies to this account on this device.
+        Optional device protection. Require a strong biometric when reopening Walleto after it
+        enters the background. This setting applies to this account on this device.
       </AppText>
       <AppText>{state.enabled ? 'Biometric lock is on.' : 'Biometric lock is off.'}</AppText>
       {state.error ? <Feedback error={new Error(state.error)} /> : null}

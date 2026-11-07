@@ -8,6 +8,7 @@ export const currencyExponents = {
   KWD: 3,
 } as const;
 export { debtLedgerEntries, debtProgress } from './debt';
+export * from './emi';
 export { budgetRollover, previousMonth } from './budget';
 export { spendingInsights } from './insights';
 export type Currency = keyof typeof currencyExponents;
