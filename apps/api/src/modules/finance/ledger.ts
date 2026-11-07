@@ -120,6 +120,18 @@ export async function updateTransaction(
         'RECURRING_TRANSACTION',
         'A confirmed recurring entry cannot become a transfer. Delete it and add a separate transfer.',
       );
+    const emiPayment = await db
+      .collection('emi_payments')
+      .findOne({ userId: context.user.id, transactionId: id }, { session });
+    const emiExtra = await db
+      .collection('emi_extra_payments')
+      .findOne({ userId: context.user.id, transactionId: id }, { session });
+    if ((emiPayment || emiExtra) && input.type !== 'EXPENSE')
+      throw new ApiError(
+        409,
+        'EMI_TRANSACTION',
+        'This expense records a loan payment, so it must stay an expense. Change or undo the payment in Loans & EMIs.',
+      );
     // Build from editable fields so switching transfer/type removes obsolete references.
     const record = transactionSchema.parse({
       ...input,
@@ -136,6 +148,28 @@ export async function updateTransaction(
       { ...record, amountSort: Decimal128.fromString(record.amountMinor) },
       { session },
     );
+    if (emiPayment)
+      await db.collection('emi_payments').updateOne(
+        { userId: context.user.id, id: emiPayment.id },
+        {
+          $set: {
+            amountPaidMinor: record.amountMinor,
+            paid: BigInt(record.amountMinor) >= BigInt(String(emiPayment.amountDueMinor)),
+            updatedAt: record.updatedAt,
+          },
+          $inc: { version: 1 },
+        },
+        { session },
+      );
+    if (emiExtra)
+      await db.collection('emi_extra_payments').updateOne(
+        { userId: context.user.id, id: emiExtra.id },
+        {
+          $set: { amountMinor: record.amountMinor, updatedAt: record.updatedAt },
+          $inc: { version: 1 },
+        },
+        { session },
+      );
     if (occurrence)
       await db.collection('recurring_occurrences').updateOne(
         { userId: context.user.id, id: occurrence.id },
@@ -166,6 +200,12 @@ export async function deleteTransaction(
     if (!found) throw notFound();
     requireVersion(transactionSchema.parse(found).version, version);
     await collection.deleteOne({ userId: context.user.id, id, version }, { session });
+    await db
+      .collection('emi_payments')
+      .deleteOne({ userId: context.user.id, transactionId: id }, { session });
+    await db
+      .collection('emi_extra_payments')
+      .deleteOne({ userId: context.user.id, transactionId: id }, { session });
     await db.collection('recurring_occurrences').updateOne(
       { userId: context.user.id, transactionId: id, status: 'POSTED' },
       {

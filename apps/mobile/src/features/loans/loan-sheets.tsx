@@ -640,13 +640,17 @@ export function IncomeSheet({
   onClose,
   periods,
   month,
+  initial,
 }: {
   visible: boolean;
   onClose: () => void;
   periods: EmiIncomePeriodDto[];
   month: string;
+  /** Open straight on this income (or a new one) and close when done, instead of showing the list. */
+  initial?: EmiIncomePeriodDto | 'new';
 }) {
   const { currency, locale, money } = useMoneyFormat();
+  const direct = initial !== undefined;
   const write = useEmiWrite();
   const [editing, setEditing] = useState<EmiIncomePeriodDto | 'new' | null>(null);
   const [form, setForm] = useState({
@@ -675,6 +679,11 @@ export function IncomeSheet({
           },
     );
   }
+  useEffect(() => {
+    if (!visible) return;
+    if (initial !== undefined) open(initial);
+    else setEditing(null);
+  }, [visible, initial]);
   async function save() {
     setBusy(true);
     setError(undefined);
@@ -693,6 +702,7 @@ export function IncomeSheet({
         });
       else await write('POST', 'emi/income-periods', emiIncomePeriodSchema, body);
       setEditing(null);
+      if (direct) onClose();
     } catch (failure) {
       setError(failure);
     } finally {
@@ -705,6 +715,7 @@ export function IncomeSheet({
       await write('DELETE', `emi/income-periods/${period.id}`, z.unknown(), {
         version: period.version,
       });
+      if (direct) onClose();
     } catch (failure) {
       setError(failure);
     } finally {
@@ -712,7 +723,12 @@ export function IncomeSheet({
     }
   }
   return (
-    <FlowSheet title="Your income" visible={visible} onClose={onClose} busy={busy}>
+    <FlowSheet
+      title={direct ? (initial === 'new' ? 'Add income' : 'Edit income') : 'Your income'}
+      visible={visible}
+      onClose={onClose}
+      busy={busy}
+    >
       {editing === null ? (
         <>
           {!periods.length && (
@@ -794,11 +810,19 @@ export function IncomeSheet({
             disabled={!form.amount.trim()}
             onPress={() => void save()}
           />
+          {direct && editing && editing !== 'new' && (
+            <AppButton
+              title="Remove"
+              variant="danger"
+              disabled={busy}
+              onPress={() => void remove(editing)}
+            />
+          )}
           <AppButton
-            title="Back"
+            title={direct ? 'Cancel' : 'Back'}
             variant="secondary"
             disabled={busy}
-            onPress={() => setEditing(null)}
+            onPress={() => (direct ? onClose() : setEditing(null))}
           />
         </>
       )}

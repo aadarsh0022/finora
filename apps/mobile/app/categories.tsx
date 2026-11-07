@@ -5,7 +5,7 @@ import {
   type Category,
 } from '@finora/contracts';
 import { useState } from 'react';
-import { Alert } from 'react-native';
+import { Alert, Pressable, View } from 'react-native';
 import { z } from 'zod';
 import {
   AppButton,
@@ -17,16 +17,34 @@ import {
   Loading,
   Screen,
 } from '../src/components/ui';
-import { EmptyState } from '../src/components/design';
+import { CreateAction, EmptyState, Icon } from '../src/components/design';
+import { useTheme } from '../src/theme';
 import { categoriesSchema, useRead } from '../src/features/finance/shared';
 import { useFinanceMutation, useUnsavedChanges } from '../src/hooks/finance';
 
 export default function Categories() {
+  const theme = useTheme();
   const query = useRead('categories?includeArchived=true', categoriesSchema);
   const [editing, setEditing] = useState<Category | 'new' | null>(null);
   const [show, setShow] = useState('active');
+  const shown = (query.data ?? []).filter(
+    (category) => category.archived === (show === 'archived'),
+  );
+  const groups = [
+    ['Expense', shown.filter((category) => category.type === 'EXPENSE')],
+    ['Income', shown.filter((category) => category.type === 'INCOME')],
+  ] as const;
   return (
-    <Screen title="Categories" subtitle="Give every transaction a useful home.">
+    <Screen
+      title="Categories"
+      subtitle="Give every transaction a useful home."
+      includeTopInset={false}
+      floatingAction={
+        !editing ? (
+          <CreateAction label="Add category" onPress={() => setEditing('new')} />
+        ) : undefined
+      }
+    >
       {editing ? (
         <CategoryForm
           key={editing === 'new' ? 'new' : `${editing.id}-${editing.version}`}
@@ -35,16 +53,38 @@ export default function Categories() {
         />
       ) : (
         <>
-          <AppButton title="Add category" onPress={() => setEditing('new')} />
-          <Choice
-            label="Show"
-            value={show}
-            onChange={setShow}
-            options={[
-              { value: 'active', label: 'Active' },
-              { value: 'archived', label: 'Archived' },
-            ]}
-          />
+          <View style={{ flexDirection: 'row', gap: 8 }}>
+            {(
+              [
+                ['active', 'Active'],
+                ['archived', 'Archived'],
+              ] as const
+            ).map(([value, label]) => (
+              <Pressable
+                key={value}
+                accessibilityRole="button"
+                accessibilityState={{ selected: show === value }}
+                accessibilityLabel={`Show ${label.toLowerCase()} categories`}
+                onPress={() => setShow(value)}
+                style={{
+                  paddingHorizontal: 16,
+                  paddingVertical: 9,
+                  borderRadius: 18,
+                  backgroundColor: show === value ? theme.text : `${theme.text}0F`,
+                }}
+              >
+                <AppText
+                  style={{
+                    fontSize: 13,
+                    fontFamily: 'DMSansBold',
+                    color: show === value ? theme.surface : theme.muted,
+                  }}
+                >
+                  {label}
+                </AppText>
+              </Pressable>
+            ))}
+          </View>
           {query.isPending && <Loading variant="categories" />}
           {query.isError && (
             <Feedback
@@ -54,34 +94,50 @@ export default function Categories() {
               }}
             />
           )}
-          {query.data
-            ?.filter((category) => category.archived === (show === 'archived'))
-            .map((category) => (
-              <Card key={category.id}>
-                <AppText style={{ fontFamily: 'DMSansBold' }}>{category.name}</AppText>
-                <AppText tone="muted">
-                  {category.type.toLowerCase()}
-                  {category.archived ? ' · archived' : ''}
+          {groups.map(([title, items]) =>
+            items.length ? (
+              <View key={title} style={{ gap: 8 }}>
+                <AppText tone="muted" style={{ fontSize: 12, letterSpacing: 0.6 }}>
+                  {title.toUpperCase()}
                 </AppText>
-                <AppButton
-                  title={category.archived ? 'Edit or restore' : 'Edit category'}
-                  variant="secondary"
-                  onPress={() => setEditing(category)}
-                />
-              </Card>
-            ))}
-          {query.data &&
-            !query.data.some((category) => category.archived === (show === 'archived')) && (
-              <EmptyState
-                icon="plan"
-                title={`No ${show} categories`}
-                message={
-                  show === 'archived'
-                    ? 'Categories you archive will appear here.'
-                    : 'Add a category to organise your spending.'
-                }
-              />
-            )}
+                <Card style={{ padding: 0, gap: 0, overflow: 'hidden' }}>
+                  {items.map((category, index) => (
+                    <Pressable
+                      key={category.id}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Edit ${category.name}`}
+                      onPress={() => setEditing(category)}
+                      style={{
+                        minHeight: 52,
+                        paddingHorizontal: 16,
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        gap: 10,
+                        borderTopWidth: index ? 1 : 0,
+                        borderTopColor: theme.border,
+                      }}
+                    >
+                      <AppText style={{ flex: 1, fontFamily: 'DMSansBold', fontSize: 15 }}>
+                        {category.name}
+                      </AppText>
+                      <Icon name="chevron" size={16} color={theme.muted} />
+                    </Pressable>
+                  ))}
+                </Card>
+              </View>
+            ) : null,
+          )}
+          {query.data && !shown.length && (
+            <EmptyState
+              icon="plan"
+              title={`No ${show} categories`}
+              message={
+                show === 'archived'
+                  ? 'Categories you archive will appear here.'
+                  : 'Add a category to organise your spending.'
+              }
+            />
+          )}
         </>
       )}
     </Screen>

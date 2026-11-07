@@ -53,7 +53,11 @@ export default function Security() {
   });
   const busy = password.isPending || logoutOthers.isPending || deletion.isPending;
   return (
-    <Screen title="Security" subtitle="Control access to your financial data.">
+    <Screen
+      title="Security"
+      includeTopInset={false}
+      subtitle="Control access to your financial data."
+    >
       <AppLockSettings />
       <Card>
         <AppText accessibilityRole="header" style={{ fontFamily: 'DMSansBold', fontSize: 22 }}>

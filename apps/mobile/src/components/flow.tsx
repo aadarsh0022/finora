@@ -1,13 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { Chevron } from './chevron';
-import {
-  Keyboard,
-  KeyboardAvoidingView,
-  Modal,
-  Pressable,
-  ScrollView,
-  View,
-} from 'react-native';
+import { Keyboard, KeyboardAvoidingView, Modal, Pressable, ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { calendarDate } from '@finora/finance-core';
 import { calendarDaySchema, monthSchema } from '@finora/contracts';

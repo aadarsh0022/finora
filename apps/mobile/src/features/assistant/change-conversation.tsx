@@ -12,6 +12,26 @@ import { useApp } from '../../providers/app-provider';
 import { useTheme } from '../../theme';
 import { ActionBadge, ChatConfirmActions, SavedLine } from './confirmation';
 import type { RegisterDraftReply } from './transaction-conversation';
+const pastVerbs: [RegExp, string][] = [
+  [/^mark emi paid/i, 'Marked paid'],
+  [/^mark emi unpaid/i, 'Marked unpaid'],
+  [/^(add|create|record|set)/i, 'Added'],
+  [/^(update|edit|change|restore|copy)/i, 'Updated'],
+  [/^(archive|cancel|pause)/i, 'Archived'],
+  [/^(delete|remove|reverse)/i, 'Removed'],
+];
+/** One plain sentence saying what was saved, built from the reviewed details (max 150 characters). */
+function savedSentence(change: { title: string; rows: { label: string; value: string }[] }) {
+  const verb = pastVerbs.find(([pattern]) => pattern.test(change.title))?.[1] ?? 'Saved';
+  const subject = change.rows.find((row) => /^(name|for|record)$/i.test(row.label))?.value;
+  const details = change.rows
+    .filter((row) => !/^(name|for|record)$/i.test(row.label))
+    .map((row) => `${row.label.toLowerCase()} ${row.value}`)
+    .join(', ');
+  const text = `${verb}${subject ? ` ${subject}` : ` ${change.title.replace(/^(add|create|record|set|update|edit|change|restore|copy|archive|cancel|pause|delete|remove|reverse)\s+/i, '').toLowerCase()}`}${details ? `: ${details}` : ''}.`;
+  return text.length > 150 ? `${text.slice(0, 147).trimEnd()}...` : text;
+}
+
 export function ChangeConversation({
   change: initial,
   register,
@@ -98,7 +118,7 @@ export function ChangeConversation({
       });
       if (flight.current !== controller) return;
       setSaved(true);
-      onOutcome?.(`Done. ${change.title}.`);
+      onOutcome?.(savedSentence(change));
       void client.invalidateQueries({ queryKey: [user?.id] }).catch(() => undefined);
       if (change.input.operation === 'update_preferences')
         void refreshUser().catch(() => undefined);
@@ -113,7 +133,7 @@ export function ChangeConversation({
     }
   }
   if (cancelled) return <AppText tone="muted">Okay, nothing was changed.</AppText>;
-  if (saved) return <SavedLine text={`Done. ${change.title}.`} />;
+  if (saved) return <SavedLine text={savedSentence(change)} />;
   const destructive = change.input.operation.startsWith('delete_');
   return (
     <Card style={{ gap: 8, padding: 12, borderRadius: 16 }}>

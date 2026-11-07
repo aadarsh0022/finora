@@ -22,8 +22,14 @@ export default function Plan() {
             onPress={() => router.push({ pathname: '/planning', params: { mode: 'goals' } })}
           />
           <ActionRow
+            title="Income"
+            subtitle="Salary, extra income and a 12-month forecast"
+            icon="income"
+            onPress={() => router.push('/income')}
+          />
+          <ActionRow
             title="Loans & EMIs"
-            subtitle="Monthly EMIs, payoff and income"
+            subtitle="Monthly EMIs and payoff"
             icon="plan"
             onPress={() => router.push('/loans')}
           />

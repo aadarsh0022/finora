@@ -240,7 +240,8 @@ export async function setPayment(
       monthKey,
       amountDueMinor: previous?.amountDueMinor ?? loan.monthlyAmountMinor,
       amountPaidMinor,
-      paid: true,
+      // A partial amount leaves the month open (upcoming/overdue lists key off this flag).
+      paid: BigInt(amountPaidMinor) >= BigInt(previous?.amountDueMinor ?? loan.monthlyAmountMinor),
       paidAt: now,
       transactionId,
       version: previous ? previous.version + 1 : 1,

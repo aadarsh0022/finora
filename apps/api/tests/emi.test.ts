@@ -386,3 +386,63 @@ it('isolates every record by user', async () => {
   ).toBe(404);
   expect((await overview(token)).loans).toHaveLength(1);
 });
+
+it('keeps a linked expense and its EMI payment in step: edit follows, delete unpays', async () => {
+  const { token, account, expense } = await fixture();
+  const loan = await addLoan(token, { endMonth: '2099-12' });
+  const month = getCurrentMonthKey('Asia/Kolkata');
+  const paid = emiPaymentSchema.parse(
+    data(
+      await call(
+        'POST',
+        `emi/loans/${loan.id}/payments/${month}`,
+        { amountMinor: null, accountId: account.id, categoryId: expense.id },
+        token,
+        headers(),
+      ),
+    ),
+  );
+  const txId = paid.transactionId!;
+  const tx = data(await call('GET', `transactions/${txId}`, undefined, token)) as Record<
+    string,
+    unknown
+  >;
+  const editable = {
+    type: tx.type,
+    accountId: tx.accountId,
+    categoryId: tx.categoryId,
+    amountMinor: tx.amountMinor,
+    date: tx.date,
+  };
+  const edited = await call(
+    'PATCH',
+    `transactions/${txId}`,
+    { ...editable, amountMinor: '1000000', version: tx.version },
+    token,
+    headers(),
+  );
+  expect(edited.status).toBe(200);
+  {
+    expect((await overview(token)).payments[0]!.amountPaidMinor).toBe('1000000');
+    const asTransfer = await call(
+      'PATCH',
+      `transactions/${txId}`,
+      { ...editable, type: 'INCOME', version: 2 },
+      token,
+      headers(),
+    );
+    expect(asTransfer.status).toBeGreaterThanOrEqual(400);
+  }
+  const current = data(await call('GET', `transactions/${txId}`, undefined, token)) as {
+    version: number;
+  };
+  const removed = await call(
+    'DELETE',
+    `transactions/${txId}`,
+    { version: current.version, confirmation: 'DELETE' },
+    token,
+    headers(),
+  );
+  expect(removed.status).toBe(200);
+  expect((await overview(token)).payments).toHaveLength(0);
+});

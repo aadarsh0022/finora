@@ -1,19 +1,10 @@
 import { debtListSchema, type DebtStatus } from '@finora/contracts';
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, View } from 'react-native';
-import {
-  AppButton,
-  AppText,
-  Card,
-  Choice,
-  Feedback,
-  Field,
-  Loading,
-  Screen,
-} from '../../components/ui';
+import { Pressable, ScrollView, View } from 'react-native';
+import { AppText, Card, Feedback, Field, Loading, Screen } from '../../components/ui';
 import { SelectField } from '../../components/flow';
-import { EmptyState } from '../../components/design';
+import { CreateAction, EmptyState } from '../../components/design';
 import { useMoney, useRead } from '../finance/shared';
 import { useTheme } from '../../theme';
 import { debtKinds } from './debt-kinds';
@@ -49,6 +40,34 @@ export function DebtList({ receivables = false }: { receivables?: boolean }) {
             (filter === 'ACTIVE' && d.status !== 'SETTLED') ||
             d.status === filter)),
   );
+  const statuses = receivables
+    ? [
+        ['ACTIVE', 'Awaiting'],
+        ['PARTIAL', 'Partly received'],
+        ['OVERDUE', 'Overdue'],
+        ['SETTLED', 'Received'],
+        ['ARCHIVED', 'Archived'],
+      ]
+    : [
+        ['ACTIVE', 'Outstanding'],
+        ['OVERDUE', 'Overdue'],
+        ['SETTLED', 'Settled'],
+        ['ARCHIVED', 'Archived'],
+      ];
+  const statusText = (debt: (typeof items)[number]) =>
+    debt.cancelledAt
+      ? 'Cancelled'
+      : debt.status === 'SETTLED'
+        ? receivables
+          ? 'Received'
+          : 'Settled'
+        : debt.status === 'OVERDUE'
+          ? 'Overdue'
+          : receivables && BigInt(debt.repaidMinor) > 0n
+            ? 'Partly received'
+            : receivables
+              ? 'Expected'
+              : 'Active';
   return (
     <Screen
       title={receivables ? 'Money coming back' : 'Borrowed & lent'}
@@ -60,8 +79,8 @@ export function DebtList({ receivables = false }: { receivables?: boolean }) {
       }
       onRefresh={() => query.refetch()}
       floatingAction={
-        <AppButton
-          title={receivables ? '+ Track money coming back' : '+ Add debt'}
+        <CreateAction
+          label={receivables ? 'Track money coming back' : 'Add debt'}
           onPress={() =>
             router.push({ pathname: '/debt', params: receivables ? { receivable: 'true' } : {} })
           }
@@ -69,46 +88,59 @@ export function DebtList({ receivables = false }: { receivables?: boolean }) {
       }
     >
       {receivables ? (
-        <Card>
-          <AppText tone="muted">Still expected</AppText>
-          <AppText style={{ fontFamily: 'DMSansBold', fontSize: 30, lineHeight: 38 }}>
+        <Card style={{ gap: 2, padding: 16 }}>
+          <AppText tone="muted" style={{ fontSize: 13 }}>
+            Still expected
+          </AppText>
+          <AppText
+            style={{ fontFamily: 'DMSansBold', fontSize: 28, lineHeight: 36 }}
+            numberOfLines={1}
+            adjustsFontSizeToFit
+          >
             {money(total('LENT'))}
           </AppText>
-          <AppText tone="muted">Track what is still owed to you, including archived items.</AppText>
         </Card>
       ) : (
-        <View style={{ flexDirection: 'row', gap: 12 }}>
-          {(['BORROWED', 'LENT'] as const).map((kind) => (
-            <Card key={kind} style={{ flex: 1 }}>
-              <AppText tone="muted" style={{ fontSize: 13 }}>
-                {kind === 'BORROWED' ? 'I owe' : 'Owed to me'}
-              </AppText>
-              <AppText
-                tone={kind === 'BORROWED' ? 'danger' : 'accent'}
-                numberOfLines={1}
-                adjustsFontSizeToFit
-                style={{ fontSize: 26, lineHeight: 34, fontFamily: 'DMSansBold' }}
+        <Card style={{ flexDirection: 'row', padding: 6, gap: 6 }}>
+          {(['BORROWED', 'LENT'] as const).map((side) => {
+            const selected = direction === side;
+            return (
+              <Pressable
+                key={side}
+                accessibilityRole="button"
+                accessibilityState={{ selected }}
+                accessibilityLabel={
+                  side === 'BORROWED' ? 'Show what I owe' : 'Show what is owed to me'
+                }
+                onPress={() => setDirection(side)}
+                style={{
+                  flex: 1,
+                  padding: 12,
+                  borderRadius: 16,
+                  backgroundColor: selected ? theme.accentSoft : 'transparent',
+                  gap: 2,
+                }}
               >
-                {money(total(kind))}
-              </AppText>
-            </Card>
-          ))}
-        </View>
-      )}
-      {!receivables && (
-        <Choice
-          label="Show"
-          value={direction}
-          onChange={setDirection}
-          options={[
-            { value: 'BORROWED', label: 'I owe' },
-            { value: 'LENT', label: 'Owed to me' },
-          ]}
-        />
+                <AppText tone="muted" style={{ fontSize: 13 }}>
+                  {side === 'BORROWED' ? 'I owe' : 'Owed to me'}
+                </AppText>
+                <AppText
+                  tone={side === 'BORROWED' ? 'danger' : 'accent'}
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                  style={{ fontSize: 22, lineHeight: 30, fontFamily: 'DMSansBold' }}
+                >
+                  {money(total(side))}
+                </AppText>
+              </Pressable>
+            );
+          })}
+        </Card>
       )}
       <Field
         label={receivables ? 'Search expected receipts' : 'Search debts'}
-        placeholder="Person or lender"
+        hideLabel
+        placeholder="Search person or lender"
         value={search}
         onChangeText={setSearch}
         maxLength={80}
@@ -124,19 +156,38 @@ export function DebtList({ receivables = false }: { receivables?: boolean }) {
           ]}
         />
       )}
-      <SelectField
-        label="Status"
-        value={filter}
-        onChange={setFilter}
-        options={[
-          { value: 'ACTIVE', label: receivables ? 'Awaiting receipt' : 'Outstanding' },
-          ...(receivables ? [{ value: 'PARTIAL', label: 'Partly received' }] : []),
-          { value: 'OVERDUE', label: 'Overdue' },
-          { value: 'SETTLED', label: receivables ? 'Fully received' : 'Settled' },
-          { value: 'ARCHIVED', label: 'Archived' },
-          { value: 'ALL', label: 'All current' },
-        ]}
-      />
+      <ScrollView
+        horizontal
+        style={{ flexGrow: 0 }}
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={{ gap: 8, alignItems: 'center' }}
+      >
+        {statuses.map(([value, label]) => (
+          <Pressable
+            key={value}
+            accessibilityRole="button"
+            accessibilityState={{ selected: filter === value }}
+            accessibilityLabel={`Show ${(label ?? '').toLowerCase()}`}
+            onPress={() => setFilter(value!)}
+            style={{
+              paddingHorizontal: 14,
+              paddingVertical: 8,
+              borderRadius: 18,
+              backgroundColor: filter === value ? theme.text : `${theme.text}0F`,
+            }}
+          >
+            <AppText
+              style={{
+                fontSize: 13,
+                fontFamily: 'DMSansBold',
+                color: filter === value ? theme.surface : theme.muted,
+              }}
+            >
+              {label}
+            </AppText>
+          </Pressable>
+        ))}
+      </ScrollView>
       {query.isPending && <Loading variant="debts" />}
       {query.error && (
         <Feedback
@@ -165,68 +216,86 @@ export function DebtList({ receivables = false }: { receivables?: boolean }) {
           }
         />
       )}
-      {visible.map((debt) => (
-        <Pressable
-          key={debt.id}
-          accessibilityRole="button"
-          accessibilityLabel={`Open ${receivables ? 'receivable' : 'debt'} with ${debt.name}`}
-          onPress={() => router.push({ pathname: '/debt', params: { id: debt.id } })}
-        >
-          <Card>
-            <View style={{ flexDirection: 'row', gap: 12 }}>
-              <AppText style={{ flex: 1, fontFamily: 'DMSansBold', fontSize: 18 }}>
-                {debt.name}
-              </AppText>
-              <AppText tone={debt.status === 'OVERDUE' ? 'danger' : 'muted'}>
-                {debt.cancelledAt
-                  ? 'Cancelled'
-                  : debt.status === 'SETTLED'
-                    ? receivables
-                      ? 'Fully received'
-                      : 'Settled'
-                    : debt.status === 'OVERDUE'
-                      ? 'Overdue'
-                      : receivables && BigInt(debt.repaidMinor) > 0n
-                        ? 'Partly received'
-                        : receivables
-                          ? 'Expected'
-                          : 'Active'}
-              </AppText>
-            </View>
-            <AppText style={{ fontSize: 25, lineHeight: 32, fontFamily: 'DMSansBold' }}>
-              {money(debt.remainingMinor)}
-            </AppText>
-            <View
-              style={{
-                height: 5,
-                backgroundColor: theme.border,
-                borderRadius: 5,
-                overflow: 'hidden',
-              }}
-            >
+      {visible.map((debt) => {
+        const overdue = debt.status === 'OVERDUE';
+        return (
+          <Pressable
+            key={debt.id}
+            accessibilityRole="button"
+            accessibilityLabel={`Open ${receivables ? 'receivable' : 'debt'} with ${debt.name}`}
+            onPress={() => router.push({ pathname: '/debt', params: { id: debt.id } })}
+          >
+            <Card style={{ gap: 8, padding: 14, borderRadius: 18 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                <AppText
+                  style={{ flex: 1, fontFamily: 'DMSansBold', fontSize: 16 }}
+                  numberOfLines={1}
+                >
+                  {debt.name}
+                </AppText>
+                <View
+                  style={{
+                    paddingHorizontal: 9,
+                    paddingVertical: 3,
+                    borderRadius: 10,
+                    backgroundColor: overdue ? theme.dangerSoft : theme.accentSoft,
+                  }}
+                >
+                  <AppText
+                    style={{
+                      fontSize: 11,
+                      fontFamily: 'DMSansBold',
+                      color: overdue ? theme.danger : theme.accent,
+                    }}
+                  >
+                    {statusText(debt)}
+                  </AppText>
+                </View>
+              </View>
+              <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 8 }}>
+                <AppText style={{ fontSize: 22, lineHeight: 28, fontFamily: 'DMSansBold' }}>
+                  {money(debt.remainingMinor)}
+                </AppText>
+                <AppText tone="muted" style={{ fontSize: 12 }}>
+                  left of {money(debt.amountMinor)}
+                </AppText>
+              </View>
               <View
                 style={{
                   height: 5,
-                  backgroundColor: theme.accent,
-                  width: `${Number((BigInt(debt.repaidMinor) * 10000n) / BigInt(debt.amountMinor)) / 100}%`,
+                  backgroundColor: `${theme.text}0D`,
+                  borderRadius: 5,
+                  overflow: 'hidden',
                 }}
-              />
-            </View>
-            <AppText tone="muted" style={{ fontSize: 13 }}>
-              {receivables ? `${debtKinds[debt.kind]} · ` : ''}
-              {money(debt.repaidMinor)} {receivables ? 'received' : 'repaid'} of{' '}
-              {money(debt.amountMinor)}
-              {debt.dueDate ? ` · Due ${debt.dueDate}` : ''}
-            </AppText>
-          </Card>
-        </Pressable>
-      ))}
+              >
+                <View
+                  style={{
+                    height: 5,
+                    backgroundColor: theme.accent,
+                    width: `${Number((BigInt(debt.repaidMinor) * 10000n) / BigInt(debt.amountMinor)) / 100}%`,
+                  }}
+                />
+              </View>
+              <AppText tone="muted" style={{ fontSize: 12 }}>
+                {receivables ? `${debtKinds[debt.kind]} · ` : ''}
+                {money(debt.repaidMinor)} {receivables ? 'received' : 'repaid'}
+                {debt.dueDate ? ` · Due ${debt.dueDate}` : ''}
+              </AppText>
+            </Card>
+          </Pressable>
+        );
+      })}
       {!receivables && (
-        <AppButton
-          title="View refunds and other receipts"
-          variant="secondary"
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="View refunds and other receipts"
           onPress={() => router.push('/receivables')}
-        />
+          style={{ minHeight: 44, justifyContent: 'center', alignItems: 'center' }}
+        >
+          <AppText tone="accent" style={{ fontFamily: 'DMSansBold', fontSize: 14 }}>
+            View refunds and other receipts ›
+          </AppText>
+        </Pressable>
       )}
     </Screen>
   );

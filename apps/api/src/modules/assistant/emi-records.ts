@@ -217,7 +217,7 @@ export async function readEmi(context: AuthContext, input: Input): Promise<Read>
     case 'emi_schedule': {
       const debt = input.record ? find() : undefined;
       if (input.record && !debt) return needLoan();
-      const last = debt?.endMonth ?? addMonthsToKey(now, input.record ? 23 : 23);
+      const last = debt?.endMonth ?? addMonthsToKey(now, 23);
       const horizon =
         compareMonthKeys(last, addMonthsToKey(now, 119)) > 0 ? addMonthsToKey(now, 119) : last;
       const rows = summarizeRange(debt ? [debt] : debts, payments, now, horizon)

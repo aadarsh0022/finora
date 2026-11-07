@@ -4,6 +4,7 @@ import Svg, { Circle, Text as SvgText } from 'react-native-svg';
 import { z } from 'zod';
 import {
   budgetStatusSchema,
+  emiOverviewSchema,
   goalProgressSchema,
   recurringOccurrenceSchema,
   recurringRuleSchema,
@@ -11,12 +12,13 @@ import {
   transactionPageSchema,
   type ReportSummary,
 } from '@finora/contracts';
-import { calendarDate, nextOccurrence } from '@finora/finance-core';
+import { calendarDate, getIncomeForMonth, nextOccurrence } from '@finora/finance-core';
 import { AppText, Card, Feedback, Loading } from '../../components/ui';
 import { Icon, type IconName } from '../../components/design';
 import { useTheme } from '../../theme';
 import { useApp } from '../../providers/app-provider';
 import { categoriesSchema, useMoney, useRead } from '../finance/shared';
+import { toIncome } from '../loans/model';
 import { activityQuery, emptyActivityFilters } from '../finance/filters';
 import { chartRatio } from './values';
 import { SpendingPulse } from '../finance/spending-pulse';
@@ -133,6 +135,10 @@ export function InsightsOverview({
   const categories = useRead('categories?includeArchived=true', categoriesSchema);
   const budgets = useRead(`budgets?month=${month}`, z.array(budgetStatusSchema), singleMonth);
   const goals = useRead('goals', z.array(goalProgressSchema));
+  const emi = useRead('emi', emiOverviewSchema, singleMonth);
+  const expectedIncome = emi.data
+    ? getIncomeForMonth(emi.data.incomePeriods.map(toIncome), month).total
+    : 0n;
   const rules = useRead('recurring', z.array(recurringRuleSchema));
   const occurrences = useRead(
     'recurring-occurrences?status=PENDING',
@@ -279,6 +285,18 @@ export function InsightsOverview({
             </View>
           ))}
         </View>
+        {singleMonth && expectedIncome > 0n && (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Open expected income"
+            onPress={() => router.push('/income')}
+          >
+            <AppText tone="muted" style={{ fontSize: 12 }}>
+              Expected income {money(expectedIncome.toString())} · recorded{' '}
+              {money(data.cashflow.incomeMinor)} ›
+            </AppText>
+          </Pressable>
+        )}
         {BigInt(data.cashflow.incomeMinor) > 0n && (
           <View style={{ gap: 8 }}>
             <View
