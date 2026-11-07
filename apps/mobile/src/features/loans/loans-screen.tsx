@@ -4,9 +4,9 @@ import { router } from 'expo-router';
 import { z } from 'zod';
 import { emiLoanSchema, type EmiLoanDto } from '@finora/contracts';
 import { calendarDate, formatMoney, getRemainingPayable } from '@finora/finance-core';
-import { AppButton, AppText, Card, Feedback, Screen } from '../../components/ui';
+import { AppText, Card, Feedback, Screen } from '../../components/ui';
 import { Loading } from '../../components/skeleton';
-import { EmptyState, Icon, SectionHeading } from '../../components/design';
+import { CreateAction, EmptyState, Icon, SectionHeading } from '../../components/design';
 import { useApp } from '../../providers/app-provider';
 import { useTheme } from '../../theme';
 import { useEmiWrite, useLoans } from './model';
@@ -138,22 +138,8 @@ export function LoansScreen() {
       includeTopInset={false}
       subtitle="Every EMI, month by month."
       onRefresh={() => read.refetch()}
-      headerAction={
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Add a loan"
-          onPress={() => setForm({ open: true, loan: null })}
-          style={{
-            width: 44,
-            height: 44,
-            borderRadius: 22,
-            backgroundColor: theme.accent,
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          <Icon name="plus" size={20} color={theme.onAccent} />
-        </Pressable>
+      floatingAction={
+        <CreateAction label="Add a loan" onPress={() => setForm({ open: true, loan: null })} />
       }
     >
       {!loans.length ? (
@@ -527,11 +513,6 @@ export function LoansScreen() {
                 </AppText>
               )}
             </Card>
-            <AppButton
-              title="Add a loan"
-              variant="secondary"
-              onPress={() => setForm({ open: true, loan: null })}
-            />
           </View>
         </>
       )}

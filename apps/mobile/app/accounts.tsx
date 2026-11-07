@@ -2,7 +2,7 @@ import { router } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, View } from 'react-native';
 import { AppText, Card, Choice, Feedback, Loading, Screen } from '../src/components/ui';
-import { EmptyState, Icon } from '../src/components/design';
+import { CreateAction, EmptyState, Icon } from '../src/components/design';
 import { elevation, glass, useTheme } from '../src/theme';
 import { accountsSchema, useMoney, useRead } from '../src/features/finance/shared';
 const types = {
@@ -28,27 +28,7 @@ export default function Accounts() {
       includeTopInset={false}
       showPendingStatus={false}
       onRefresh={() => query.refetch()}
-      headerAction={
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Add account"
-          onPress={() => router.push('/account')}
-          style={{
-            minHeight: 40,
-            paddingHorizontal: 12,
-            borderRadius: 12,
-            backgroundColor: theme.accentSoft,
-            flexDirection: 'row',
-            alignItems: 'center',
-            gap: 5,
-          }}
-        >
-          <Icon name="plus" color={theme.accent} size={17} />
-          <AppText tone="accent" style={{ fontSize: 13, fontFamily: 'DMSansBold' }}>
-            Add
-          </AppText>
-        </Pressable>
-      }
+      floatingAction={<CreateAction label="Add account" onPress={() => router.push('/account')} />}
     >
       {query.isPending && <Loading variant="accounts" />}
       {query.isError && (

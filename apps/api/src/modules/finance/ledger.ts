@@ -152,7 +152,11 @@ export async function updateTransaction(
       await db.collection('emi_payments').updateOne(
         { userId: context.user.id, id: emiPayment.id },
         {
-          $set: { amountPaidMinor: record.amountMinor, updatedAt: record.updatedAt },
+          $set: {
+            amountPaidMinor: record.amountMinor,
+            paid: BigInt(record.amountMinor) >= BigInt(String(emiPayment.amountDueMinor)),
+            updatedAt: record.updatedAt,
+          },
           $inc: { version: 1 },
         },
         { session },
