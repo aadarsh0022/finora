@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { MongoClient, type Db, type IndexDescription } from 'mongodb';
 import { getEnv } from '../config/env';
 import type { RateLimitRecord, SessionRecord, UserRecord } from './models';
@@ -123,11 +124,20 @@ async function ensureIndexes(db: Db) {
   // One command per collection. Independent collections initialize concurrently;
   // the shared connection pool bounds network concurrency. Every caller still waits
   // for all required uniqueness/TTL indexes before serving authenticated requests.
+  // The definitions are fingerprinted and the fingerprint is stored once they are applied. A new
+  // server instance reads that single marker instead of re-issuing ~20 createIndexes commands,
+  // which made every cold start slow. Changing any definition changes the fingerprint, so the
+  // indexes are applied again on the next start. Callers still wait before serving requests.
+  const fingerprint = createHash('sha256').update(JSON.stringify(indexes)).digest('hex');
+  const meta = db.collection<{ _id: string; fingerprint: string }>('schema_meta');
+  const applied = await meta.findOne({ _id: 'indexes' });
+  if (applied?.fingerprint === fingerprint) return;
   await Promise.all(
     Object.entries(indexes).map(([name, definitions]) =>
       db.collection(name).createIndexes(definitions),
     ),
   );
+  await meta.updateOne({ _id: 'indexes' }, { $set: { fingerprint } }, { upsert: true });
 }
 
 export async function closeDatabase() {
