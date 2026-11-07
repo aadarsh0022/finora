@@ -342,9 +342,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
       void syncPending().catch(() => undefined);
   }, [network.isConnected, verifiedOnline, vault]);
   useEffect(() => {
+    api.warm();
+  }, [api]);
+  useEffect(() => {
     const subscription = AppState.addEventListener('change', (state) => {
       if (state !== 'active') cancelRetry();
       if (state === 'active') {
+        // Reads that were waiting while the app was away restart cleanly instead of timing out.
+        api.restartReads();
+        api.warm();
         retryAttempt.current = 0;
         if (verified.current) void syncPending().catch(() => undefined);
         else if (vaultRef.current) void restore();

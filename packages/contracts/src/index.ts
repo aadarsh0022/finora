@@ -10,7 +10,7 @@ export * from './debts';
 export * from './emi';
 
 export const emailSchema = z.string().trim().toLowerCase().pipe(z.email().max(254));
-export const passwordSchema = z.string().min(12, 'Use at least 12 characters').max(128);
+export const passwordSchema = z.string().min(8, 'Use at least 8 characters').max(128);
 export const timezoneSchema = z
   .string()
   .max(100)

@@ -20,7 +20,7 @@ export async function mutate<T>(
   const { client, db, users } = await database();
   const session = client.startSession();
   try {
-    return await session.withTransaction(async () => {
+    const work = session.withTransaction(async () => {
       // Serializes financial mutations against account deletion, password revocation,
       // archived references, duplicate default seeding and conflicting writes.
       const lock = await users.updateOne(
@@ -68,6 +68,22 @@ export async function mutate<T>(
       );
       return result;
     });
+    // The driver retries write conflicts for up to two minutes; the app gives up long before that.
+    // Past 8 seconds, answer "busy, retry" and let endSession abort the transaction. The write is
+    // idempotent, so retrying is safe.
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const deadline = new Promise<never>((_, reject) => {
+      timer = setTimeout(
+        () => reject(new ApiError(503, 'SERVER_BUSY', 'The server is busy. Please retry.')),
+        8000,
+      );
+    });
+    work.catch(() => undefined);
+    try {
+      return await Promise.race([work, deadline]);
+    } finally {
+      clearTimeout(timer);
+    }
   } finally {
     await session.endSession();
   }

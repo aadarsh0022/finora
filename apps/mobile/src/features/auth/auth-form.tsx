@@ -138,7 +138,7 @@ export function AuthForm({ mode }: { mode: 'login' | 'register' }) {
             name="password"
             render={({ field }) => (
               <Field
-                label={registration ? 'Password · at least 12 characters' : 'Password'}
+                label={registration ? 'Password · at least 8 characters' : 'Password'}
                 value={field.value}
                 onChangeText={field.onChange}
                 onBlur={field.onBlur}

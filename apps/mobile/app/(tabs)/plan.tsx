@@ -8,7 +8,7 @@ export default function Plan() {
     <Screen title="Plan" subtitle="Make room for what comes next." headerAction={<ProfileAction />}>
       <View>
         <SectionHeading title="Your plans" />
-        <Card style={{ padding: 0, gap: 0, overflow: 'hidden' }}>
+        <Card style={{ paddingVertical: 0, paddingHorizontal: 16, gap: 0, overflow: 'hidden' }}>
           <ActionRow
             title="Budgets"
             subtitle="Monthly and category limits"
@@ -54,7 +54,7 @@ export default function Plan() {
           />
         </Card>
       </View>
-      <Card style={{ padding: 0, gap: 0, overflow: 'hidden' }}>
+      <Card style={{ paddingVertical: 0, paddingHorizontal: 16, gap: 0, overflow: 'hidden' }}>
         <ActionRow
           title="Your weekly check-in"
           subtitle="Review entries and follow-ups"

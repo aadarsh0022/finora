@@ -74,13 +74,13 @@ test('validates registration before sending and passes the chosen base currency 
   await mount('register');
   await fireEvent.changeText(screen.getByLabelText('Your name'), 'Tester');
   await fireEvent.changeText(screen.getByLabelText('Email address'), ' TESTER@EXAMPLE.COM ');
-  await fireEvent.changeText(screen.getByLabelText('Password · at least 12 characters'), 'weak');
+  await fireEvent.changeText(screen.getByLabelText('Password · at least 8 characters'), 'weak');
   await fireEvent.press(screen.getByRole('button', { name: 'Create account' }));
-  expect(await screen.findByRole('alert')).toHaveTextContent('Use at least 12 characters');
+  expect(await screen.findByRole('alert')).toHaveTextContent('Use at least 8 characters');
   expect(calls).toHaveLength(0);
   expect(acceptSession).not.toHaveBeenCalled();
   await fireEvent.changeText(
-    screen.getByLabelText('Password · at least 12 characters'),
+    screen.getByLabelText('Password · at least 8 characters'),
     'synthetic-test-password',
   );
   await fireEvent.press(screen.getByRole('button', { name: 'Base currency' }));
