@@ -683,7 +683,6 @@ export function IncomeSheet({
     if (!visible) return;
     if (initial !== undefined) open(initial);
     else setEditing(null);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible, initial]);
   async function save() {
     setBusy(true);
