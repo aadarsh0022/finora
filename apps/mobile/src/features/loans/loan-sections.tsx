@@ -16,7 +16,8 @@ import {
   summarizeRange,
   type MonthLineItem,
 } from '@finora/finance-core';
-import { AppText, Card, Feedback, Field } from '../../components/ui';
+import { AppButton, AppText, Card, Feedback, Field } from '../../components/ui';
+import { FlowSheet, SelectField } from '../../components/flow';
 import { Icon, SectionHeading } from '../../components/design';
 import { useApp } from '../../providers/app-provider';
 import { useTheme } from '../../theme';
@@ -148,7 +149,17 @@ export function ThisMonth({ today }: { today: string }) {
   const [error, setError] = useState<unknown>();
   const summary = useMemo(() => summarizeMonth(debts, payments, month), [debts, payments, month]);
 
+  const [ask, setAsk] = useState<{ item: MonthLineItem; minor: string | null } | null>(null);
+  const accountList = (accounts.data ?? []).filter((a) => !a.archived);
+  const categoryList = (categories.data ?? []).filter((c) => !c.archived && c.type === 'EXPENSE');
+
   async function mark(item: MonthLineItem, minor: string | null) {
+    // Unless debt is kept separate, a payment is also recorded as a normal expense, so it needs
+    // an account and category. Ask for them instead of failing.
+    if (!separate && (!accountId || !categoryId)) {
+      setAsk({ item, minor });
+      return;
+    }
     setBusy(item.debt.id);
     setError(undefined);
     try {
@@ -324,6 +335,46 @@ export function ThisMonth({ today }: { today: string }) {
   return (
     <View style={{ gap: 10 }}>
       <SectionHeading title="This month" />
+      <FlowSheet
+        title="Paid from"
+        visible={!!ask}
+        onClose={() => setAsk(null)}
+        footer={
+          <AppButton
+            title="Mark paid"
+            disabled={!accountId || !categoryId}
+            onPress={() => {
+              const pending = ask;
+              setAsk(null);
+              if (pending) void mark(pending.item, pending.minor);
+            }}
+          />
+        }
+      >
+        <AppText tone="muted" style={{ fontSize: 13 }}>
+          Walleto also records this EMI as a normal expense so your balance stays right. Choose
+          where it was paid from. Turn on Keep debt separate in Settings to track EMIs without
+          expenses.
+        </AppText>
+        <SelectField
+          label="Account"
+          value={accountId}
+          onChange={setAccountId}
+          options={accountList.map((a) => ({ value: a.id, label: a.name }))}
+        />
+        <SelectField
+          label="Category"
+          value={categoryId}
+          onChange={setCategoryId}
+          options={categoryList.map((c) => ({ value: c.id, label: c.name }))}
+        />
+        {(!accountList.length || !categoryList.length) && (
+          <AppText tone="danger" style={{ fontSize: 13 }}>
+            Add {!accountList.length ? 'an account' : 'an expense category'} first, or turn on Keep
+            debt separate in Settings.
+          </AppText>
+        )}
+      </FlowSheet>
       {!!error && <Feedback error={error} />}
       <Card style={{ paddingVertical: 4, gap: 0 }}>
         {toPay.length ? (

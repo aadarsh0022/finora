@@ -74,7 +74,7 @@ test('asks for missing information inline and writes only after explicit confirm
   expect(requests).toHaveLength(1);
   expect(requests[0]?.path).toContain('/prepare');
   await fireEvent.press(screen.getByRole('button', { name: 'Confirm' }));
-  await waitFor(() => expect(screen.getByText(/^Done\. /)).toBeVisible());
+  await waitFor(() => expect(screen.getByText(/^Added savings goal/)).toBeVisible());
   expect(requests).toHaveLength(2);
   expect(requests[1]?.body).toEqual({ token: 'signed-test-review-token', confirmed: true });
 });
