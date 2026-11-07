@@ -617,3 +617,32 @@ describe('getPrincipalTotals', () => {
     expect(totals.missingNames).toEqual([]);
   });
 });
+
+describe('getForecast with several overlapping income streams', () => {
+  it('adds a raise, a fixed-term extra income and a one-month bonus per month', () => {
+    const periods = [
+      incomePeriod({ kind: 'salary', amount: 70000n, startMonth: '2026-11', endMonth: '2027-03' }),
+      incomePeriod({ kind: 'salary', amount: 90000n, startMonth: '2027-04', endMonth: '2027-09' }),
+      incomePeriod({ kind: 'extra', amount: 15000n, startMonth: '2026-11', endMonth: '2027-02' }),
+      incomePeriod({ kind: 'extra', amount: 100000n, startMonth: '2027-04', endMonth: '2027-04' }),
+    ];
+    const income = getForecast([], [], periods, '2026-11', 12).map((row) => [
+      row.monthKey,
+      row.income,
+    ]);
+    expect(income).toEqual([
+      ['2026-11', 85000n],
+      ['2026-12', 85000n],
+      ['2027-01', 85000n],
+      ['2027-02', 85000n],
+      ['2027-03', 70000n],
+      ['2027-04', 190000n],
+      ['2027-05', 90000n],
+      ['2027-06', 90000n],
+      ['2027-07', 90000n],
+      ['2027-08', 90000n],
+      ['2027-09', 90000n],
+      ['2027-10', 0n],
+    ]);
+  });
+});
