@@ -553,6 +553,7 @@ export function LoanFormSheet({
         onChangeText={(v) => set('amount', v)}
         keyboardType="decimal-pad"
       />
+      <AppText style={{ fontFamily: 'DMSansBold', fontSize: 14 }}>First EMI</AppText>
       <MonthPicker label="First EMI month" value={form.start} onChange={(v) => set('start', v)} />
       <Choice
         label="Last EMI"
@@ -723,6 +724,7 @@ export function IncomeSheet({
             onChangeText={(v) => setForm((c) => ({ ...c, amount: v }))}
             keyboardType="decimal-pad"
           />
+          <AppText style={{ fontFamily: 'DMSansBold', fontSize: 14 }}>From</AppText>
           <MonthPicker
             label="From"
             value={form.start}
