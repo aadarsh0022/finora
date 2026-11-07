@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { Alert, Pressable, View } from 'react-native';
 import { z } from 'zod';
 import { emiLoanSchema, type EmiLoanDto } from '@finora/contracts';
-import { formatMoney, getRemainingPayable } from '@finora/finance-core';
+import { calendarDate, formatMoney, getRemainingPayable } from '@finora/finance-core';
 import { AppButton, AppText, Card, Feedback, Screen } from '../../components/ui';
 import { Loading } from '../../components/skeleton';
 import { EmptyState, Icon, SectionHeading } from '../../components/design';
@@ -10,6 +10,7 @@ import { useApp } from '../../providers/app-provider';
 import { useTheme } from '../../theme';
 import { useEmiWrite, useLoans } from './model';
 import { monthLabel, monthOverview } from './summary';
+import { ComingMonths, LeftToPayOff, PayoffStrategy, Statistics, ThisMonth } from './loan-sections';
 import { ForecastSheet, IncomeSheet, LoanFormSheet, LoanHistorySheet } from './loan-sheets';
 
 type Filter = 'all' | 'large' | 'small';
@@ -342,6 +343,14 @@ export function LoansScreen() {
               </AppText>
             </Pressable>
           </Card>
+
+          <ThisMonth
+            today={calendarDate(new Date(), user?.preferences.timezone ?? 'Asia/Kolkata')}
+          />
+          <Statistics />
+          <LeftToPayOff />
+          <ComingMonths />
+          <PayoffStrategy />
 
           <View style={{ gap: 12 }}>
             <SectionHeading title="All debts" />

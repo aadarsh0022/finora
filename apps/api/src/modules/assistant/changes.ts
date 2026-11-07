@@ -16,6 +16,7 @@ import { operationCatalog } from './operation-catalog';
 import { financeRoute } from '../finance/router';
 import { advancedRoute } from '../advanced/router';
 import { debtsRoute } from '../debts/router';
+import { emiRoute } from '../emi/router';
 
 const signedSchema = z
   .object({
@@ -41,6 +42,8 @@ const normalize = (value: unknown) =>
     .toLowerCase();
 const aliases: Record<string, string> = {
   amount: 'amountMinor',
+  monthlyAmount: 'monthlyAmountMinor',
+  principalRemaining: 'principalRemainingMinor',
   openingBalance: 'openingBalanceMinor',
   target: 'targetMinor',
   account: 'accountId',
@@ -77,6 +80,14 @@ const labels: Record<string, string> = {
   firstDayOfWeek: 'First day of week',
   preferredDateFormat: 'Date format',
   warningThresholdBasisPoints: 'Warning threshold',
+  monthlyAmountMinor: 'Monthly EMI',
+  principalRemainingMinor: 'Principal outstanding',
+  startMonth: 'First month',
+  endMonth: 'Last month',
+  dueDay: 'Due day',
+  loanTag: 'Loan size',
+  interestRatePct: 'Interest rate (%)',
+  isActive: 'Active',
   postingPolicy: 'Posting policy',
 };
 const label = (key: string) =>
@@ -105,7 +116,8 @@ async function records(
     .toArray()) as unknown as RecordValue[];
 }
 const recordTitle = (r: RecordValue) =>
-  String(r.name ?? r.merchant ?? r.month ?? r.date ?? r.dueDate ?? r.id) || r.id;
+  String(r.name ?? r.merchant ?? r.month ?? r.monthKey ?? r.date ?? r.dueDate ?? r.kind ?? r.id) ||
+  r.id;
 const recordLabel = (r: RecordValue) =>
   [
     recordTitle(r),
@@ -153,7 +165,9 @@ export async function prepareChange(
         candidates,
         spec.parentCollection === 'debts'
           ? 'Which debt or expected receipt?'
-          : 'Which savings goal?',
+          : spec.parentCollection === 'emi_loans'
+            ? 'Which loan or EMI?'
+            : 'Which savings goal?',
       );
   }
   if (spec.collection && (!spec.parentCollection || parent)) {
@@ -202,7 +216,9 @@ export async function prepareChange(
       }
       continue;
     }
-    if (key.endsWith('Minor')) {
+    if (key === 'principalRemainingMinor' && /^(none|null|clear|)$/i.test(text.trim()))
+      body[key] = null;
+    else if (key.endsWith('Minor')) {
       try {
         body[key] = parseMoney(text, currency);
       } catch {
@@ -222,7 +238,11 @@ export async function prepareChange(
     } else if (['rollover', 'copyRollover'].includes(key))
       body[key] =
         text.toLowerCase() === 'true' ? true : text.toLowerCase() === 'false' ? false : text;
-    else if (key === 'firstDayOfWeek') body[key] = Number(text);
+    else if (key === 'firstDayOfWeek' || key === 'dueDay') body[key] = Number(text);
+    else if (key === 'interestRatePct')
+      body[key] = /^(none|null|no|)$/i.test(text.trim()) ? null : Number(text);
+    else if (key === 'endMonth')
+      body[key] = /^(none|null|ongoing|no end|)$/i.test(text.trim()) ? null : text.trim();
     else if (key === 'tags')
       body[key] = text
         .split(',')
@@ -253,6 +273,22 @@ export async function prepareChange(
       .findOne({ userId: context.user.id, month: body.month });
     if (existing) body.version = existing.version;
   }
+  if (
+    ['pay_emi', 'add_emi_prepayment'].includes(input.operation) &&
+    !context.user.preferences.keepDebtSeparate
+  )
+    for (const key of ['accountId', 'categoryId'] as const)
+      if (!body[key] && !questionKeys.has(key)) {
+        const rows = (
+          await records(context, key === 'categoryId' ? 'categories' : 'accounts')
+        ).filter((r) => !r.archived && (key !== 'categoryId' || r.type === 'EXPENSE'));
+        askRecord(
+          reverseAliases[key]!,
+          rows,
+          `Which ${label(key).toLowerCase()} was it paid from?`,
+        );
+        questionKeys.add(key);
+      }
   const parsed = spec.schema.safeParse(body);
   if (!parsed.success)
     for (const issue of parsed.error.issues) {
@@ -301,9 +337,13 @@ export async function prepareChange(
     )
       continue;
     const display =
-      key.endsWith('Minor') && typeof entry === 'string'
-        ? formatMoney(entry, currency, context.user.preferences.locale)
-        : (references.get(key) ?? (Array.isArray(entry) ? entry.join(', ') : String(entry)));
+      key === 'amountMinor' && entry === null
+        ? 'Full EMI'
+        : entry === null
+          ? 'None'
+          : key.endsWith('Minor') && typeof entry === 'string'
+            ? formatMoney(entry, currency, context.user.preferences.locale)
+            : (references.get(key) ?? (Array.isArray(entry) ? entry.join(', ') : String(entry)));
     rows.push({ label: label(key), value: display.slice(0, 1200) });
   }
   let token: string | null = null;
@@ -376,14 +416,26 @@ export async function confirmChange(context: AuthContext, request: Request, toke
   headers.set('Content-Type', 'application/json');
   headers.set('Idempotency-Key', value.id);
   headers.delete('content-length');
+  const sent = { ...(body as Record<string, unknown>) };
+  for (const key of spec.strip ?? []) delete sent[key];
   const action = new Request(
-    new URL(`/api/v1/${spec.path(value.target ?? '', value.parent ?? '')}`, request.url),
-    { method: spec.method, headers, body: JSON.stringify(body), signal: request.signal },
+    new URL(
+      `/api/v1/${spec.path(value.target ?? '', value.parent ?? '', body as Record<string, unknown>)}`,
+      request.url,
+    ),
+    {
+      method: spec.method,
+      headers,
+      body:
+        spec.method === 'DELETE' && !Object.keys(sent).length ? undefined : JSON.stringify(sent),
+      signal: request.signal,
+    },
   );
   const response =
     (await financeRoute(action, value.id)) ??
     (await advancedRoute(action, value.id)) ??
-    (await debtsRoute(action, value.id));
+    (await debtsRoute(action, value.id)) ??
+    (await emiRoute(action, value.id));
   if (!response) throw new ApiError(400, 'INVALID_ACTION', 'This action is not available.');
   if (!response.ok) return response;
   return { id: value.id, message: 'Saved.' };

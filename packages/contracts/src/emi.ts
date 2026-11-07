@@ -144,6 +144,7 @@ export const emiOverviewSchema = z.object({
   incomePeriods: z.array(emiIncomePeriodSchema),
 });
 
+export type EmiOverviewDto = z.infer<typeof emiOverviewSchema>;
 export type EmiLoanDto = z.infer<typeof emiLoanSchema>;
 export type EmiPaymentDto = z.infer<typeof emiPaymentSchema>;
 export type EmiExtraPaymentDto = z.infer<typeof emiExtraPaymentSchema>;

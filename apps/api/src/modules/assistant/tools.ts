@@ -37,7 +37,7 @@ export const readOnlyToolDefinitions = [
   ),
   definition(
     'read_records',
-    'Read owned accounts, categories, filtered transactions, budgets, goals, contributions, debts, repayments, recurring items, due occurrences, preferences, insights or AI usage. For a named account or specific item, use record with the name stated by the user. Does not change anything. Null means unspecified; never invent IDs.',
+    'Read owned accounts, categories, filtered transactions, budgets, goals, contributions, debts, repayments, loans and EMIs (features emi_summary, emi_loans, emi_history with record=loan, emi_upcoming, emi_payoff with query snowball or avalanche, emi_schedule, emi_forecast, emi_income, emi_prepayments), recurring items, due occurrences, preferences, insights or AI usage. For a named account or specific item, use record with the name stated by the user. Does not change anything. Null means unspecified; never invent IDs.',
     assistantRecordsArgsSchema,
   ),
   definition(

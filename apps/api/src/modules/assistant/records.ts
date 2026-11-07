@@ -13,6 +13,7 @@ import { listDebts } from '../debts/service';
 import { listRules, listOccurrences } from '../advanced/recurring';
 import { getInsights } from '../reports/insights';
 import { getAssistantUsage } from './usage';
+import { readEmi } from './emi-records';
 import { ApiError } from '../../utils/http';
 const normalize = (v: unknown) =>
   String(v ?? '')
@@ -173,19 +174,40 @@ export async function readRecords(context: AuthContext, value: unknown) {
         .map(([key, v]) => ({ title: key, detail: String(v) }));
       break;
     }
+    case 'emi_summary':
+    case 'emi_loans':
+    case 'emi_history':
+    case 'emi_upcoming':
+    case 'emi_payoff':
+    case 'emi_schedule':
+    case 'emi_forecast':
+    case 'emi_income':
+    case 'emi_prepayments': {
+      const read = await readEmi(context, input);
+      items = read.items;
+      summary = read.summary;
+      break;
+    }
     case 'ai_usage': {
       const usage = await getAssistantUsage(context);
       summary = `You have used ${usage.used} AI messages today${usage.limit === null ? ' with no daily cap' : ` out of ${usage.limit}`}. Your allowance resets at 00:00 UTC.`;
       break;
     }
   }
-  if (input.record && !['contributions', 'repayments'].includes(input.feature))
+  const loanScoped = [
+    'contributions',
+    'repayments',
+    'emi_history',
+    'emi_schedule',
+    'emi_prepayments',
+  ];
+  if (input.record && !loanScoped.includes(input.feature) && !input.feature.startsWith('emi_'))
     items = items.filter(
       (i) =>
         normalize(i.id) === normalize(input.record) ||
         normalize(i.title) === normalize(input.record),
     );
-  if (input.query && input.feature !== 'transactions')
+  if (input.query && input.feature !== 'transactions' && !input.feature.startsWith('emi_'))
     items = items.filter((i) =>
       normalize(`${i.title} ${i.detail}`).includes(normalize(input.query)),
     );

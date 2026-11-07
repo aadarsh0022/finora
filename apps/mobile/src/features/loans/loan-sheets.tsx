@@ -3,12 +3,13 @@ import { Pressable, ScrollView, View } from 'react-native';
 import { z } from 'zod';
 import {
   emiIncomePeriodSchema,
+  emiExtraPaymentSchema,
   emiLoanSchema,
   emiPaymentSchema,
   type EmiIncomePeriodDto,
   type EmiLoanDto,
 } from '@finora/contracts';
-import { formatMoney, parseMoney } from '@finora/finance-core';
+import { calendarDate, formatMoney, parseMoney } from '@finora/finance-core';
 import {
   getDebtMonthHistory,
   getExtraPaymentsTotal,
@@ -18,7 +19,7 @@ import {
 } from '@finora/finance-core';
 import { AppButton, AppText, Card, Choice, Feedback, Field } from '../../components/ui';
 import { Icon } from '../../components/design';
-import { FlowSheet, MonthPicker, SelectField } from '../../components/flow';
+import { DateField, FlowSheet, MonthPicker, SelectField } from '../../components/flow';
 import { useApp } from '../../providers/app-provider';
 import { useTheme } from '../../theme';
 import { accountsSchema, categoriesSchema, useRead } from '../finance/shared';
@@ -115,7 +116,7 @@ export function LoanHistorySheet({
   const theme = useTheme();
   const { user } = useApp();
   const { money, currency, locale } = useMoneyFormat();
-  const { loans, rawPayments, extras, debts, payments, month } = useLoans();
+  const { loans, rawPayments, rawExtras, extras, debts, payments, month } = useLoans();
   const write = useEmiWrite();
   const separate = user?.preferences.keepDebtSeparate ?? false;
   const loan = loans.find((item) => item.id === loanId);
@@ -131,6 +132,12 @@ export function LoanHistorySheet({
   const [amount, setAmount] = useState('');
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<unknown>();
+  const [prepayOpen, setPrepayOpen] = useState(false);
+  const [prepayAmount, setPrepayAmount] = useState('');
+  const [prepayDate, setPrepayDate] = useState(
+    calendarDate(new Date(), user?.preferences.timezone ?? 'Asia/Kolkata'),
+  );
+  const [prepayNote, setPrepayNote] = useState('');
   useEffect(() => {
     if (!accountId && activeAccounts[0]) setAccountId(activeAccounts[0].id);
     if (!categoryId && expenseCategories.length) {
@@ -192,6 +199,44 @@ export function LoanHistorySheet({
       setError(new Error('Enter an amount greater than zero.'));
     }
   }
+  async function addPrepayment() {
+    setBusy('prepay');
+    setError(undefined);
+    try {
+      await write('POST', `emi/loans/${loan!.id}/extra-payments`, emiExtraPaymentSchema, {
+        amountMinor: parseMoney(prepayAmount.trim(), currency),
+        date: prepayDate,
+        note: prepayNote.trim(),
+        ...(separate
+          ? {}
+          : { accountId: accountId || undefined, categoryId: categoryId || undefined }),
+      });
+      setPrepayOpen(false);
+      setPrepayAmount('');
+      setPrepayNote('');
+    } catch (failure) {
+      setError(failure);
+    } finally {
+      setBusy(null);
+    }
+  }
+  async function removePrepayment(id: string, version: number) {
+    setBusy(id);
+    setError(undefined);
+    try {
+      await write('DELETE', `emi/extra-payments/${id}`, z.unknown(), {
+        version,
+        confirmation: 'DELETE',
+      });
+    } catch (failure) {
+      setError(failure);
+    } finally {
+      setBusy(null);
+    }
+  }
+  const loanPrepayments = rawExtras
+    .filter((e) => e.loanId === loan.id)
+    .sort((a, b) => b.date.localeCompare(a.date));
   const range = `${monthLabel(loan.startMonth, locale)} to ${loan.endMonth ? monthLabel(loan.endMonth, locale) : 'ongoing'}`;
   return (
     <FlowSheet title={loan.name} visible={!!loanId} onClose={onClose}>
@@ -226,6 +271,65 @@ export function LoanHistorySheet({
           />
         </Card>
       )}
+      <View style={{ gap: 8 }}>
+        <View
+          style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}
+        >
+          <AppText style={{ fontFamily: 'DMSansBold', fontSize: 15 }}>Prepayments</AppText>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={prepayOpen ? 'Cancel prepayment' : 'Add prepayment'}
+            onPress={() => setPrepayOpen(!prepayOpen)}
+            hitSlop={8}
+          >
+            <AppText tone="accent" style={{ fontFamily: 'DMSansBold', fontSize: 13 }}>
+              {prepayOpen ? 'Cancel' : '+ Add'}
+            </AppText>
+          </Pressable>
+        </View>
+        {prepayOpen && (
+          <View style={{ gap: 8 }}>
+            <Field
+              label="Amount"
+              value={prepayAmount}
+              onChangeText={setPrepayAmount}
+              keyboardType="decimal-pad"
+            />
+            <DateField label="Date" value={prepayDate} onChange={setPrepayDate} />
+            <Field label="Note (optional)" value={prepayNote} onChangeText={setPrepayNote} />
+            <AppButton
+              title="Save prepayment"
+              loading={busy === 'prepay'}
+              onPress={() => void addPrepayment()}
+            />
+          </View>
+        )}
+        {!loanPrepayments.length && !prepayOpen && (
+          <AppText tone="muted" style={{ fontSize: 13 }}>
+            Lump-sum payments that reduce what is left.
+          </AppText>
+        )}
+        {loanPrepayments.map((extra) => (
+          <View key={extra.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+            <View style={{ flex: 1 }}>
+              <AppText style={{ fontFamily: 'DMSansBold', fontSize: 14 }}>
+                {money(extra.amountMinor)}
+              </AppText>
+              <AppText tone="muted" style={{ fontSize: 12 }} numberOfLines={1}>
+                {extra.date}
+                {extra.note ? ` · ${extra.note}` : ''}
+              </AppText>
+            </View>
+            <RoundButton
+              label={`Delete prepayment of ${money(extra.amountMinor)}`}
+              disabled={busy === extra.id}
+              onPress={() => void removePrepayment(extra.id, extra.version)}
+            >
+              <Icon name="expense" size={16} color={theme.danger} />
+            </RoundButton>
+          </View>
+        ))}
+      </View>
       {!!error && <Feedback error={error} />}
       <ScrollView style={{ maxHeight: 460 }} nestedScrollEnabled>
         {history.map((entry) => {
@@ -361,6 +465,7 @@ export function LoanFormSheet({
 }) {
   const { currency } = useMoneyFormat();
   const write = useEmiWrite();
+  const theme = useTheme();
   const [form, setForm] = useState({ ...blankLoan, start: month });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<unknown>();
@@ -424,13 +529,13 @@ export function LoanFormSheet({
   }
   return (
     <FlowSheet
-      title={loan ? 'Edit loan' : 'Add a loan'}
+      title={loan ? 'Edit debt' : 'Add debt'}
       visible={visible}
       onClose={onClose}
       busy={busy}
       footer={
         <AppButton
-          title={loan ? 'Save changes' : 'Add loan'}
+          title={loan ? 'Save changes' : 'Add debt'}
           loading={busy}
           disabled={!form.name.trim() || !form.amount.trim()}
           onPress={() => void save()}
@@ -441,32 +546,13 @@ export function LoanFormSheet({
         label="Name"
         value={form.name}
         onChangeText={(v) => set('name', v)}
-        placeholder="Home loan"
+        placeholder="e.g. SBI Personal Loan"
       />
       <Field
         label={`Monthly EMI (${currency})`}
         value={form.amount}
         onChangeText={(v) => set('amount', v)}
         keyboardType="decimal-pad"
-      />
-      <MonthPicker label="First EMI month" value={form.start} onChange={(v) => set('start', v)} />
-      <Choice
-        label="Last EMI"
-        value={form.ongoing ? 'ongoing' : 'date'}
-        onChange={(v) => set('ongoing', v === 'ongoing')}
-        options={[
-          { value: 'date', label: 'On a month' },
-          { value: 'ongoing', label: 'No end date' },
-        ]}
-      />
-      {!form.ongoing && (
-        <MonthPicker label="Last EMI month" value={form.end} onChange={(v) => set('end', v)} />
-      )}
-      <Field
-        label="Due day of the month"
-        value={form.dueDay}
-        onChangeText={(v) => set('dueDay', v.replace(/\D/g, '').slice(0, 2))}
-        keyboardType="number-pad"
       />
       <Choice
         label="Size"
@@ -477,18 +563,72 @@ export function LoanFormSheet({
           { value: 'large', label: 'Large' },
         ]}
       />
+      <MonthPicker
+        variant="field"
+        label="Start month"
+        value={form.start}
+        onChange={(v) => set('start', v)}
+      />
       <Field
-        label="Interest rate % (optional)"
+        label="Due day of the month"
+        value={form.dueDay}
+        onChangeText={(v) => set('dueDay', v.replace(/D/g, '').slice(0, 2))}
+        keyboardType="number-pad"
+      />
+      <Field
+        label="Interest rate % (optional, for Avalanche ranking)"
         value={form.rate}
         onChangeText={(v) => set('rate', v)}
         keyboardType="decimal-pad"
+        placeholder="e.g. 12.5"
       />
-      <Field
-        label={`Principal outstanding (${currency}, optional)`}
-        value={form.principal}
-        onChangeText={(v) => set('principal', v)}
-        keyboardType="decimal-pad"
-      />
+      <View style={{ gap: 4 }}>
+        <Field
+          label={`Remaining principal (${currency}, optional)`}
+          value={form.principal}
+          onChangeText={(v) => set('principal', v)}
+          keyboardType="decimal-pad"
+          placeholder="Outstanding amount from the lender's app"
+        />
+        <AppText tone="muted" style={{ fontSize: 12 }}>
+          {loan?.principalAsOf
+            ? `Last updated ${loan.principalAsOf}. Change it when your lender shows a new figure.`
+            : 'What you still owe on the loan itself, not counting future interest.'}
+        </AppText>
+      </View>
+      <Pressable
+        accessibilityRole="checkbox"
+        accessibilityState={{ checked: form.ongoing }}
+        accessibilityLabel="Ongoing (no end date)"
+        onPress={() => set('ongoing', !form.ongoing)}
+        style={{ flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 36 }}
+      >
+        <View
+          style={{
+            width: 22,
+            height: 22,
+            borderRadius: 6,
+            borderWidth: 1.5,
+            borderColor: form.ongoing ? theme.accent : theme.border,
+            backgroundColor: form.ongoing ? theme.accent : 'transparent',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          {form.ongoing && <Icon name="check" size={14} color={theme.onAccent} />}
+        </View>
+        <AppText style={{ fontFamily: 'DMSansBold', fontSize: 14 }}>Ongoing (no end date)</AppText>
+      </Pressable>
+      {!form.ongoing && (
+        <>
+          <MonthPicker
+            variant="field"
+            label="End month"
+            value={form.end}
+            onChange={(v) => set('end', v)}
+          />
+        </>
+      )}
       {!!error && <Feedback error={error} />}
     </FlowSheet>
   );
@@ -620,6 +760,7 @@ export function IncomeSheet({
             keyboardType="decimal-pad"
           />
           <MonthPicker
+            variant="field"
             label="From"
             value={form.start}
             onChange={(v) => setForm((c) => ({ ...c, start: v }))}
@@ -635,6 +776,7 @@ export function IncomeSheet({
           />
           {!form.ongoing && (
             <MonthPicker
+              variant="field"
               label="Last month"
               value={form.end}
               onChange={(v) => setForm((c) => ({ ...c, end: v }))}

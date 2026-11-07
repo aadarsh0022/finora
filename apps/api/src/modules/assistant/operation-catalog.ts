@@ -23,6 +23,13 @@ import {
   recurringRuleUpdateSchema,
   occurrenceConfirmSchema,
   preferencesSchema,
+  emiLoanInputSchema,
+  emiLoanUpdateSchema,
+  emiExtraPaymentInputSchema,
+  emiIncomePeriodInputSchema,
+  emiIncomePeriodUpdateSchema,
+  emiPaymentInputSchema,
+  monthKeySchema,
   type assistantOperationSchema,
 } from '@finora/contracts';
 export type Operation = z.infer<typeof assistantOperationSchema>;
@@ -33,7 +40,9 @@ export interface OperationSpec {
   collection?: string;
   parentCollection?: string;
   parentField?: string;
-  path: (id: string, parent: string) => string;
+  path: (id: string, parent: string, body: Record<string, unknown>) => string;
+  /** Body keys that only build the path and are not sent to the route. */
+  strip?: string[];
   preset?: Record<string, unknown>;
   impact: string;
 }
@@ -47,7 +56,132 @@ const spec = (
   preset?: Record<string, unknown>,
   impact = effect,
 ): OperationSpec => ({ title, schema, method, collection, path, preset, impact });
+const payEmiSchema = emiPaymentInputSchema.extend({ month: monthKeySchema });
+const unpayEmiSchema = z.object({ month: monthKeySchema }).strict();
+const emiEffect = 'Updates your loan tracker after you confirm. No money is sent to a bank.';
+const loanPath = (id: string) => `emi/loans/${id}`;
+const monthPath = (_id: string, parent: string, body: Record<string, unknown>) =>
+  `emi/loans/${parent}/payments/${String(body.month)}`;
 export const operationCatalog: Record<Operation, OperationSpec> = {
+  create_emi_loan: spec(
+    'Add loan or EMI',
+    emiLoanInputSchema,
+    'POST',
+    undefined,
+    () => 'emi/loans',
+    undefined,
+    emiEffect,
+  ),
+  update_emi_loan: spec(
+    'Update loan or EMI',
+    emiLoanUpdateSchema,
+    'PATCH',
+    'emi_loans',
+    loanPath,
+    undefined,
+    emiEffect,
+  ),
+  archive_emi_loan: spec(
+    'Archive loan',
+    emiLoanUpdateSchema,
+    'PATCH',
+    'emi_loans',
+    loanPath,
+    { isActive: false },
+    'Pauses this loan. Its payment history remains.',
+  ),
+  restore_emi_loan: spec(
+    'Restore loan',
+    emiLoanUpdateSchema,
+    'PATCH',
+    'emi_loans',
+    loanPath,
+    { isActive: true },
+    emiEffect,
+  ),
+  delete_emi_loan: spec(
+    'Delete loan',
+    deleteRecordSchema,
+    'DELETE',
+    'emi_loans',
+    loanPath,
+    undefined,
+    'Deletes this loan with its payment history and prepayments. Expenses already recorded stay.',
+  ),
+  pay_emi: {
+    ...spec(
+      'Mark EMI paid',
+      payEmiSchema,
+      'POST',
+      undefined,
+      monthPath,
+      { amountMinor: null },
+      'Marks this month paid in your loan tracker. Unless debt is kept separate, it also records a normal expense. No money is sent to a bank.',
+    ),
+    parentCollection: 'emi_loans',
+    strip: ['month'],
+  },
+  unpay_emi: {
+    ...spec(
+      'Mark EMI unpaid',
+      unpayEmiSchema,
+      'DELETE',
+      undefined,
+      monthPath,
+      undefined,
+      'Removes this month’s payment and the expense recorded with it.',
+    ),
+    parentCollection: 'emi_loans',
+    strip: ['month'],
+  },
+  add_emi_prepayment: {
+    ...spec(
+      'Add prepayment',
+      emiExtraPaymentInputSchema,
+      'POST',
+      undefined,
+      (_id, parent) => `emi/loans/${parent}/extra-payments`,
+      undefined,
+      'Records a lump-sum payment that reduces what is left. Unless debt is kept separate, it also records a normal expense.',
+    ),
+    parentCollection: 'emi_loans',
+  },
+  delete_emi_prepayment: spec(
+    'Delete prepayment',
+    deleteRecordSchema,
+    'DELETE',
+    'emi_extra_payments',
+    (id) => `emi/extra-payments/${id}`,
+    undefined,
+    'Removes this prepayment and its recorded expense.',
+  ),
+  create_emi_income: spec(
+    'Add income period',
+    emiIncomePeriodInputSchema,
+    'POST',
+    undefined,
+    () => 'emi/income-periods',
+    undefined,
+    emiEffect,
+  ),
+  update_emi_income: spec(
+    'Update income period',
+    emiIncomePeriodUpdateSchema,
+    'PATCH',
+    'emi_income_periods',
+    (id) => `emi/income-periods/${id}`,
+    undefined,
+    emiEffect,
+  ),
+  delete_emi_income: spec(
+    'Delete income period',
+    deleteRecordSchema,
+    'DELETE',
+    'emi_income_periods',
+    (id) => `emi/income-periods/${id}`,
+    undefined,
+    emiEffect,
+  ),
   create_account: spec('Create account', accountInputSchema, 'POST', undefined, () => 'accounts'),
   update_account: spec(
     'Update account',

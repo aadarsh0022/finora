@@ -4,7 +4,6 @@ import {
   Keyboard,
   KeyboardAvoidingView,
   Modal,
-  Platform,
   Pressable,
   ScrollView,
   View,
@@ -45,7 +44,7 @@ export function FlowSheet({
       }}
     >
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        behavior="padding"
         style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: '#00000066' }}
       >
         <Pressable accessible={false} disabled={busy} style={{ flex: 1 }} onPress={onClose} />
@@ -242,10 +241,13 @@ export function MonthPicker({
   value,
   onChange,
   label = 'Month',
+  variant = 'stepper',
 }: {
   value: string;
   onChange: (value: string) => void;
   label?: string;
+  /** 'field' is one input-style row that opens the chooser; 'stepper' adds previous/next arrows. */
+  variant?: 'stepper' | 'field';
 }) {
   const { user } = useApp();
   const theme = useTheme();
@@ -259,46 +261,75 @@ export function MonthPicker({
   }).format(new Date(`${value}-01T12:00:00Z`));
   return (
     <>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={`Previous ${label.toLowerCase()}`}
-          onPress={() => onChange(shiftMonth(value, -1))}
-          style={{ width: 48, height: 48, justifyContent: 'center', alignItems: 'center' }}
-        >
-          <Chevron direction="left" size={24} color={theme.text} />
-        </Pressable>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={`Choose ${label.toLowerCase()}`}
-          accessibilityValue={{ text: title }}
-          onPress={() => {
-            setYear(Number(value.slice(0, 4)));
-            setOpen(true);
-          }}
-          style={{
-            flex: 1,
-            minHeight: 48,
-            alignItems: 'center',
-            justifyContent: 'center',
-            backgroundColor: theme.accentSoft,
-            borderRadius: 14,
-          }}
-        >
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-            <AppText style={{ fontFamily: 'DMSansBold' }}>{title}</AppText>
-            <Chevron direction="down" size={16} color={theme.accent} />
-          </View>
-        </Pressable>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={`Next ${label.toLowerCase()}`}
-          onPress={() => onChange(shiftMonth(value, 1))}
-          style={{ width: 48, height: 48, justifyContent: 'center', alignItems: 'center' }}
-        >
-          <Chevron direction="right" size={24} color={theme.text} />
-        </Pressable>
-      </View>
+      {variant === 'field' ? (
+        <View style={{ gap: 7 }}>
+          <AppText style={{ fontSize: 14, fontFamily: 'DMSansBold' }}>{label}</AppText>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`Choose ${label.toLowerCase()}`}
+            accessibilityValue={{ text: title }}
+            onPress={() => {
+              setYear(Number(value.slice(0, 4)));
+              setOpen(true);
+            }}
+            style={{
+              minHeight: 54,
+              padding: 14,
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              borderWidth: 1,
+              borderColor: theme.border,
+              borderRadius: 12,
+              backgroundColor: theme.surface,
+            }}
+          >
+            <AppText>{title}</AppText>
+            <Chevron direction="down" />
+          </Pressable>
+        </View>
+      ) : (
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`Previous ${label.toLowerCase()}`}
+            onPress={() => onChange(shiftMonth(value, -1))}
+            style={{ width: 48, height: 48, justifyContent: 'center', alignItems: 'center' }}
+          >
+            <Chevron direction="left" size={24} color={theme.text} />
+          </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`Choose ${label.toLowerCase()}`}
+            accessibilityValue={{ text: title }}
+            onPress={() => {
+              setYear(Number(value.slice(0, 4)));
+              setOpen(true);
+            }}
+            style={{
+              flex: 1,
+              minHeight: 48,
+              alignItems: 'center',
+              justifyContent: 'center',
+              backgroundColor: theme.accentSoft,
+              borderRadius: 14,
+            }}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <AppText style={{ fontFamily: 'DMSansBold' }}>{title}</AppText>
+              <Chevron direction="down" size={16} color={theme.accent} />
+            </View>
+          </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`Next ${label.toLowerCase()}`}
+            onPress={() => onChange(shiftMonth(value, 1))}
+            style={{ width: 48, height: 48, justifyContent: 'center', alignItems: 'center' }}
+          >
+            <Chevron direction="right" size={24} color={theme.text} />
+          </Pressable>
+        </View>
+      )}
       <FlowSheet
         title={`Choose ${label.toLowerCase()}`}
         visible={open}

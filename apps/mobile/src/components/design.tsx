@@ -100,6 +100,47 @@ export function ProfileAction() {
   );
 }
 
+export interface CreateRegistration {
+  label: string;
+  run: () => void;
+  disabled?: boolean;
+}
+
+/** Round add button for the bottom right; the label is its accessible name. */
+export function CreateAction({
+  label,
+  onPress,
+  disabled = false,
+}: {
+  label: string;
+  onPress: () => void;
+  disabled?: boolean;
+}) {
+  const theme = useTheme();
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={{ disabled }}
+      disabled={disabled}
+      onPress={onPress}
+      style={({ pressed }) => ({
+        width: 56,
+        height: 56,
+        borderRadius: 28,
+        backgroundColor: theme.accent,
+        alignItems: 'center',
+        justifyContent: 'center',
+        opacity: disabled ? 0.45 : pressed ? 0.75 : 1,
+        elevation: 3,
+        boxShadow: '0px 3px 8px #00000022',
+      })}
+    >
+      <Icon name="plus" color={theme.onAccent} size={26} />
+    </Pressable>
+  );
+}
+
 export function AddTransactionAction() {
   const theme = useTheme();
   return (

@@ -1,3 +1,4 @@
+import type { CreateRegistration } from '../../components/design';
 import {
   occurrenceConfirmSchema,
   recurringOccurrenceSchema,
@@ -11,7 +12,7 @@ import {
   type RecurringRule,
 } from '@finora/contracts';
 import { calendarDate, parseMoney } from '@finora/finance-core';
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Pressable, View } from 'react-native';
 import { z } from 'zod';
 import { AppButton, AppText, Card, Choice, Feedback, Field, Loading } from '../../components/ui';
@@ -28,7 +29,13 @@ import {
 } from '../finance/shared';
 import { confirmDelete, confirmDiscard, deletedSchema, failureMessage } from './common';
 
-export function Recurring({ onEditing }: { onEditing: (editing: boolean) => void }) {
+export function Recurring({
+  onEditing,
+  onCreate,
+}: {
+  onEditing: (editing: boolean) => void;
+  onCreate?: (action: CreateRegistration | null) => void;
+}) {
   const money = useMoney();
   const dateLabel = useScheduleDate();
   const rules = useRead('recurring', z.array(recurringRuleSchema));
@@ -54,6 +61,17 @@ export function Recurring({ onEditing }: { onEditing: (editing: boolean) => void
     setConfirming(occurrence);
     onEditing(occurrence !== null);
   }
+  const createRef = useRef(() => edit('new'));
+  createRef.current = () => edit('new');
+  const createBlocked = !accounts.data || !categories.data;
+  useEffect(() => {
+    onCreate?.({
+      label: 'New recurring item',
+      run: () => createRef.current(),
+      disabled: createBlocked,
+    });
+    return () => onCreate?.(null);
+  }, [onCreate, createBlocked]);
   if (editing)
     return (
       <RuleForm
@@ -83,13 +101,6 @@ export function Recurring({ onEditing }: { onEditing: (editing: boolean) => void
         Review each due item before it affects your balance.
       </AppText>
       <View style={{ flexDirection: 'row', gap: 10 }}>
-        <View style={{ flex: 1 }}>
-          <AppButton
-            title="New recurring item"
-            disabled={!accounts.data || !categories.data}
-            onPress={() => edit('new')}
-          />
-        </View>
         <View style={{ flex: 1 }}>
           <AppButton
             title="Check due items"

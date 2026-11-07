@@ -1,3 +1,4 @@
+import type { CreateRegistration } from '../../components/design';
 import { Disclosure, EmptyState } from '../../components/design';
 import { PlanningProgress } from './progress';
 import {
@@ -11,7 +12,7 @@ import {
   type Category,
 } from '@finora/contracts';
 import { calendarDate, parseMoney, previousMonth } from '@finora/finance-core';
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Alert } from 'react-native';
 import { z } from 'zod';
 import { AppButton, AppText, Card, Choice, Feedback, Field, Loading } from '../../components/ui';
@@ -21,7 +22,13 @@ import { useApp } from '../../providers/app-provider';
 import { categoriesSchema, decimalAmount, useMoney, useRead } from '../finance/shared';
 import { confirmDelete, confirmDiscard, deletedSchema, failureMessage } from './common';
 
-export function Budgets({ onEditing }: { onEditing: (editing: boolean) => void }) {
+export function Budgets({
+  onEditing,
+  onCreate,
+}: {
+  onEditing: (editing: boolean) => void;
+  onCreate?: (action: CreateRegistration | null) => void;
+}) {
   const { user } = useApp();
   const money = useMoney();
   const today = calendarDate(new Date(), user?.preferences.timezone ?? 'Asia/Kolkata').slice(0, 7);
@@ -41,6 +48,17 @@ export function Budgets({ onEditing }: { onEditing: (editing: boolean) => void }
     setEditing(budget);
     onEditing(budget !== null);
   }
+  const createRef = useRef(() => edit('new'));
+  createRef.current = () => edit('new');
+  const createBlocked = !categories.data;
+  useEffect(() => {
+    onCreate?.({
+      label: 'Add monthly budget',
+      run: () => createRef.current(),
+      disabled: createBlocked,
+    });
+    return () => onCreate?.(null);
+  }, [onCreate, createBlocked]);
   if (editing)
     return (
       <BudgetForm
@@ -89,11 +107,6 @@ export function Budgets({ onEditing }: { onEditing: (editing: boolean) => void }
         {copyNotice ? <AppText tone="accent">{copyNotice}</AppText> : null}
         {copy.error && <Feedback error={copy.error} />}
       </Disclosure>
-      <AppButton
-        title="Add monthly budget"
-        disabled={!categories.data}
-        onPress={() => edit('new')}
-      />
       {query.isPending && <Loading variant="budgets" />}
       {query.isError && (
         <Feedback
@@ -240,7 +253,8 @@ function BudgetForm({
         </AppText>
       )}
       <MonthPicker
-        label="budget month"
+        variant="field"
+        label="Budget month"
         value={form.month}
         onChange={(value) => setForm((current) => ({ ...current, month: value }))}
       />

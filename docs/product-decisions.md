@@ -161,3 +161,10 @@ Consulted 20 October 2026; exact installed versions are recorded in the lockfile
   linked to the payment so undoing the payment removes it. Done: the pure engine
   (`packages/finance-core/src/emi.ts`, 49 ported tests). Not yet done: models and API, offline
   sync, the preference, mobile screens, AI tools.
+
+## Loan tracker parity and assistant (2026-11-07)
+
+- The Loans & EMIs screen now mirrors the finance-track-pro debt page: hero, income vs EMIs, this month (one-tap Mark Paid, partial amount, undo, paid group), statistics (1M/6M/12M/All), left to pay off with principal outstanding, coming months, payoff strategy (snowball/avalanche) and all debts. Prepayments are added and removed per loan in its history sheet. The Home screen shows none of these cards.
+- The assistant reads the tracker through `read_records` (features `emi_summary`, `emi_loans`, `emi_history`, `emi_upcoming`, `emi_payoff`, `emi_schedule`, `emi_forecast`, `emi_income`, `emi_prepayments`) and changes it only through `prepare_change` with the signed confirmation (loans, pay/unpay a month, prepayments, income periods). `keepDebtSeparate` is honoured: when off, a payment asks which account and category it was paid from.
+- Not copied: finance-track-pro's ChatGPT/Claude connector (MCP). Offline EMI writes are still online-only.
+- CI: Expo package versions were bumped to the SDK 58 patch set so `expo install --check` passes again.
