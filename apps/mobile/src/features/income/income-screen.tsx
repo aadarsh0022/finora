@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Pressable, View } from 'react-native';
 import { router } from 'expo-router';
-import { reportSummarySchema } from '@finora/contracts';
+import { reportSummarySchema, type EmiIncomePeriodDto } from '@finora/contracts';
 import { formatMoney, getForecast, getIncomeForMonth } from '@finora/finance-core';
 import { AppText, Card, Feedback, Screen } from '../../components/ui';
 import { Loading } from '../../components/skeleton';
@@ -26,7 +26,7 @@ export function IncomeScreen() {
   const money = (minor: bigint | string) => formatMoney(String(minor), currency, locale);
   const { read, month, debts, payments, incomes, rawIncomes } = useLoans();
   const recorded = useRead('reports/summary?range=current-month', reportSummarySchema);
-  const [open, setOpen] = useState(false);
+  const [target, setTarget] = useState<EmiIncomePeriodDto | 'new' | null>(null);
   const expected = useMemo(() => getIncomeForMonth(incomes, month), [incomes, month]);
   const forecast = useMemo(
     () => getForecast(debts, payments, incomes, month, 12),
@@ -55,14 +55,14 @@ export function IncomeScreen() {
       includeTopInset={false}
       subtitle="What you expect to earn, and what is left after EMIs."
       onRefresh={() => read.refetch()}
-      floatingAction={<CreateAction label="Add income" onPress={() => setOpen(true)} />}
+      floatingAction={<CreateAction label="Add income" onPress={() => setTarget('new')} />}
     >
       {!rawIncomes.length ? (
         <EmptyState
           icon="income"
           title="Add your income"
           message="Add your salary or any other income. It is used across the app to compare against what you actually receive and what your EMIs take."
-          action={{ title: 'Add income', onPress: () => setOpen(true) }}
+          action={{ title: 'Add income', onPress: () => setTarget('new') }}
         />
       ) : (
         <>
@@ -114,7 +114,7 @@ export function IncomeScreen() {
                   key={period.id}
                   accessibilityRole="button"
                   accessibilityLabel={`Edit ${period.kind} income`}
-                  onPress={() => setOpen(true)}
+                  onPress={() => setTarget(period)}
                   style={{
                     padding: 14,
                     flexDirection: 'row',
@@ -220,8 +220,9 @@ export function IncomeScreen() {
         </>
       )}
       <IncomeSheet
-        visible={open}
-        onClose={() => setOpen(false)}
+        visible={!!target}
+        initial={target ?? undefined}
+        onClose={() => setTarget(null)}
         periods={rawIncomes}
         month={month}
       />
