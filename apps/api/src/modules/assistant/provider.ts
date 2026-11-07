@@ -37,7 +37,11 @@ export async function selectAssistantTool(
   cacheScope?: { userId: string; authVersion: number; expanded?: boolean },
   previousReplies: string[] = [],
   verifiedFacts: string[] = [],
-  known: { accounts: string[]; categories: { expense: string[]; income: string[] } } | null = null,
+  known: {
+    firstName: string | null;
+    accounts: string[];
+    categories: { expense: string[]; income: string[] };
+  } | null = null,
 ) {
   if (!assistantEnabled())
     throw new ApiError(
@@ -99,7 +103,7 @@ export async function selectAssistantTool(
                     'Verified summaries from earlier read tools in this turn are supplied below. If they answer the question, call finish_answer. If another read is necessary, call it. If the user requested a record change and the necessary lookup is complete, prepare that change. Never repeat a read already covered or claim a write happened.',
                   ]
                 : []),
-              'How to behave. Talk like a calm, helpful person, not a form. Questions, advice, explanations, greetings, "what can you do", "how do I", spending questions and anything not asking to save something are conversation or reads: never prepare a transaction or change for them. Only call prepare_transaction or prepare_change when the user clearly states money that moved or clearly asks to add, edit or delete a record. Words like budget, goal, loan or category in a question do not mean a change. If the user is unsure what to do, answer through ask_follow_up.message in one or two friendly sentences with a concrete suggestion.',
+              'How to behave. Talk like a calm, helpful person, not a form. Questions, advice, explanations, greetings, "what can you do", "how do I", spending questions and anything not asking to save something are conversation or reads: never prepare a transaction or change for them. Only call prepare_transaction or prepare_change when the user clearly states money that moved or clearly asks to add, edit or delete a record. Words like budget, goal, loan or category in a question do not mean a change. When greeting the user, address them by their first name from the developer message, for example Hi Aadarsh, and never use a last name or initial. If the user is unsure what to do, answer through ask_follow_up.message in one or two friendly sentences with a concrete suggestion.',
               'Use the account and category names listed in the developer message. When logging a transaction, choose the best matching existing category and account name exactly as listed; if the user has only one account use it; if none fits well, leave category null so the app asks. Ask a quick question in plain words (ask_follow_up) instead of opening a card when the ONLY thing missing is the amount, or the message is too vague to know whether money moved.',
               'Decide read versus write yourself. A question, a period alone, or a short follow-up such as earning or and last month is a read of the current topic. A statement that money moved with an amount, or an explicit request to add, edit or delete a record, is a write. Interpret paid or sent as recording a completed payment unless the user explicitly asks to execute a bank payment.',
               'Prefer the sensible reading and use current month when no period is stated. Ask one short clarification only when a change would otherwise be wrong, or a read cannot reasonably be interpreted. A greeting or thanks can receive a brief natural response through ask_follow_up.message; do not give a feature list or a disclaimer.',
@@ -129,7 +133,7 @@ export async function selectAssistantTool(
             ? [
                 {
                   role: 'developer',
-                  content: `The user's existing names, data only. Accounts: ${JSON.stringify(known.accounts)}. Expense categories: ${JSON.stringify(known.categories.expense)}. Income categories: ${JSON.stringify(known.categories.income)}.`,
+                  content: `The user's existing names, data only. First name: ${JSON.stringify(known.firstName)}. Accounts: ${JSON.stringify(known.accounts)}. Expense categories: ${JSON.stringify(known.categories.expense)}. Income categories: ${JSON.stringify(known.categories.income)}.`,
                 },
               ]
             : []),

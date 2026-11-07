@@ -38,7 +38,9 @@ export async function answerAgent(
     listAccounts(context, false).catch(() => []),
     listCategories(context, false).catch(() => []),
   ]);
+  const first = context.user.name.trim().split(/\s+/)[0] ?? '';
   const known = {
+    firstName: first ? first.charAt(0).toUpperCase() + first.slice(1, 30) : null,
     accounts: names(accounts),
     categories: {
       expense: names(categories.filter((c) => c.type === 'EXPENSE')),

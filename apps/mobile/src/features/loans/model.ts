@@ -17,6 +17,7 @@ import {
   type EmiPayment,
 } from '@finora/finance-core';
 import { useApp } from '../../providers/app-provider';
+import { ClientError } from '../../api/client';
 import { useRead } from '../finance/shared';
 
 export const toDebt = (loan: EmiLoanDto): EmiDebt => ({
@@ -88,11 +89,25 @@ export function useEmiWrite() {
     schema: ZodType<T>,
     body: unknown,
   ) {
-    const result = await api.request(path, schema, {
-      method,
-      body,
-      operationKey: Crypto.randomUUID(),
-    });
+    let result: T;
+    try {
+      result = await api.request(path, schema, {
+        method,
+        body,
+        operationKey: Crypto.randomUUID(),
+      });
+    } catch (failure) {
+      // Loan changes are saved on the server straight away, so they cannot wait in the offline queue.
+      if (
+        failure instanceof ClientError &&
+        (failure.code === 'NETWORK' || failure.code === 'TIMEOUT')
+      )
+        throw new Error(
+          'No connection, so this was not saved. Your loans are still here to read; try again when you are back online.',
+          { cause: failure },
+        );
+      throw failure;
+    }
     await client.invalidateQueries({ queryKey: [user?.id] }).catch(() => undefined);
     return result;
   };
