@@ -328,7 +328,7 @@ export function InsightsOverview({
             icon="goal"
             onPress={() => router.push({ pathname: '/planning', params: { section: 'budgets' } })}
           />
-          {budgets.isPending && <Loading variant="budgets" />}
+          {budgets.isPending && <Loading variant="bars" />}
           {budgets.error && (
             <Feedback
               error={budgets.error}

@@ -298,7 +298,7 @@ function AssistantSession() {
     if (
       !question ||
       !consent ||
-      !capabilities.data?.enabled ||
+      capabilities.data?.enabled === false ||
       (offline && !transactionReply.current) ||
       flight.current ||
       !user
@@ -482,15 +482,6 @@ function AssistantSession() {
               scroll.current?.scrollToEnd({ animated: false });
           }}
         >
-          {capabilities.isPending && <ChatThinking label="Connecting…" />}
-          {capabilities.error && (
-            <Feedback
-              error={capabilities.error}
-              retry={() => {
-                void capabilities.refetch();
-              }}
-            />
-          )}
           {capabilities.data && !capabilities.data.enabled && (
             <Card>
               <AppText style={{ fontFamily: 'DMSansBold' }}>AI chat is not enabled yet</AppText>
@@ -508,7 +499,7 @@ function AssistantSession() {
               />
             </Card>
           )}
-          {capabilities.data?.enabled && consentReady && !consent && (
+          {capabilities.data?.enabled !== false && consentReady && !consent && (
             <Card>
               <AppText style={{ fontFamily: 'DMSansBold', fontSize: 20 }}>
                 Understand your money. Review every change.
@@ -805,7 +796,7 @@ function AssistantSession() {
             </AppText>
           )}
         </ScrollView>
-        {consent && capabilities.data?.enabled && (
+        {consent && capabilities.data?.enabled !== false && (
           <View style={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: 10, gap: 8 }}>
             {editingIndex !== undefined && (
               <Pressable

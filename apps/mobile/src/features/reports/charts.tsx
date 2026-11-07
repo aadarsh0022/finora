@@ -1,4 +1,5 @@
 import { Pressable, View } from 'react-native';
+import { Chevron } from '../../components/chevron';
 import { useState } from 'react';
 import Svg, { Circle, Text as SvgText } from 'react-native-svg';
 import type { ReportSummary } from '@finora/contracts';
@@ -270,7 +271,7 @@ function AccountRow({
           >
             {money(account.closingBalanceMinor)}
           </AppText>
-          <AppText tone="muted">{expanded ? '⌃' : '⌄'}</AppText>
+          <Chevron direction={expanded ? 'up' : 'down'} />
         </View>
         {positive && (
           <View

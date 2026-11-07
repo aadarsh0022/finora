@@ -1,4 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react';
+import { Chevron } from './chevron';
 import {
   Keyboard,
   KeyboardAvoidingView,
@@ -171,7 +172,7 @@ export function SelectField<T extends string>({
         <AppText tone={selected ? 'text' : 'muted'} style={{ flex: 1 }}>
           {selected?.label ?? placeholder}
         </AppText>
-        <AppText tone="muted">⌄</AppText>
+        <Chevron direction="down" />
       </Pressable>
       {error ? (
         <AppText tone="danger" accessibilityRole="alert">
@@ -265,7 +266,7 @@ export function MonthPicker({
           onPress={() => onChange(shiftMonth(value, -1))}
           style={{ width: 48, height: 48, justifyContent: 'center', alignItems: 'center' }}
         >
-          <AppText style={{ fontSize: 28 }}>‹</AppText>
+          <Chevron direction="left" size={24} color={theme.text} />
         </Pressable>
         <Pressable
           accessibilityRole="button"
@@ -284,7 +285,10 @@ export function MonthPicker({
             borderRadius: 14,
           }}
         >
-          <AppText style={{ fontFamily: 'DMSansBold' }}>{title} ⌄</AppText>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <AppText style={{ fontFamily: 'DMSansBold' }}>{title}</AppText>
+            <Chevron direction="down" size={16} color={theme.accent} />
+          </View>
         </Pressable>
         <Pressable
           accessibilityRole="button"
@@ -292,7 +296,7 @@ export function MonthPicker({
           onPress={() => onChange(shiftMonth(value, 1))}
           style={{ width: 48, height: 48, justifyContent: 'center', alignItems: 'center' }}
         >
-          <AppText style={{ fontSize: 28 }}>›</AppText>
+          <Chevron direction="right" size={24} color={theme.text} />
         </Pressable>
       </View>
       <FlowSheet
@@ -423,7 +427,7 @@ export function DateField({
         <AppText tone={valid ? 'text' : 'muted'}>
           {valid ? `${value === today ? 'Today · ' : ''}${labelDate(value)}` : 'Choose date'}
         </AppText>
-        <AppText tone="muted">⌄</AppText>
+        <Chevron direction="down" />
       </Pressable>
       {error ? (
         <AppText tone="danger" accessibilityRole="alert">

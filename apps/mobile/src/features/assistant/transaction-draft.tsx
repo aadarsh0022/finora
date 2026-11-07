@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react';
+import { Chevron } from '../../components/chevron';
 import { Pressable, View } from 'react-native';
 import {
   type AssistantTransactionDraft,
@@ -52,8 +53,9 @@ function InlineSelect({
           {label}
         </AppText>
         <AppText style={{ flex: 1, textAlign: 'right', fontSize: 13 }}>
-          {options.find((option) => option.value === value)?.label ?? 'Choose'} ⌄
+          {options.find((option) => option.value === value)?.label ?? 'Choose'}
         </AppText>
+        <Chevron direction="down" size={16} />
       </Pressable>
       {open && (
         <View

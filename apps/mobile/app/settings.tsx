@@ -5,6 +5,7 @@ import {
   settingsUpdateSchema,
   type Preferences,
 } from '@finora/contracts';
+import { Chevron } from '../src/components/chevron';
 import { useMutation } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import { openURL } from 'expo-linking';
@@ -481,9 +482,7 @@ function SettingsRow({
           {value}
         </AppText>
       )}
-      <AppText tone="muted" style={{ fontSize: 22 }}>
-        ›
-      </AppText>
+      <Chevron direction="right" size={20} />
     </Pressable>
   );
 }

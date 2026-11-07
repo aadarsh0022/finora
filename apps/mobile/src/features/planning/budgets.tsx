@@ -1,4 +1,4 @@
-import { Disclosure } from '../../components/design';
+import { Disclosure, EmptyState } from '../../components/design';
 import { PlanningProgress } from './progress';
 import {
   budgetInputSchema,
@@ -112,9 +112,11 @@ export function Budgets({ onEditing }: { onEditing: (editing: boolean) => void }
         />
       )}
       {query.data?.length === 0 && (
-        <AppText tone="muted">
-          No budgets for {activeMonth}. Set a spending limit for an expense category.
-        </AppText>
+        <EmptyState
+          icon="wallet"
+          title="No budgets this month"
+          message={`No budgets for ${activeMonth}. Set a spending limit for an expense category.`}
+        />
       )}
       {query.data?.map((budget) => (
         <Card key={budget.id}>

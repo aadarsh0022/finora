@@ -324,3 +324,57 @@ export function ReviewSheet({
     </FlowSheet>
   );
 }
+
+/** Fills the free space on a list screen and centres its message, instead of a card at the top. */
+export function EmptyState({
+  icon,
+  title,
+  message,
+  action,
+}: {
+  icon: IconName;
+  title: string;
+  message: string;
+  action?: { title: string; onPress: () => void };
+}) {
+  const theme = useTheme();
+  return (
+    <View
+      accessibilityRole="summary"
+      style={{
+        flex: 1,
+        minHeight: 280,
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 10,
+        paddingHorizontal: 24,
+        paddingBottom: 48,
+      }}
+    >
+      <View
+        style={{
+          width: 72,
+          height: 72,
+          borderRadius: 36,
+          backgroundColor: theme.accentSoft,
+          alignItems: 'center',
+          justifyContent: 'center',
+          marginBottom: 6,
+        }}
+      >
+        <Icon name={icon} color={theme.accent} size={32} />
+      </View>
+      <AppText style={{ fontFamily: 'DMSansBold', fontSize: 20, textAlign: 'center' }}>
+        {title}
+      </AppText>
+      <AppText tone="muted" style={{ textAlign: 'center', lineHeight: 22 }}>
+        {message}
+      </AppText>
+      {action && (
+        <View style={{ alignSelf: 'stretch', marginTop: 8 }}>
+          <AppButton title={action.title} onPress={action.onPress} />
+        </View>
+      )}
+    </View>
+  );
+}

@@ -2,7 +2,7 @@ import { router } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, View } from 'react-native';
 import { AppText, Card, Choice, Feedback, Loading, Screen } from '../src/components/ui';
-import { Icon } from '../src/components/design';
+import { EmptyState, Icon } from '../src/components/design';
 import { useTheme } from '../src/theme';
 import { accountsSchema, useMoney, useRead } from '../src/features/finance/shared';
 const types = {
@@ -95,13 +95,20 @@ export default function Accounts() {
         ]}
       />
       {accounts?.length === 0 && (
-        <Card>
-          <AppText tone="muted">
-            {visibility === 'active'
+        <EmptyState
+          icon="wallet"
+          title={visibility === 'active' ? 'No accounts yet' : 'No archived accounts'}
+          message={
+            visibility === 'active'
               ? 'Add your first account to start tracking.'
-              : 'No archived accounts.'}
-          </AppText>
-        </Card>
+              : 'Accounts you archive will appear here.'
+          }
+          action={
+            visibility === 'active'
+              ? { title: 'Add account', onPress: () => router.push('/account') }
+              : undefined
+          }
+        />
       )}
       {!!accounts?.length && (
         <View

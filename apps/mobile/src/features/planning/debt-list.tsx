@@ -13,6 +13,7 @@ import {
   Screen,
 } from '../../components/ui';
 import { SelectField } from '../../components/flow';
+import { EmptyState } from '../../components/design';
 import { useMoney, useRead } from '../finance/shared';
 import { useTheme } from '../../theme';
 import { debtKinds } from './debt-kinds';
@@ -146,22 +147,23 @@ export function DebtList({ receivables = false }: { receivables?: boolean }) {
         />
       )}
       {query.data && !visible.length && (
-        <Card>
-          <AppText style={{ fontFamily: 'DMSansBold' }}>
-            {items.length
+        <EmptyState
+          icon={receivables ? 'repeat' : 'plan'}
+          title={
+            items.length
               ? 'No matching records'
               : receivables
                 ? 'Keep track of what should come back'
-                : 'A clear view of your debts'}
-          </AppText>
-          <AppText tone="muted">
-            {items.length
+                : 'A clear view of your debts'
+          }
+          message={
+            items.length
               ? 'Try another status or name.'
               : receivables
                 ? 'Track an expected receipt, then record each amount as it arrives. No money is transferred by Finora.'
-                : 'Add money borrowed or lent, then track repayments here. No money is transferred by Finora.'}
-          </AppText>
-        </Card>
+                : 'Add money borrowed or lent, then track repayments here. No money is transferred by Finora.'
+          }
+        />
       )}
       {visible.map((debt) => (
         <Pressable
