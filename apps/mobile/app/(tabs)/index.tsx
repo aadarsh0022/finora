@@ -24,7 +24,9 @@ import { useUi } from '../../src/stores/ui';
 export default function Home() {
   const { user } = useApp();
   const theme = useTheme();
-  const firstName = user?.name.trim().split(/\s+/)[0];
+  // "aadarsh c" or "Carl Doe" greets as Aadarsh / Carl.
+  const rawFirst = user?.name.trim().split(/\s+/)[0];
+  const firstName = rawFirst ? rawFirst.charAt(0).toUpperCase() + rawFirst.slice(1) : undefined;
   const money = useMoney();
   const month = calendarDate(new Date(), user?.preferences.timezone ?? 'Asia/Kolkata').slice(0, 7);
   const overview = useRead(`reports/overview?month=${month}`, overviewSchema);

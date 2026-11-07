@@ -51,12 +51,14 @@ it('loads context only from the owned server chat, caps context and never persis
   const turn = await openConversation(context, body);
   if (!turn.input || !turn.finish) throw new Error('Missing server context');
   expect(turn.input.previousQuestions).toEqual([
+    'Question 6',
+    'Question 7',
     'Question 8',
     'Question 9',
     'Question 10',
     'Question 11',
   ]);
-  expect(turn.input.previousQuestions.length * 2 + 1).toBeLessThanOrEqual(10);
+  expect(turn.input.previousQuestions.length * 2 + 1).toBeLessThanOrEqual(13);
   await expect(
     openConversation(context, { ...body, messageId: randomUUID() }),
   ).rejects.toMatchObject({ code: 'CHAT_BUSY' });

@@ -2,6 +2,7 @@ import { z, type ZodType } from 'zod';
 import {
   budgetStatusSchema,
   debtListSchema,
+  emiOverviewSchema,
   goalProgressSchema,
   monthlyLimitStatusSchema,
   recurringOccurrenceSchema,
@@ -26,6 +27,8 @@ export function warmSpecs(timezone: string, now = new Date()): [string, ZodType]
     ['recurring', z.array(recurringRuleSchema)],
     ['recurring-occurrences?status=PENDING', z.array(recurringOccurrenceSchema)],
     ['debts', debtListSchema],
+    // Loans & EMIs and Income open offline once they have been loaded or warmed.
+    ['emi', emiOverviewSchema],
     [`budgets?month=${month}`, z.array(budgetStatusSchema)],
     [`budgets/total?month=${month}`, monthlyLimitStatusSchema],
     ['reports/summary?range=current-month', reportSummarySchema],
