@@ -149,27 +149,23 @@ export async function updateTransaction(
       { session },
     );
     if (emiPayment)
-      await db
-        .collection('emi_payments')
-        .updateOne(
-          { userId: context.user.id, id: emiPayment.id },
-          {
-            $set: { amountPaidMinor: record.amountMinor, updatedAt: record.updatedAt },
-            $inc: { version: 1 },
-          },
-          { session },
-        );
+      await db.collection('emi_payments').updateOne(
+        { userId: context.user.id, id: emiPayment.id },
+        {
+          $set: { amountPaidMinor: record.amountMinor, updatedAt: record.updatedAt },
+          $inc: { version: 1 },
+        },
+        { session },
+      );
     if (emiExtra)
-      await db
-        .collection('emi_extra_payments')
-        .updateOne(
-          { userId: context.user.id, id: emiExtra.id },
-          {
-            $set: { amountMinor: record.amountMinor, updatedAt: record.updatedAt },
-            $inc: { version: 1 },
-          },
-          { session },
-        );
+      await db.collection('emi_extra_payments').updateOne(
+        { userId: context.user.id, id: emiExtra.id },
+        {
+          $set: { amountMinor: record.amountMinor, updatedAt: record.updatedAt },
+          $inc: { version: 1 },
+        },
+        { session },
+      );
     if (occurrence)
       await db.collection('recurring_occurrences').updateOne(
         { userId: context.user.id, id: occurrence.id },
