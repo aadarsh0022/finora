@@ -465,6 +465,7 @@ export function LoanFormSheet({
 }) {
   const { currency } = useMoneyFormat();
   const write = useEmiWrite();
+  const theme = useTheme();
   const [form, setForm] = useState({ ...blankLoan, start: month });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<unknown>();
@@ -528,13 +529,13 @@ export function LoanFormSheet({
   }
   return (
     <FlowSheet
-      title={loan ? 'Edit loan' : 'Add a loan'}
+      title={loan ? 'Edit debt' : 'Add debt'}
       visible={visible}
       onClose={onClose}
       busy={busy}
       footer={
         <AppButton
-          title={loan ? 'Save changes' : 'Add loan'}
+          title={loan ? 'Save changes' : 'Add debt'}
           loading={busy}
           disabled={!form.name.trim() || !form.amount.trim()}
           onPress={() => void save()}
@@ -545,33 +546,13 @@ export function LoanFormSheet({
         label="Name"
         value={form.name}
         onChangeText={(v) => set('name', v)}
-        placeholder="Home loan"
+        placeholder="e.g. SBI Personal Loan"
       />
       <Field
         label={`Monthly EMI (${currency})`}
         value={form.amount}
         onChangeText={(v) => set('amount', v)}
         keyboardType="decimal-pad"
-      />
-      <AppText style={{ fontFamily: 'DMSansBold', fontSize: 14 }}>First EMI</AppText>
-      <MonthPicker label="First EMI month" value={form.start} onChange={(v) => set('start', v)} />
-      <Choice
-        label="Last EMI"
-        value={form.ongoing ? 'ongoing' : 'date'}
-        onChange={(v) => set('ongoing', v === 'ongoing')}
-        options={[
-          { value: 'date', label: 'On a month' },
-          { value: 'ongoing', label: 'No end date' },
-        ]}
-      />
-      {!form.ongoing && (
-        <MonthPicker label="Last EMI month" value={form.end} onChange={(v) => set('end', v)} />
-      )}
-      <Field
-        label="Due day of the month"
-        value={form.dueDay}
-        onChangeText={(v) => set('dueDay', v.replace(/\D/g, '').slice(0, 2))}
-        keyboardType="number-pad"
       />
       <Choice
         label="Size"
@@ -582,18 +563,64 @@ export function LoanFormSheet({
           { value: 'large', label: 'Large' },
         ]}
       />
+      <AppText style={{ fontFamily: 'DMSansBold', fontSize: 14 }}>Start month</AppText>
+      <MonthPicker label="Start month" value={form.start} onChange={(v) => set('start', v)} />
       <Field
-        label="Interest rate % (optional)"
+        label="Due day of the month"
+        value={form.dueDay}
+        onChangeText={(v) => set('dueDay', v.replace(/D/g, '').slice(0, 2))}
+        keyboardType="number-pad"
+      />
+      <Field
+        label="Interest rate % (optional, for Avalanche ranking)"
         value={form.rate}
         onChangeText={(v) => set('rate', v)}
         keyboardType="decimal-pad"
+        placeholder="e.g. 12.5"
       />
-      <Field
-        label={`Principal outstanding (${currency}, optional)`}
-        value={form.principal}
-        onChangeText={(v) => set('principal', v)}
-        keyboardType="decimal-pad"
-      />
+      <View style={{ gap: 4 }}>
+        <Field
+          label={`Remaining principal (${currency}, optional)`}
+          value={form.principal}
+          onChangeText={(v) => set('principal', v)}
+          keyboardType="decimal-pad"
+          placeholder="Outstanding amount from the lender's app"
+        />
+        <AppText tone="muted" style={{ fontSize: 12 }}>
+          {loan?.principalAsOf
+            ? `Last updated ${loan.principalAsOf}. Change it when your lender shows a new figure.`
+            : 'What you still owe on the loan itself, not counting future interest.'}
+        </AppText>
+      </View>
+      <Pressable
+        accessibilityRole="checkbox"
+        accessibilityState={{ checked: form.ongoing }}
+        accessibilityLabel="Ongoing (no end date)"
+        onPress={() => set('ongoing', !form.ongoing)}
+        style={{ flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 36 }}
+      >
+        <View
+          style={{
+            width: 22,
+            height: 22,
+            borderRadius: 6,
+            borderWidth: 1.5,
+            borderColor: form.ongoing ? theme.accent : theme.border,
+            backgroundColor: form.ongoing ? theme.accent : 'transparent',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          {form.ongoing && <Icon name="check" size={14} color={theme.onAccent} />}
+        </View>
+        <AppText style={{ fontFamily: 'DMSansBold', fontSize: 14 }}>Ongoing (no end date)</AppText>
+      </Pressable>
+      {!form.ongoing && (
+        <>
+          <AppText style={{ fontFamily: 'DMSansBold', fontSize: 14 }}>End month</AppText>
+          <MonthPicker label="End month" value={form.end} onChange={(v) => set('end', v)} />
+        </>
+      )}
       {!!error && <Feedback error={error} />}
     </FlowSheet>
   );
