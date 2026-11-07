@@ -158,8 +158,9 @@ export function DebtList({ receivables = false }: { receivables?: boolean }) {
       )}
       <ScrollView
         horizontal
+        style={{ flexGrow: 0 }}
         showsHorizontalScrollIndicator={false}
-        contentContainerStyle={{ gap: 8 }}
+        contentContainerStyle={{ gap: 8, alignItems: 'center' }}
       >
         {statuses.map(([value, label]) => (
           <Pressable
