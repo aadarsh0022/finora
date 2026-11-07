@@ -3,12 +3,13 @@ import { Pressable, ScrollView, View } from 'react-native';
 import { z } from 'zod';
 import {
   emiIncomePeriodSchema,
+  emiExtraPaymentSchema,
   emiLoanSchema,
   emiPaymentSchema,
   type EmiIncomePeriodDto,
   type EmiLoanDto,
 } from '@finora/contracts';
-import { formatMoney, parseMoney } from '@finora/finance-core';
+import { calendarDate, formatMoney, parseMoney } from '@finora/finance-core';
 import {
   getDebtMonthHistory,
   getExtraPaymentsTotal,
@@ -18,7 +19,7 @@ import {
 } from '@finora/finance-core';
 import { AppButton, AppText, Card, Choice, Feedback, Field } from '../../components/ui';
 import { Icon } from '../../components/design';
-import { FlowSheet, MonthPicker, SelectField } from '../../components/flow';
+import { DateField, FlowSheet, MonthPicker, SelectField } from '../../components/flow';
 import { useApp } from '../../providers/app-provider';
 import { useTheme } from '../../theme';
 import { accountsSchema, categoriesSchema, useRead } from '../finance/shared';
@@ -115,7 +116,7 @@ export function LoanHistorySheet({
   const theme = useTheme();
   const { user } = useApp();
   const { money, currency, locale } = useMoneyFormat();
-  const { loans, rawPayments, extras, debts, payments, month } = useLoans();
+  const { loans, rawPayments, rawExtras, extras, debts, payments, month } = useLoans();
   const write = useEmiWrite();
   const separate = user?.preferences.keepDebtSeparate ?? false;
   const loan = loans.find((item) => item.id === loanId);
@@ -131,6 +132,12 @@ export function LoanHistorySheet({
   const [amount, setAmount] = useState('');
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<unknown>();
+  const [prepayOpen, setPrepayOpen] = useState(false);
+  const [prepayAmount, setPrepayAmount] = useState('');
+  const [prepayDate, setPrepayDate] = useState(
+    calendarDate(new Date(), user?.preferences.timezone ?? 'Asia/Kolkata'),
+  );
+  const [prepayNote, setPrepayNote] = useState('');
   useEffect(() => {
     if (!accountId && activeAccounts[0]) setAccountId(activeAccounts[0].id);
     if (!categoryId && expenseCategories.length) {
@@ -192,6 +199,44 @@ export function LoanHistorySheet({
       setError(new Error('Enter an amount greater than zero.'));
     }
   }
+  async function addPrepayment() {
+    setBusy('prepay');
+    setError(undefined);
+    try {
+      await write('POST', `emi/loans/${loan!.id}/extra-payments`, emiExtraPaymentSchema, {
+        amountMinor: parseMoney(prepayAmount.trim(), currency),
+        date: prepayDate,
+        note: prepayNote.trim(),
+        ...(separate
+          ? {}
+          : { accountId: accountId || undefined, categoryId: categoryId || undefined }),
+      });
+      setPrepayOpen(false);
+      setPrepayAmount('');
+      setPrepayNote('');
+    } catch (failure) {
+      setError(failure);
+    } finally {
+      setBusy(null);
+    }
+  }
+  async function removePrepayment(id: string, version: number) {
+    setBusy(id);
+    setError(undefined);
+    try {
+      await write('DELETE', `emi/extra-payments/${id}`, z.unknown(), {
+        version,
+        confirmation: 'DELETE',
+      });
+    } catch (failure) {
+      setError(failure);
+    } finally {
+      setBusy(null);
+    }
+  }
+  const loanPrepayments = rawExtras
+    .filter((e) => e.loanId === loan.id)
+    .sort((a, b) => b.date.localeCompare(a.date));
   const range = `${monthLabel(loan.startMonth, locale)} to ${loan.endMonth ? monthLabel(loan.endMonth, locale) : 'ongoing'}`;
   return (
     <FlowSheet title={loan.name} visible={!!loanId} onClose={onClose}>
@@ -226,6 +271,65 @@ export function LoanHistorySheet({
           />
         </Card>
       )}
+      <View style={{ gap: 8 }}>
+        <View
+          style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}
+        >
+          <AppText style={{ fontFamily: 'DMSansBold', fontSize: 15 }}>Prepayments</AppText>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={prepayOpen ? 'Cancel prepayment' : 'Add prepayment'}
+            onPress={() => setPrepayOpen(!prepayOpen)}
+            hitSlop={8}
+          >
+            <AppText tone="accent" style={{ fontFamily: 'DMSansBold', fontSize: 13 }}>
+              {prepayOpen ? 'Cancel' : '+ Add'}
+            </AppText>
+          </Pressable>
+        </View>
+        {prepayOpen && (
+          <View style={{ gap: 8 }}>
+            <Field
+              label="Amount"
+              value={prepayAmount}
+              onChangeText={setPrepayAmount}
+              keyboardType="decimal-pad"
+            />
+            <DateField label="Date" value={prepayDate} onChange={setPrepayDate} />
+            <Field label="Note (optional)" value={prepayNote} onChangeText={setPrepayNote} />
+            <AppButton
+              title="Save prepayment"
+              loading={busy === 'prepay'}
+              onPress={() => void addPrepayment()}
+            />
+          </View>
+        )}
+        {!loanPrepayments.length && !prepayOpen && (
+          <AppText tone="muted" style={{ fontSize: 13 }}>
+            Lump-sum payments that reduce what is left.
+          </AppText>
+        )}
+        {loanPrepayments.map((extra) => (
+          <View key={extra.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+            <View style={{ flex: 1 }}>
+              <AppText style={{ fontFamily: 'DMSansBold', fontSize: 14 }}>
+                {money(extra.amountMinor)}
+              </AppText>
+              <AppText tone="muted" style={{ fontSize: 12 }} numberOfLines={1}>
+                {extra.date}
+                {extra.note ? ` · ${extra.note}` : ''}
+              </AppText>
+            </View>
+            <RoundButton
+              label={`Delete prepayment of ${money(extra.amountMinor)}`}
+              disabled={busy === extra.id}
+              onPress={() => void removePrepayment(extra.id, extra.version)}
+            >
+              <Icon name="expense" size={16} color={theme.danger} />
+            </RoundButton>
+          </View>
+        ))}
+      </View>
       {!!error && <Feedback error={error} />}
       <ScrollView style={{ maxHeight: 460 }} nestedScrollEnabled>
         {history.map((entry) => {

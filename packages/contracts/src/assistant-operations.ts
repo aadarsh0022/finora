@@ -15,6 +15,15 @@ export const assistantReadFeatureSchema = z.enum([
   'preferences',
   'insights',
   'ai_usage',
+  'emi_summary',
+  'emi_loans',
+  'emi_history',
+  'emi_upcoming',
+  'emi_payoff',
+  'emi_schedule',
+  'emi_forecast',
+  'emi_income',
+  'emi_prepayments',
 ]);
 export const assistantRecordsArgsSchema = z
   .object({
@@ -67,6 +76,18 @@ export const assistantOperationSchema = z.enum([
   'generate_recurring',
   'confirm_occurrence',
   'update_preferences',
+  'create_emi_loan',
+  'update_emi_loan',
+  'archive_emi_loan',
+  'restore_emi_loan',
+  'delete_emi_loan',
+  'pay_emi',
+  'unpay_emi',
+  'add_emi_prepayment',
+  'delete_emi_prepayment',
+  'create_emi_income',
+  'update_emi_income',
+  'delete_emi_income',
 ]);
 export const assistantValueFieldSchema = z.enum([
   'name',
@@ -101,6 +122,13 @@ export const assistantValueFieldSchema = z.enum([
   'firstDayOfWeek',
   'preferredDateFormat',
   'baseCurrency',
+  'monthlyAmount',
+  'principalRemaining',
+  'startMonth',
+  'endMonth',
+  'dueDay',
+  'loanTag',
+  'interestRatePct',
 ]);
 export const assistantChangeArgsSchema = z
   .object({

@@ -1,3 +1,4 @@
+import type { CreateRegistration } from '../../components/design';
 import { Disclosure, EmptyState } from '../../components/design';
 import { useTheme } from '../../theme';
 import { Chevron } from '../../components/chevron';
@@ -12,7 +13,7 @@ import {
   type Goal,
 } from '@finora/contracts';
 import { calendarDate, parseMoney } from '@finora/finance-core';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { Pressable, View } from 'react-native';
 import { z } from 'zod';
 import { AppButton, AppText, Card, Feedback, Field, Loading } from '../../components/ui';
@@ -25,13 +26,30 @@ import { decimalAmount, useMoney, useRead } from '../finance/shared';
 import { confirmDelete, confirmDiscard, deletedSchema, failureMessage } from './common';
 
 const goalDetailSchema = goalProgressSchema.extend({ contributions: z.array(contributionSchema) });
-export function Goals({ onEditing }: { onEditing: (editing: boolean) => void }) {
+export function Goals({
+  onEditing,
+  onCreate,
+}: {
+  onEditing: (editing: boolean) => void;
+  onCreate?: (action: CreateRegistration | null) => void;
+}) {
   const query = useRead('goals', z.array(goalProgressSchema));
   const [selected, setSelected] = useState<string | null>(null);
   function select(id: string | null) {
     setSelected(id);
     onEditing(id !== null);
   }
+  const createRef = useRef(() => select('new'));
+  createRef.current = () => select('new');
+  const createBlocked = false;
+  useEffect(() => {
+    onCreate?.({
+      label: 'Create savings goal',
+      run: () => createRef.current(),
+      disabled: createBlocked,
+    });
+    return () => onCreate?.(null);
+  }, [onCreate, createBlocked]);
   if (selected === 'new') return <GoalForm done={() => select(null)} />;
   if (selected) return <GoalDetail id={selected} done={() => select(null)} />;
   return (
@@ -39,7 +57,6 @@ export function Goals({ onEditing }: { onEditing: (editing: boolean) => void }) 
       <AppText tone="muted" style={{ fontSize: 14 }}>
         Track savings toward your next milestone.
       </AppText>
-      <AppButton title="Create savings goal" onPress={() => select('new')} />
       {query.isPending && <Loading variant="goals" />}
       {query.isError && (
         <Feedback

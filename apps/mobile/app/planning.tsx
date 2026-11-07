@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useLocalSearchParams } from 'expo-router';
 import { Pressable, View } from 'react-native';
 import { AppText, Screen } from '../src/components/ui';
+import { CreateAction, type CreateRegistration } from '../src/components/design';
 import { useTheme } from '../src/theme';
 import { Budgets } from '../src/features/planning/budgets';
 import { Goals } from '../src/features/planning/goals';
@@ -14,9 +15,19 @@ export default function Planning() {
     params.mode === 'goals' || params.mode === 'recurring' ? params.mode : 'budgets',
   );
   const [editing, setEditing] = useState(false);
+  const [create, setCreate] = useState<CreateRegistration | null>(null);
   return (
     <Screen
       includeTopInset={false}
+      floatingAction={
+        !editing && create ? (
+          <CreateAction
+            label={create.label}
+            onPress={create.run}
+            disabled={create.disabled ?? false}
+          />
+        ) : undefined
+      }
       title={
         editing
           ? undefined
@@ -80,11 +91,11 @@ export default function Planning() {
         </View>
       )}
       {mode === 'budgets' ? (
-        <Budgets onEditing={setEditing} />
+        <Budgets onEditing={setEditing} onCreate={setCreate} />
       ) : mode === 'goals' ? (
-        <Goals onEditing={setEditing} />
+        <Goals onEditing={setEditing} onCreate={setCreate} />
       ) : (
-        <Recurring onEditing={setEditing} />
+        <Recurring onEditing={setEditing} onCreate={setCreate} />
       )}
     </Screen>
   );

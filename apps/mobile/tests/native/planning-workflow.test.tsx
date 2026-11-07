@@ -12,10 +12,31 @@ import {
   userSchema,
 } from '@finora/contracts';
 import { calendarDate } from '@finora/finance-core';
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
+import { CreateAction, type CreateRegistration } from '../../src/components/design';
 import { Budgets } from '../../src/features/planning/budgets';
 import { Goals } from '../../src/features/planning/goals';
 import { Recurring } from '../../src/features/planning/recurring';
+/** Hosts a planning tab with the bottom-right create button the planning screen provides. */
+function WithCreate({
+  children,
+}: {
+  children: (onCreate: (action: CreateRegistration | null) => void) => ReactNode;
+}) {
+  const [create, setCreate] = useState<CreateRegistration | null>(null);
+  return (
+    <>
+      {children(setCreate)}
+      {create ? (
+        <CreateAction
+          label={create.label}
+          onPress={create.run}
+          disabled={create.disabled ?? false}
+        />
+      ) : null}
+    </>
+  );
+}
 import { ApiClient, type HttpTransport } from '../../src/api/client';
 import { useApp } from '../../src/providers/app-provider';
 
@@ -44,7 +65,9 @@ const category = categorySchema.parse({
 });
 async function mount(
   transport: HttpTransport,
-  content: ReactNode = <Budgets onEditing={jest.fn()} />,
+  content: ReactNode = (
+    <WithCreate>{(onCreate) => <Budgets onEditing={jest.fn()} onCreate={onCreate} />}</WithCreate>
+  ),
 ) {
   const api = new ApiClient(
     'https://native.test',
@@ -241,7 +264,9 @@ test('checking recurring reminders does not post money until explicit review and
                   : [];
       return Response.json({ success: true, data });
     },
-    <Recurring onEditing={jest.fn()} />,
+    <WithCreate>
+      {(onCreate) => <Recurring onEditing={jest.fn()} onCreate={onCreate} />}
+    </WithCreate>,
   );
   await screen.findByText('No upcoming items');
   expect(writes).toHaveLength(0);
@@ -306,7 +331,7 @@ test('opens goal progress and records calendar-selected saved money without ledg
         data: path.endsWith('/goals') ? [goal] : { ...goal, contributions: [] },
       });
     },
-    <Goals onEditing={jest.fn()} />,
+    <WithCreate>{(onCreate) => <Goals onEditing={jest.fn()} onCreate={onCreate} />}</WithCreate>,
   );
   await fireEvent.press(await screen.findByRole('button', { name: 'Open Rainy day goal' }));
   expect(screen.queryByLabelText('Contribution (INR)')).toBeNull();
